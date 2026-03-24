@@ -12,12 +12,16 @@ const roles: { key: UserRole; label: string; icon: typeof Truck; desc: string }[
 ]
 
 const storeTypes = [
-  { value: 'STARBUCKS', label: '스타벅스' },
-  { value: 'FRANCHISE', label: '프랜차이즈' },
-  { value: 'INDIVIDUAL', label: '개인카페' },
+  { value: 'FRANCHISE', label: '프랜차이즈', icon: '◆', desc: '브랜드 가맹점' },
+  { value: 'INDIVIDUAL', label: '개인카페', icon: '●', desc: '개인 운영 매장' },
 ]
 
-const truckTypes = ['1톤 트럭', '1.5톤 트럭', '2.5톤 트럭', '5톤 트럭']
+const truckTypes = [
+  { value: '1톤 트럭', label: '1톤' },
+  { value: '1.5톤 트럭', label: '1.5톤' },
+  { value: '2.5톤 트럭', label: '2.5톤' },
+  { value: '5톤 트럭', label: '5톤' },
+]
 
 export default function SignupPage() {
   const navigate = useNavigate()
@@ -259,17 +263,28 @@ export default function SignupPage() {
                   animate={{ opacity: 1, height: 'auto' }}
                   className="space-y-3 pt-2"
                 >
-                  <div className="bg-white/10 rounded-xl px-3 py-1">
-                    <p className="text-[10px] text-white/40 pt-1">매장 유형</p>
-                    <select
-                      value={storeType}
-                      onChange={(e) => setStoreType(e.target.value)}
-                      className="w-full py-2 bg-transparent text-white text-sm outline-none"
-                    >
-                      {storeTypes.map(t => (
-                        <option key={t.value} value={t.value} className="text-gray-900">{t.label}</option>
-                      ))}
-                    </select>
+                  <p className="text-xs text-white/50 font-medium">매장 유형</p>
+                  <div className="flex gap-2">
+                    {storeTypes.map(t => {
+                      const isActive = storeType === t.value
+                      return (
+                        <motion.button
+                          key={t.value}
+                          type="button"
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setStoreType(t.value)}
+                          className={`flex-1 flex flex-col items-center gap-1.5 py-4 rounded-2xl border transition-all duration-300 ${
+                            isActive
+                              ? 'bg-white/20 border-white/50 shadow-lg shadow-white/10'
+                              : 'bg-white/5 border-white/10'
+                          }`}
+                        >
+                          <span className={`text-xl ${isActive ? 'opacity-100' : 'opacity-40'}`}>{t.icon}</span>
+                          <span className={`text-sm font-bold ${isActive ? 'text-white' : 'text-white/40'}`}>{t.label}</span>
+                          <span className={`text-[10px] ${isActive ? 'text-white/70' : 'text-white/30'}`}>{t.desc}</span>
+                        </motion.button>
+                      )
+                    })}
                   </div>
                   <div className="relative">
                     <Store className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
@@ -312,17 +327,26 @@ export default function SignupPage() {
                       className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
                     />
                   </div>
-                  <div className="bg-white/10 rounded-xl px-3 py-1">
-                    <p className="text-[10px] text-white/40 pt-1">차량 종류</p>
-                    <select
-                      value={truckType}
-                      onChange={(e) => setTruckType(e.target.value)}
-                      className="w-full py-2 bg-transparent text-white text-sm outline-none"
-                    >
-                      {truckTypes.map(t => (
-                        <option key={t} value={t} className="text-gray-900">{t}</option>
-                      ))}
-                    </select>
+                  <p className="text-xs text-white/50 font-medium">차량 종류</p>
+                  <div className="flex gap-2">
+                    {truckTypes.map(t => {
+                      const isActive = truckType === t.value
+                      return (
+                        <motion.button
+                          key={t.value}
+                          type="button"
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => setTruckType(t.value)}
+                          className={`flex-1 py-3 rounded-xl border text-center transition-all duration-300 ${
+                            isActive
+                              ? 'bg-white/20 border-white/50 shadow-lg shadow-white/10'
+                              : 'bg-white/5 border-white/10'
+                          }`}
+                        >
+                          <span className={`text-sm font-bold ${isActive ? 'text-white' : 'text-white/40'}`}>{t.label}</span>
+                        </motion.button>
+                      )
+                    })}
                   </div>
                   <div className="relative">
                     <Truck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
