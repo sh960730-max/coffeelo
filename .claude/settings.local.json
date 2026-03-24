@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm create:*)",
+      "Bash(where node:*)",
+      "Bash(where npm:*)",
+      "Bash(curl -L -o /tmp/node-setup.msi \"https://nodejs.org/dist/v20.18.3/node-v20.18.3-x64.msi\")",
+      "Bash(powershell.exe -Command \"Start-Process msiexec.exe -ArgumentList ''/i'',''C:\\\\Users\\\\SAMSUNG\\\\AppData\\\\Local\\\\Temp\\\\node-setup.msi'',''/qn'',''/norestart'' -Verb RunAs -Wait\")",
+      "Bash(export PATH=\"/c/Program Files/nodejs:$PATH\")",
+      "Bash(npm --version)",
+      "Bash(npx create-vite@6.1.0 . --template react-ts)",
+      "Bash(mkdir -p /c/Users/SAMSUNG/AppData/Roaming/npm)",
+      "Bash(npx --yes create-vite@6.1.0 . --template react-ts)",
+      "Bash(npm install:*)",
+      "mcp__Claude_Preview__preview_start",
+      "Bash(cygpath -w \"/c/Program Files/nodejs/npm.cmd\")",
+      "Bash(npm ls:*)",
+      "Bash(export 'PATH=/c/Program Files/nodejs:/c/Program Files/Git/bin:$PATH')",
+      "Bash(git config:*)",
+      "Bash(gh auth:*)",
+      "Bash(git --version)",
+      "Bash(git init:*)",
+      "Bash(git remote:*)",
+      "Bash(git add:*)"
+    ]
+  }
+}
