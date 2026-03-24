@@ -33,7 +33,8 @@
       "Bash(curl -s -H \"Cache-Control: no-cache\" -H \"Pragma: no-cache\" \"https://coffeelo.vercel.app\")",
       "Bash(curl -s \"https://coffeelo.vercel.app/assets/index-BwDRVeuB.js\")",
       "Bash(curl -s -X POST \"https://ysofjeniptffnxfrddns.supabase.co/auth/v1/token?grant_type=password\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8\" -H \"Content-Type: application/json\" -d '{\"\"\"\"email\"\"\"\":\"\"\"\"01012345678@coffeelo.kr\"\"\"\",\"\"\"\"password\"\"\"\":\"\"\"\"test1234\"\"\"\"}')",
-      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''SUCCESS'''' if d.get\\(''''access_token''''\\) else d.get\\(''''error_description'''',''''UNKNOWN''''\\)\\)\")"
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(''''SUCCESS'''' if d.get\\(''''access_token''''\\) else d.get\\(''''error_description'''',''''UNKNOWN''''\\)\\)\")",
+      "Bash(grep -oE '.{5}ysofjeniptffnxfrddns.{30}' dist/assets/index-*.js)"
     ]
   }
 }
