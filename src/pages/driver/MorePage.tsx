@@ -26,8 +26,8 @@ const menuSections = [
   {
     title: '약관 및 정보',
     items: [
-      { icon: FileText, label: '이용약관' },
-      { icon: Shield, label: '개인정보처리방침' },
+      { icon: FileText, label: '이용약관', desc: '' },
+      { icon: Shield, label: '개인정보처리방침', desc: '' },
     ],
   },
 ]
