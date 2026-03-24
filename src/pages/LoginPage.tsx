@@ -17,7 +17,8 @@ export default function LoginPage() {
 
     const result = await login(phone, password)
     if (result.error) {
-      setError('전화번호 또는 비밀번호가 올바르지 않습니다.')
+      setError(result.error)
+      console.error('Login error:', result.error)
     }
     setIsLoading(false)
   }
