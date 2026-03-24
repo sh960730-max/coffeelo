@@ -1,10 +1,19 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Coffee, Phone, Lock, ArrowRight, Leaf } from 'lucide-react'
-import { useAuth } from '../contexts/AuthContext'
+import { Coffee, Phone, Lock, ArrowRight, Leaf, Truck, Store, Building2 } from 'lucide-react'
+import { useAuth, type UserRole } from '../contexts/AuthContext'
+
+const roles: { key: UserRole; label: string; icon: typeof Truck; desc: string }[] = [
+  { key: 'driver', label: '기사', icon: Truck, desc: '수거 기사' },
+  { key: 'cafe', label: '점주', icon: Store, desc: '카페 점주' },
+  { key: 'company', label: '관리자', icon: Building2, desc: '소속회사' },
+]
 
 export default function LoginPage() {
   const { login } = useAuth()
+  const navigate = useNavigate()
+  const [selectedRole, setSelectedRole] = useState<UserRole>('driver')
   const [phone, setPhone] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -15,10 +24,17 @@ export default function LoginPage() {
     setError('')
     setIsLoading(true)
 
-    const result = await login(phone, password)
+    const result = await login(phone, password, selectedRole)
     if (result.error) {
       setError(result.error)
       console.error('Login error:', result.error)
+    } else {
+      const routeMap: Record<UserRole, string> = {
+        driver: '/driver',
+        cafe: '/cafe',
+        company: '/company',
+      }
+      navigate(routeMap[selectedRole])
     }
     setIsLoading(false)
   }
@@ -30,17 +46,47 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: -30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6 }}
-        className="text-center mb-10"
+        className="text-center mb-8"
       >
         <div className="w-20 h-20 bg-white/10 backdrop-blur rounded-3xl flex items-center justify-center mx-auto mb-4">
           <Coffee className="w-10 h-10 text-white" />
         </div>
         <h1 className="text-3xl font-bold text-white tracking-tight">커피로</h1>
-        <p className="text-sm text-white/60 mt-1">Coffee LO · 기사용</p>
+        <p className="text-sm text-white/60 mt-1">Coffee LO</p>
         <div className="flex items-center justify-center gap-1 mt-2">
           <Leaf className="w-3.5 h-3.5 text-green-300" />
           <span className="text-xs text-green-300 font-medium">커피찌꺼기를 가치있게</span>
         </div>
+      </motion.div>
+
+      {/* 역할 선택 탭 */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="w-full max-w-sm flex items-center gap-2 mb-5"
+      >
+        {roles.map((r) => {
+          const Icon = r.icon
+          const isActive = selectedRole === r.key
+          return (
+            <motion.button
+              key={r.key}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setSelectedRole(r.key)}
+              className={`flex-1 flex flex-col items-center gap-1 py-3 rounded-2xl border transition-all duration-300 ${
+                isActive
+                  ? 'bg-white/20 border-white/40'
+                  : 'bg-white/5 border-white/10'
+              }`}
+            >
+              <Icon className={`w-5 h-5 ${isActive ? 'text-white' : 'text-white/40'}`} />
+              <span className={`text-xs font-semibold ${isActive ? 'text-white' : 'text-white/40'}`}>
+                {r.label}
+              </span>
+            </motion.button>
+          )
+        })}
       </motion.div>
 
       {/* 로그인 폼 */}
@@ -95,7 +141,7 @@ export default function LoginPage() {
             <div className="w-5 h-5 border-2 border-eco-green/30 border-t-eco-green rounded-full animate-spin" />
           ) : (
             <>
-              로그인
+              {selectedRole === 'driver' ? '기사' : selectedRole === 'cafe' ? '점주' : '관리자'} 로그인
               <ArrowRight className="w-5 h-5" />
             </>
           )}

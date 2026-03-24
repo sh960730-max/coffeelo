@@ -1,25 +1,25 @@
 import { motion } from 'framer-motion'
 import {
-  User, Truck, Bell, Megaphone, HelpCircle, MessageCircle,
-  FileText, Shield, LogOut, ChevronRight, Coffee
+  Store, Bell, Megaphone, HelpCircle, MessageCircle,
+  FileText, Shield, LogOut, ChevronRight, Coffee, MapPin
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { dummyAnnouncements } from '../../lib/dummyData'
+import type { Cafe } from '../../lib/database.types'
 
 const menuSections = [
   {
-    title: '내 정보',
+    title: '매장 관리',
     items: [
-      { icon: User, label: '내 정보 수정', desc: '이름, 연락처 변경' },
-      { icon: Truck, label: '차량 정보', desc: '차종, 번호판' },
-      { icon: Bell, label: '알림 설정', desc: '푸시 알림, 콜 알림음' },
+      { icon: Store, label: '매장 정보', desc: '매장명, 주소, 연락처' },
+      { icon: Bell, label: '알림 설정', desc: '수거 알림, 정산 알림' },
     ],
   },
   {
     title: '고객지원',
     items: [
       { icon: Megaphone, label: '공지사항', desc: `${dummyAnnouncements.length}개의 공지` },
-      { icon: HelpCircle, label: '자주 묻는 질문', desc: 'FAQ' },
+      { icon: HelpCircle, label: 'FAQ', desc: '자주 묻는 질문' },
       { icon: MessageCircle, label: '문의하기', desc: '카카오톡 채널' },
     ],
   },
@@ -32,9 +32,9 @@ const menuSections = [
   },
 ]
 
-export default function MorePage() {
+export default function CafeMorePage() {
   const { user, logout } = useAuth()
-  const driver = user as any
+  const cafe = user as Cafe | null
 
   return (
     <div>
@@ -52,38 +52,35 @@ export default function MorePage() {
         >
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-              <Truck className="w-8 h-8 text-white" />
+              <Coffee className="w-8 h-8 text-white" />
             </div>
             <div className="text-white">
-              <h2 className="text-lg font-bold">{driver?.name || '기사'} 님</h2>
-              <p className="text-sm text-white/70">{driver?.company}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs text-white/60">{driver?.truck_type}</span>
-                {driver?.license_plate && (
-                  <>
-                    <span className="text-white/30">·</span>
-                    <span className="text-xs text-white/60">{driver?.license_plate}</span>
-                  </>
-                )}
+              <h2 className="text-lg font-bold">{cafe?.name || '스타벅스 강남역점'}</h2>
+              <div className="flex items-center gap-1 mt-1">
+                <MapPin className="w-3 h-3 text-white/60" />
+                <p className="text-xs text-white/60">{cafe?.address || '서울 강남구 강남대로 396'}</p>
               </div>
+              {cafe?.phone && (
+                <p className="text-xs text-white/50 mt-0.5">{cafe.phone}</p>
+              )}
             </div>
           </div>
 
-          {/* 월간 실적 미니 요약 */}
+          {/* 월간 요약 */}
           <div className="flex items-center justify-around mt-4 pt-4 border-t border-white/20">
             <div className="text-center">
-              <p className="text-lg font-bold text-white">247</p>
+              <p className="text-lg font-bold text-white">12</p>
               <p className="text-[10px] text-white/60">이번 달 수거</p>
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div className="text-center">
-              <p className="text-lg font-bold text-white">18.7t</p>
+              <p className="text-lg font-bold text-white">80kg</p>
               <p className="text-[10px] text-white/60">총 수거량</p>
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div className="text-center">
-              <p className="text-lg font-bold text-white">98%</p>
-              <p className="text-[10px] text-white/60">완료율</p>
+              <p className="text-lg font-bold text-white">4.8만</p>
+              <p className="text-[10px] text-white/60">절감 금액</p>
             </div>
           </div>
         </motion.div>

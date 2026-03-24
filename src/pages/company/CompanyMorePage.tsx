@@ -1,26 +1,25 @@
 import { motion } from 'framer-motion'
 import {
-  User, Truck, Bell, Megaphone, HelpCircle, MessageCircle,
-  FileText, Shield, LogOut, ChevronRight, Coffee
+  Building2, Bell, FileText, LogOut, ChevronRight, Coffee,
+  MapPin, Phone, Shield, Store, Megaphone, Users
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
-import { dummyAnnouncements } from '../../lib/dummyData'
+import { useNavigate } from 'react-router-dom'
 
 const menuSections = [
   {
-    title: '내 정보',
+    title: '관리',
     items: [
-      { icon: User, label: '내 정보 수정', desc: '이름, 연락처 변경' },
-      { icon: Truck, label: '차량 정보', desc: '차종, 번호판' },
-      { icon: Bell, label: '알림 설정', desc: '푸시 알림, 콜 알림음' },
+      { icon: Store, label: '매장 관리', desc: '등록된 매장 조회/관리', path: '/company/cafes' },
+      { icon: Megaphone, label: '공지사항', desc: '공지 작성 및 관리', path: '/company/announcements' },
+      { icon: Users, label: '기사 관리', desc: '소속 기사 조회', path: '/company/drivers' },
     ],
   },
   {
-    title: '고객지원',
+    title: '설정',
     items: [
-      { icon: Megaphone, label: '공지사항', desc: `${dummyAnnouncements.length}개의 공지` },
-      { icon: HelpCircle, label: '자주 묻는 질문', desc: 'FAQ' },
-      { icon: MessageCircle, label: '문의하기', desc: '카카오톡 채널' },
+      { icon: Building2, label: '회사 정보', desc: '회사 정보 수정' },
+      { icon: Bell, label: '알림 설정', desc: '푸시 알림, 정산 알림' },
     ],
   },
   {
@@ -32,9 +31,9 @@ const menuSections = [
   },
 ]
 
-export default function MorePage() {
-  const { user, logout } = useAuth()
-  const driver = user as any
+export default function CompanyMorePage() {
+  const { logout } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <div>
@@ -44,7 +43,7 @@ export default function MorePage() {
       </header>
 
       <div className="px-5 py-4">
-        {/* 프로필 카드 */}
+        {/* 회사 프로필 카드 */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -52,38 +51,39 @@ export default function MorePage() {
         >
           <div className="flex items-center gap-4">
             <div className="w-16 h-16 bg-white/20 rounded-2xl flex items-center justify-center">
-              <Truck className="w-8 h-8 text-white" />
+              <Building2 className="w-8 h-8 text-white" />
             </div>
             <div className="text-white">
-              <h2 className="text-lg font-bold">{driver?.name || '기사'} 님</h2>
-              <p className="text-sm text-white/70">{driver?.company}</p>
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-xs text-white/60">{driver?.truck_type}</span>
-                {driver?.license_plate && (
-                  <>
-                    <span className="text-white/30">·</span>
-                    <span className="text-xs text-white/60">{driver?.license_plate}</span>
-                  </>
-                )}
-              </div>
+              <h2 className="text-lg font-bold">그린물류</h2>
+              <p className="text-sm text-white/70">소속회사 관리자</p>
             </div>
           </div>
 
-          {/* 월간 실적 미니 요약 */}
+          <div className="mt-4 pt-4 border-t border-white/20 space-y-2">
+            <div className="flex items-center gap-2">
+              <MapPin className="w-3.5 h-3.5 text-white/60" />
+              <span className="text-xs text-white/80">서울 강남구 테헤란로 123</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Phone className="w-3.5 h-3.5 text-white/60" />
+              <span className="text-xs text-white/80">02-555-1234</span>
+            </div>
+          </div>
+
           <div className="flex items-center justify-around mt-4 pt-4 border-t border-white/20">
             <div className="text-center">
-              <p className="text-lg font-bold text-white">247</p>
-              <p className="text-[10px] text-white/60">이번 달 수거</p>
+              <p className="text-lg font-bold text-white">4</p>
+              <p className="text-[10px] text-white/60">소속 기사</p>
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div className="text-center">
-              <p className="text-lg font-bold text-white">18.7t</p>
-              <p className="text-[10px] text-white/60">총 수거량</p>
+              <p className="text-lg font-bold text-white">6</p>
+              <p className="text-[10px] text-white/60">등록 매장</p>
             </div>
             <div className="w-px h-8 bg-white/20" />
             <div className="text-center">
-              <p className="text-lg font-bold text-white">98%</p>
-              <p className="text-[10px] text-white/60">완료율</p>
+              <p className="text-lg font-bold text-white">4.7t</p>
+              <p className="text-[10px] text-white/60">이번 달</p>
             </div>
           </div>
         </motion.div>
@@ -105,6 +105,7 @@ export default function MorePage() {
                   <motion.button
                     key={item.label}
                     whileTap={{ scale: 0.99, backgroundColor: '#f9fafb' }}
+                    onClick={() => 'path' in item && item.path && navigate(item.path)}
                     className="w-full flex items-center justify-between px-4 py-3.5"
                   >
                     <div className="flex items-center gap-3">
@@ -143,7 +144,7 @@ export default function MorePage() {
         <div className="text-center pb-8">
           <div className="flex items-center justify-center gap-1">
             <Coffee className="w-3.5 h-3.5 text-gray-300" />
-            <span className="text-[11px] text-gray-300">커피로 v1.0.0</span>
+            <span className="text-[11px] text-gray-300">커피로 v1.0.0 (관리자)</span>
           </div>
         </div>
       </div>

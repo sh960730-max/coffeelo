@@ -1,44 +1,62 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { dummyDriver } from '../lib/dummyData'
-import type { Driver } from '../lib/database.types'
+import type { Driver, Cafe } from '../lib/database.types'
+
+export type UserRole = 'driver' | 'cafe' | 'company'
+
+interface Company {
+  id: string
+  auth_id: string
+  name: string
+  phone: string | null
+  address: string | null
+  created_at: string
+  updated_at: string
+}
 
 interface AuthState {
-  driver: Driver | null
+  user: Driver | Cafe | Company | null
+  role: UserRole | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (phone: string, password: string) => Promise<{ error?: string }>
+  login: (phone: string, password: string, role: UserRole) => Promise<{ error?: string }>
   logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [driver, setDriver] = useState<Driver | null>(null)
+  const [user, setUser] = useState<Driver | Cafe | Company | null>(null)
+  const [role, setRole] = useState<UserRole | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
-      // 더미 모드: 자동 로그인
-      setDriver(dummyDriver)
+      setUser(dummyDriver)
+      setRole('driver')
       setIsLoading(false)
       return
     }
 
-    // Supabase 세션 확인
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
-        fetchDriver(session.user.id)
+        // 저장된 역할 복원
+        const savedRole = localStorage.getItem('coffeelo_role') as UserRole | null
+        if (savedRole) {
+          fetchUserByRole(session.user.id, savedRole)
+        } else {
+          detectRole(session.user.id)
+        }
       } else {
         setIsLoading(false)
       }
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        fetchDriver(session.user.id)
-      } else {
-        setDriver(null)
+      if (!session) {
+        setUser(null)
+        setRole(null)
         setIsLoading(false)
       }
     })
@@ -46,25 +64,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function fetchDriver(authId: string) {
-    const { data } = await supabase
-      .from('drivers')
-      .select('*')
-      .eq('auth_id', authId)
-      .single()
-    setDriver(data)
+  async function detectRole(authId: string) {
+    // drivers → cafes → companies 순으로 조회
+    const { data: driver } = await supabase.from('drivers').select('*').eq('auth_id', authId).single()
+    if (driver) { setUser(driver); setRole('driver'); localStorage.setItem('coffeelo_role', 'driver'); setIsLoading(false); return }
+
+    const { data: cafe } = await supabase.from('cafes').select('*').eq('auth_id', authId).single()
+    if (cafe) { setUser(cafe); setRole('cafe'); localStorage.setItem('coffeelo_role', 'cafe'); setIsLoading(false); return }
+
+    const { data: company } = await supabase.from('companies').select('*').eq('auth_id', authId).single()
+    if (company) { setUser(company); setRole('company'); localStorage.setItem('coffeelo_role', 'company'); setIsLoading(false); return }
+
     setIsLoading(false)
   }
 
-  async function login(phone: string, password: string) {
+  async function fetchUserByRole(authId: string, userRole: UserRole) {
+    const table = userRole === 'driver' ? 'drivers' : userRole === 'cafe' ? 'cafes' : 'companies'
+    const { data } = await supabase.from(table).select('*').eq('auth_id', authId).single()
+    if (data) {
+      setUser(data)
+      setRole(userRole)
+    }
+    setIsLoading(false)
+  }
+
+  async function login(phone: string, password: string, loginRole: UserRole) {
     if (!isSupabaseConfigured) {
-      setDriver(dummyDriver)
+      setUser(dummyDriver)
+      setRole('driver')
       return {}
     }
 
     const email = `${phone}@coffeelo.kr`
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) return { error: error.message }
+
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session) {
+      localStorage.setItem('coffeelo_role', loginRole)
+      await fetchUserByRole(session.user.id, loginRole)
+    }
     return {}
   }
 
@@ -72,14 +111,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (isSupabaseConfigured) {
       await supabase.auth.signOut()
     }
-    setDriver(null)
+    localStorage.removeItem('coffeelo_role')
+    setUser(null)
+    setRole(null)
   }
 
   return (
     <AuthContext.Provider value={{
-      driver,
+      user,
+      role,
       isLoading,
-      isAuthenticated: !!driver,
+      isAuthenticated: !!user,
       login,
       logout,
     }}>
