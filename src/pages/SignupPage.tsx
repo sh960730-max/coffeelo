@@ -1,0 +1,405 @@
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Coffee, Phone, Lock, User, ArrowRight, ArrowLeft, Leaf, Truck, Store, Building2, MapPin, ChevronDown } from 'lucide-react'
+import { supabase } from '../lib/supabase'
+import type { UserRole } from '../contexts/AuthContext'
+
+const roles: { key: UserRole; label: string; icon: typeof Truck; desc: string }[] = [
+  { key: 'driver', label: '기사', icon: Truck, desc: '커피박 수거 기사' },
+  { key: 'cafe', label: '점주', icon: Store, desc: '카페 점주' },
+  { key: 'company', label: '관리자', icon: Building2, desc: '소속회사 관리자' },
+]
+
+const storeTypes = [
+  { value: 'STARBUCKS', label: '스타벅스' },
+  { value: 'FRANCHISE', label: '프랜차이즈' },
+  { value: 'INDIVIDUAL', label: '개인카페' },
+]
+
+const truckTypes = ['1톤 트럭', '1.5톤 트럭', '2.5톤 트럭', '5톤 트럭']
+
+export default function SignupPage() {
+  const navigate = useNavigate()
+  const [step, setStep] = useState(1) // 1: 역할선택, 2: 정보입력
+  const [selectedRole, setSelectedRole] = useState<UserRole>('cafe')
+  const [phone, setPhone] = useState('')
+  const [password, setPassword] = useState('')
+  const [passwordConfirm, setPasswordConfirm] = useState('')
+  const [name, setName] = useState('')
+  const [error, setError] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+
+  // 점주 전용
+  const [cafeName, setCafeName] = useState('')
+  const [cafeAddress, setCafeAddress] = useState('')
+  const [storeType, setStoreType] = useState('INDIVIDUAL')
+
+  // 기사 전용
+  const [truckType, setTruckType] = useState('1톤 트럭')
+  const [licensePlate, setLicensePlate] = useState('')
+  const [companyName, setCompanyName] = useState('')
+
+  // 관리자 전용
+  const [adminCompanyName, setAdminCompanyName] = useState('')
+  const [companyAddress, setCompanyAddress] = useState('')
+  const [companyPhone, setCompanyPhone] = useState('')
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+
+    if (password !== passwordConfirm) {
+      setError('비밀번호가 일치하지 않습니다.')
+      return
+    }
+    if (password.length < 6) {
+      setError('비밀번호는 6자 이상이어야 합니다.')
+      return
+    }
+
+    setIsLoading(true)
+
+    try {
+      // 1. Supabase Auth 회원가입
+      const email = `${phone}@coffeelo.kr`
+      const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
+      if (authError) throw new Error(authError.message)
+      if (!authData.user) throw new Error('회원가입에 실패했습니다.')
+
+      const authId = authData.user.id
+
+      // 2. 역할별 테이블에 데이터 삽입
+      if (selectedRole === 'cafe') {
+        const { error: dbError } = await supabase.from('cafes').insert({
+          auth_id: authId,
+          name: cafeName || name + '의 카페',
+          store_type: storeType,
+          address: cafeAddress || '주소 미입력',
+          phone: phone,
+        } as any)
+        if (dbError) throw new Error(dbError.message)
+      } else if (selectedRole === 'driver') {
+        const { error: dbError } = await supabase.from('drivers').insert({
+          auth_id: authId,
+          name: name,
+          phone: phone,
+          company: companyName || '미소속',
+          truck_type: truckType,
+          license_plate: licensePlate || null,
+        } as any)
+        if (dbError) throw new Error(dbError.message)
+      } else if (selectedRole === 'company') {
+        const { error: dbError } = await supabase.from('companies').insert({
+          auth_id: authId,
+          name: adminCompanyName || name + ' 물류',
+          phone: companyPhone || phone,
+          address: companyAddress || '주소 미입력',
+        } as any)
+        if (dbError) throw new Error(dbError.message)
+      }
+
+      // 3. 로그인 페이지로 이동
+      await supabase.auth.signOut()
+      navigate('/login', { state: { signupSuccess: true } })
+    } catch (err: any) {
+      setError(err.message || '회원가입에 실패했습니다.')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-eco-green to-eco-green-800 flex flex-col items-center justify-start px-6 py-10 overflow-y-auto">
+      {/* 로고 */}
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="text-center mb-6"
+      >
+        <div className="w-16 h-16 bg-white/10 backdrop-blur rounded-2xl flex items-center justify-center mx-auto mb-3">
+          <Coffee className="w-8 h-8 text-white" />
+        </div>
+        <h1 className="text-2xl font-bold text-white">회원가입</h1>
+        <div className="flex items-center justify-center gap-1 mt-1">
+          <Leaf className="w-3 h-3 text-green-300" />
+          <span className="text-xs text-green-300 font-medium">커피로 Coffee LO</span>
+        </div>
+      </motion.div>
+
+      <AnimatePresence mode="wait">
+        {/* Step 1: 역할 선택 */}
+        {step === 1 && (
+          <motion.div
+            key="step1"
+            initial={{ opacity: 0, x: -30 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -30 }}
+            className="w-full max-w-sm"
+          >
+            <p className="text-white/60 text-sm text-center mb-4">어떤 역할로 가입하시나요?</p>
+            <div className="space-y-3">
+              {roles.map((r) => {
+                const Icon = r.icon
+                const isActive = selectedRole === r.key
+                return (
+                  <motion.button
+                    key={r.key}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setSelectedRole(r.key)}
+                    className={`w-full flex items-center gap-4 p-4 rounded-2xl border transition-all ${
+                      isActive ? 'bg-white/20 border-white/40' : 'bg-white/5 border-white/10'
+                    }`}
+                  >
+                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isActive ? 'bg-white/20' : 'bg-white/10'}`}>
+                      <Icon className={`w-6 h-6 ${isActive ? 'text-white' : 'text-white/40'}`} />
+                    </div>
+                    <div className="text-left">
+                      <p className={`text-base font-bold ${isActive ? 'text-white' : 'text-white/50'}`}>{r.label}</p>
+                      <p className={`text-xs ${isActive ? 'text-white/70' : 'text-white/30'}`}>{r.desc}</p>
+                    </div>
+                  </motion.button>
+                )
+              })}
+            </div>
+
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setStep(2)}
+              className="w-full mt-6 py-4 bg-white text-eco-green rounded-2xl text-base font-bold flex items-center justify-center gap-2"
+            >
+              다음
+              <ArrowRight className="w-5 h-5" />
+            </motion.button>
+
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full mt-3 py-3 text-white/50 text-sm font-medium"
+            >
+              이미 계정이 있으신가요? 로그인
+            </button>
+          </motion.div>
+        )}
+
+        {/* Step 2: 정보 입력 */}
+        {step === 2 && (
+          <motion.form
+            key="step2"
+            initial={{ opacity: 0, x: 30 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 30 }}
+            onSubmit={handleSubmit}
+            className="w-full max-w-sm"
+          >
+            {/* 뒤로가기 */}
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="flex items-center gap-1 text-white/60 text-sm mb-4"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              역할 다시 선택
+            </button>
+
+            <div className="space-y-3">
+              {/* 공통: 이름 */}
+              <div className="relative">
+                <User className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                <input
+                  type="text"
+                  placeholder="이름"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                />
+              </div>
+
+              {/* 공통: 전화번호 */}
+              <div className="relative">
+                <Phone className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                <input
+                  type="tel"
+                  placeholder="전화번호 (01012345678)"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                />
+              </div>
+
+              {/* 공통: 비밀번호 */}
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                <input
+                  type="password"
+                  placeholder="비밀번호 (6자 이상)"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                />
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                <input
+                  type="password"
+                  placeholder="비밀번호 확인"
+                  value={passwordConfirm}
+                  onChange={(e) => setPasswordConfirm(e.target.value)}
+                  required
+                  className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                />
+              </div>
+
+              {/* 역할별 추가 필드 */}
+              {selectedRole === 'cafe' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-3 pt-2"
+                >
+                  <div className="bg-white/10 rounded-xl px-3 py-1">
+                    <p className="text-[10px] text-white/40 pt-1">매장 유형</p>
+                    <select
+                      value={storeType}
+                      onChange={(e) => setStoreType(e.target.value)}
+                      className="w-full py-2 bg-transparent text-white text-sm outline-none"
+                    >
+                      {storeTypes.map(t => (
+                        <option key={t.value} value={t.value} className="text-gray-900">{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="relative">
+                    <Store className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      placeholder="매장 이름"
+                      value={cafeName}
+                      onChange={(e) => setCafeName(e.target.value)}
+                      required
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                    />
+                  </div>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      placeholder="매장 주소"
+                      value={cafeAddress}
+                      onChange={(e) => setCafeAddress(e.target.value)}
+                      required
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                    />
+                  </div>
+                </motion.div>
+              )}
+
+              {selectedRole === 'driver' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-3 pt-2"
+                >
+                  <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      placeholder="소속 회사 (없으면 비워두세요)"
+                      value={companyName}
+                      onChange={(e) => setCompanyName(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                    />
+                  </div>
+                  <div className="bg-white/10 rounded-xl px-3 py-1">
+                    <p className="text-[10px] text-white/40 pt-1">차량 종류</p>
+                    <select
+                      value={truckType}
+                      onChange={(e) => setTruckType(e.target.value)}
+                      className="w-full py-2 bg-transparent text-white text-sm outline-none"
+                    >
+                      {truckTypes.map(t => (
+                        <option key={t} value={t} className="text-gray-900">{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="relative">
+                    <Truck className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      placeholder="차량 번호판 (예: 12가 3456)"
+                      value={licensePlate}
+                      onChange={(e) => setLicensePlate(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                    />
+                  </div>
+                </motion.div>
+              )}
+
+              {selectedRole === 'company' && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  className="space-y-3 pt-2"
+                >
+                  <div className="relative">
+                    <Building2 className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      placeholder="회사 이름"
+                      value={adminCompanyName}
+                      onChange={(e) => setAdminCompanyName(e.target.value)}
+                      required
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                    />
+                  </div>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
+                    <input
+                      type="text"
+                      placeholder="회사 주소"
+                      value={companyAddress}
+                      onChange={(e) => setCompanyAddress(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                    />
+                  </div>
+                </motion.div>
+              )}
+            </div>
+
+            {error && (
+              <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-red-300 text-xs mt-3 text-center">
+                {error}
+              </motion.p>
+            )}
+
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              type="submit"
+              disabled={isLoading}
+              className="w-full mt-5 py-4 bg-white text-eco-green rounded-2xl text-base font-bold flex items-center justify-center gap-2 shadow-button disabled:opacity-50"
+            >
+              {isLoading ? (
+                <div className="w-5 h-5 border-2 border-eco-green/30 border-t-eco-green rounded-full animate-spin" />
+              ) : (
+                <>
+                  가입하기
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </motion.button>
+
+            <button
+              type="button"
+              onClick={() => navigate('/login')}
+              className="w-full mt-3 py-3 text-white/50 text-sm font-medium"
+            >
+              이미 계정이 있으신가요? 로그인
+            </button>
+          </motion.form>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}

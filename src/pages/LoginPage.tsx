@@ -147,9 +147,13 @@ export default function LoginPage() {
           )}
         </motion.button>
 
-        <p className="text-center text-white/40 text-xs mt-4">
-          계정이 없으신가요? 소속 회사에 문의해 주세요.
-        </p>
+        <button
+          type="button"
+          onClick={() => navigate('/signup')}
+          className="w-full mt-4 py-3 text-white/60 text-sm font-medium"
+        >
+          계정이 없으신가요? <span className="text-white underline">회원가입</span>
+        </button>
       </motion.form>
     </div>
   )

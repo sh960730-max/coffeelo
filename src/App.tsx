@@ -3,6 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
 
 import LoginPage from './pages/LoginPage'
+import SignupPage from './pages/SignupPage'
 
 // Driver
 import DriverLayout from './pages/driver/DriverLayout'
@@ -70,6 +71,10 @@ function AppRoutes() {
       <Route
         path="/login"
         element={isAuthenticated ? <Navigate to={defaultRoute} replace /> : <LoginPage />}
+      />
+      <Route
+        path="/signup"
+        element={isAuthenticated ? <Navigate to={defaultRoute} replace /> : <SignupPage />}
       />
 
       {/* 기사용 */}
