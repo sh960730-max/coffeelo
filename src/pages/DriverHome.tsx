@@ -7,9 +7,40 @@ import DriverWeighStation from '../components/driver/DriverWeighStation'
 import DriverStats from '../components/driver/DriverStats'
 import DriverBottomNav from '../components/driver/DriverBottomNav'
 import PickupConfirm from './PickupConfirm'
+import type { PickupStop, PickupCall } from './driver/HomePage'
+
+const initialPickups: PickupStop[] = [
+  { id: 1, storeName: '스타벅스 강남역점', storeType: 'starbucks', address: '서울 강남구 강남대로 396', containerType: 'box', estimatedCount: 5, status: 'arrived' },
+  { id: 2, storeName: '스타벅스 역삼역점', storeType: 'starbucks', address: '서울 강남구 역삼로 180', containerType: 'box', estimatedCount: 3, status: 'waiting' },
+  { id: 3, storeName: '블루보틀 삼성점', storeType: 'franchise', address: '서울 강남구 테헤란로 521', containerType: 'bag', estimatedCount: 2, estimatedWeight: 15, status: 'waiting' },
+]
+
+const initialCalls: PickupCall[] = [
+  { id: 101, storeName: '스타벅스 선릉역점', storeType: 'starbucks', address: '서울 강남구 선릉로 525', distance: '2.3km', containerType: 'box', count: 4, requestedTime: '오후 3:00 ~ 4:00', isUrgent: true },
+  { id: 102, storeName: '커피랑도서관 서초점', storeType: 'individual', address: '서울 서초구 서초대로 301', distance: '3.8km', containerType: 'bag', count: 3, estimatedWeight: 20, requestedTime: '오후 4:00 ~ 5:00', isUrgent: false },
+  { id: 103, storeName: '스타벅스 대치역점', storeType: 'starbucks', address: '서울 강남구 삼성로 510', distance: '4.1km', containerType: 'box', count: 6, requestedTime: '오후 5:00 ~ 6:00', isUrgent: false },
+]
 
 export default function DriverHome() {
   const [showPickupConfirm, setShowPickupConfirm] = useState(false)
+  const [activePickups, setActivePickups] = useState<PickupStop[]>(initialPickups)
+  const [calls, setCalls] = useState<PickupCall[]>(initialCalls)
+
+  const handleAcceptCall = (callId: number) => {
+    const call = calls.find(c => c.id === callId)
+    if (!call) return
+    const newStop: PickupStop = {
+      id: call.id, storeName: call.storeName, storeType: call.storeType,
+      address: call.address, containerType: call.containerType,
+      estimatedCount: call.count, estimatedWeight: call.estimatedWeight, status: 'waiting',
+    }
+    setCalls(prev => prev.filter(c => c.id !== callId))
+    setActivePickups(prev => [...prev, newStop])
+  }
+
+  const handleDeclineCall = (callId: number) => {
+    setCalls(prev => prev.filter(c => c.id !== callId))
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 max-w-md mx-auto relative">
@@ -33,8 +64,15 @@ export default function DriverHome() {
           >
             <DriverHeader />
             <main className="overflow-y-auto">
-              <ActivePickupCard onPickupConfirm={() => setShowPickupConfirm(true)} />
-              <PickupCallList />
+              <ActivePickupCard
+                pickups={activePickups}
+                onPickupConfirm={() => setShowPickupConfirm(true)}
+              />
+              <PickupCallList
+                calls={calls}
+                onAccept={handleAcceptCall}
+                onDecline={handleDeclineCall}
+              />
               <DriverWeighStation />
               <DriverStats />
             </main>

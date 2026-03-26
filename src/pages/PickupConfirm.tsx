@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Camera, Scale, Plus, Trash2, Package,
@@ -14,16 +14,69 @@ interface ContainerItem {
   photoUrl: string | null
 }
 
+interface StoreData {
+  name: string
+  storeType: 'starbucks' | 'franchise' | 'individual'
+  address: string
+  containerType: 'box' | 'bag'
+}
+
 interface PickupConfirmProps {
   onBack?: () => void
 }
 
-/* ── 더미 매장 정보 ── */
-const storeInfo = {
-  name: '스타벅스 강남역점',
-  storeType: 'starbucks' as const,
-  address: '서울 강남구 강남대로 396',
-  containerType: 'box' as const,
+/* ── 매장 정보 매핑 (id → 매장 정보) ── */
+const storeMap: Record<string, StoreData> = {
+  '1': {
+    name: '스타벅스 강남역점',
+    storeType: 'starbucks',
+    address: '서울 강남구 강남대로 396',
+    containerType: 'box',
+  },
+  '2': {
+    name: '스타벅스 역삼역점',
+    storeType: 'starbucks',
+    address: '서울 강남구 역삼로 180',
+    containerType: 'box',
+  },
+  '3': {
+    name: '블루보틀 삼성점',
+    storeType: 'franchise',
+    address: '서울 강남구 테헤란로 521',
+    containerType: 'bag',
+  },
+  '101': {
+    name: '스타벅스 선릉역점',
+    storeType: 'starbucks',
+    address: '서울 강남구 선릉로 525',
+    containerType: 'box',
+  },
+  '102': {
+    name: '커피랑도서관 서초점',
+    storeType: 'individual',
+    address: '서울 서초구 서초대로 301',
+    containerType: 'bag',
+  },
+  '103': {
+    name: '스타벅스 대치역점',
+    storeType: 'starbucks',
+    address: '서울 강남구 삼성로 510',
+    containerType: 'box',
+  },
+  /* 하위 호환 - 기존 p1 경로도 지원 */
+  'p1': {
+    name: '스타벅스 강남역점',
+    storeType: 'starbucks',
+    address: '서울 강남구 강남대로 396',
+    containerType: 'box',
+  },
+}
+
+const defaultStore: StoreData = {
+  name: '알 수 없는 매장',
+  storeType: 'individual',
+  address: '',
+  containerType: 'box',
 }
 
 const storeTypeStyle = {
@@ -35,7 +88,12 @@ const storeTypeStyle = {
 /* ── 메인 컴포넌트 ── */
 export default function PickupConfirm({ onBack: onBackProp }: PickupConfirmProps) {
   const navigate = useNavigate()
+  const { id } = useParams<{ id: string }>()
   const onBack = onBackProp || (() => navigate('/driver'))
+
+  /* 라우트 파라미터로 매장 정보 결정 */
+  const storeInfo = (id && storeMap[id]) ? storeMap[id] : defaultStore
+
   const [containers, setContainers] = useState<ContainerItem[]>([
     { id: 1, type: storeInfo.containerType, weight: '', photoUrl: null },
   ])
