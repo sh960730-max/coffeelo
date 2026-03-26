@@ -2,19 +2,14 @@ import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Package, Scale, Clock, MessageSquare,
-  CheckCircle2, ChevronDown, Coffee
+  CheckCircle2, ChevronDown, Camera, Image, MapPin
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
 type ContainerType = 'BOX' | 'BAG'
-type TimeSlot = 'AM_1' | 'AM_2' | 'PM_1' | 'PM_2'
 
-const timeSlots: { key: TimeSlot; label: string; time: string }[] = [
-  { key: 'AM_1', label: '오전 1', time: '09:00 ~ 10:30' },
-  { key: 'AM_2', label: '오전 2', time: '10:30 ~ 12:00' },
-  { key: 'PM_1', label: '오후 1', time: '13:00 ~ 14:30' },
-  { key: 'PM_2', label: '오후 2', time: '14:30 ~ 16:00' },
-]
+/* ── 시간 옵션 (00시 ~ 24시, 1시간 단위) ── */
+const hours = Array.from({ length: 25 }, (_, i) => i) // 0~24
 
 const weightPresets = [5, 10, 15, 20, 25]
 
@@ -23,8 +18,10 @@ export default function PickupRequestPage() {
   const [containerType, setContainerType] = useState<ContainerType>('BOX')
   const [quantity, setQuantity] = useState(1)
   const [weight, setWeight] = useState(10)
-  const [timeSlot, setTimeSlot] = useState<TimeSlot>('AM_1')
+  const [startHour, setStartHour] = useState(9)
+  const [endHour, setEndHour] = useState(12)
   const [memo, setMemo] = useState('')
+  const [storagePhoto, setStoragePhoto] = useState<string | null>(null)
   const [showDropdown, setShowDropdown] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -34,20 +31,30 @@ export default function PickupRequestPage() {
     { key: 'BAG', label: '봉지', icon: '🛍️' },
   ]
 
+  const formatHour = (h: number) => {
+    if (h === 0) return '00:00'
+    if (h === 24) return '24:00'
+    return `${String(h).padStart(2, '0')}:00`
+  }
+
+  /* 보관장소 사진 촬영 시뮬레이션 */
+  const takeStoragePhoto = () => {
+    setStoragePhoto('storage_photo.jpg')
+  }
+
   const handleSubmit = async () => {
     setIsSubmitting(true)
 
-    // Dummy submission - Supabase integration later
     console.log('수거 신청 데이터:', {
       containerType,
       quantity,
       estimatedWeight: weight,
-      timeSlot,
+      timeRange: `${formatHour(startHour)} ~ ${formatHour(endHour)}`,
+      storagePhoto,
       memo,
       requestedAt: new Date().toISOString(),
     })
 
-    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 800))
     setIsSubmitting(false)
     setShowSuccess(true)
@@ -69,7 +76,7 @@ export default function PickupRequestPage() {
           >
             <ArrowLeft className="w-5 h-5 text-gray-700" />
           </motion.button>
-          <h1 className="text-lg font-bold text-gray-900">수거 신청</h1>
+          <h1 className="text-lg font-bold text-gray-900 pointer-events-none">수거 신청</h1>
         </div>
       </motion.header>
 
@@ -221,7 +228,7 @@ export default function PickupRequestPage() {
           </div>
         </motion.div>
 
-        {/* 희망 수거 시간 */}
+        {/* 희망 수거 시간 (00시 ~ 24시) */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -235,38 +242,122 @@ export default function PickupRequestPage() {
             <h3 className="text-sm font-bold text-gray-800">희망 수거 시간</h3>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {timeSlots.map(slot => (
-              <motion.button
-                key={slot.key}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => setTimeSlot(slot.key)}
-                className={`p-3 rounded-xl border-2 text-left transition-all ${
-                  timeSlot === slot.key
-                    ? 'border-eco-green bg-eco-green-100'
-                    : 'border-gray-100 bg-gray-50 hover:border-gray-200'
-                }`}
+          <div className="flex items-center gap-3">
+            {/* 시작 시간 */}
+            <div className="flex-1">
+              <label className="text-[11px] text-gray-400 font-medium mb-1 block">시작</label>
+              <select
+                value={startHour}
+                onChange={(e) => {
+                  const val = parseInt(e.target.value)
+                  setStartHour(val)
+                  if (val >= endHour) setEndHour(Math.min(24, val + 1))
+                }}
+                className="w-full px-3 py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 outline-none focus:border-eco-green transition-colors appearance-none cursor-pointer"
               >
-                <p className={`text-xs font-bold ${
-                  timeSlot === slot.key ? 'text-eco-green' : 'text-gray-700'
-                }`}>
-                  {slot.label}
-                </p>
-                <p className={`text-[11px] mt-0.5 ${
-                  timeSlot === slot.key ? 'text-eco-green/70' : 'text-gray-400'
-                }`}>
-                  {slot.time}
-                </p>
-              </motion.button>
-            ))}
+                {hours.filter(h => h < 24).map(h => (
+                  <option key={h} value={h}>{formatHour(h)}</option>
+                ))}
+              </select>
+            </div>
+
+            <span className="text-gray-400 font-bold mt-5">~</span>
+
+            {/* 종료 시간 */}
+            <div className="flex-1">
+              <label className="text-[11px] text-gray-400 font-medium mb-1 block">종료</label>
+              <select
+                value={endHour}
+                onChange={(e) => setEndHour(parseInt(e.target.value))}
+                className="w-full px-3 py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 outline-none focus:border-eco-green transition-colors appearance-none cursor-pointer"
+              >
+                {hours.filter(h => h > startHour).map(h => (
+                  <option key={h} value={h}>{formatHour(h)}</option>
+                ))}
+              </select>
+            </div>
           </div>
+
+          {/* 빠른 선택 버튼 */}
+          <div className="flex items-center gap-1.5 mt-3">
+            {[
+              { label: '오전', start: 9, end: 12 },
+              { label: '오후', start: 13, end: 18 },
+              { label: '저녁', start: 18, end: 22 },
+              { label: '종일', start: 0, end: 24 },
+            ].map(preset => {
+              const isActive = startHour === preset.start && endHour === preset.end
+              return (
+                <motion.button
+                  key={preset.label}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={() => { setStartHour(preset.start); setEndHour(preset.end) }}
+                  className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${
+                    isActive
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                  }`}
+                >
+                  {preset.label}
+                </motion.button>
+              )
+            })}
+          </div>
+        </motion.div>
+
+        {/* 보관장소 사진 */}
+        <motion.div
+          initial={{ opacity: 0, y: 15 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="bg-white rounded-2xl p-5 shadow-card"
+        >
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-8 h-8 bg-teal-50 rounded-lg flex items-center justify-center">
+              <MapPin className="w-4 h-4 text-teal-600" />
+            </div>
+            <h3 className="text-sm font-bold text-gray-800">보관장소 사진</h3>
+            <span className="text-[10px] text-gray-400">(선택)</span>
+          </div>
+          <p className="text-[11px] text-gray-400 mb-3 ml-10">
+            수거 기사님이 쉽게 찾을 수 있도록 보관 위치를 촬영해 주세요
+          </p>
+
+          {storagePhoto ? (
+            <div className="relative w-full h-40 bg-gray-100 rounded-xl overflow-hidden">
+              <div className="w-full h-full bg-gradient-to-br from-teal-100/50 to-eco-green/10 flex items-center justify-center">
+                <div className="text-center">
+                  <Image className="w-10 h-10 text-teal-500 mx-auto" />
+                  <p className="text-sm text-teal-600 font-semibold mt-2">사진 등록 완료</p>
+                </div>
+              </div>
+              <motion.button
+                whileTap={{ scale: 0.9 }}
+                onClick={takeStoragePhoto}
+                className="absolute bottom-2 right-2 px-3 py-1.5 bg-white/90 rounded-lg text-[11px] font-semibold text-gray-600 shadow-sm"
+              >
+                재촬영
+              </motion.button>
+            </div>
+          ) : (
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={takeStoragePhoto}
+              className="w-full h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+            >
+              <div className="w-11 h-11 bg-teal-50 rounded-xl flex items-center justify-center">
+                <Camera className="w-5 h-5 text-teal-500" />
+              </div>
+              <span className="text-xs text-gray-400 font-medium">탭하여 보관장소 촬영</span>
+            </motion.button>
+          )}
         </motion.div>
 
         {/* 메모 */}
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.25 }}
+          transition={{ delay: 0.3 }}
           className="bg-white rounded-2xl p-5 shadow-card"
         >
           <div className="flex items-center gap-2 mb-3">
@@ -290,7 +381,7 @@ export default function PickupRequestPage() {
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.35 }}
           className="bg-gradient-to-br from-eco-green/5 to-coffee-brown/5 rounded-2xl p-5 border border-eco-green/10"
         >
           <h3 className="text-sm font-bold text-gray-800 mb-3">신청 요약</h3>
@@ -308,9 +399,15 @@ export default function PickupRequestPage() {
             <div className="flex items-center justify-between">
               <span className="text-xs text-gray-500">희망 시간</span>
               <span className="text-xs font-semibold text-gray-800">
-                {timeSlots.find(s => s.key === timeSlot)?.time}
+                {formatHour(startHour)} ~ {formatHour(endHour)}
               </span>
             </div>
+            {storagePhoto && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-gray-500">보관장소 사진</span>
+                <span className="text-xs font-semibold text-teal-600">등록 완료</span>
+              </div>
+            )}
             {memo && (
               <div className="flex items-start justify-between">
                 <span className="text-xs text-gray-500">메모</span>
@@ -324,7 +421,7 @@ export default function PickupRequestPage() {
         <motion.button
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.35 }}
+          transition={{ delay: 0.4 }}
           whileTap={{ scale: 0.98 }}
           onClick={handleSubmit}
           disabled={isSubmitting}
@@ -377,7 +474,7 @@ export default function PickupRequestPage() {
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-gray-400">예상 수거 시간</span>
                   <span className="font-semibold text-eco-green">
-                    {timeSlots.find(s => s.key === timeSlot)?.time}
+                    {formatHour(startHour)} ~ {formatHour(endHour)}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-xs mt-2">
