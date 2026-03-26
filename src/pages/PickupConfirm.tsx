@@ -103,7 +103,7 @@ export default function PickupConfirm({ onBack: onBackProp }: PickupConfirmProps
           >
             <ArrowLeft className="w-5 h-5 text-gray-700" />
           </motion.button>
-          <h1 className="flex-1 text-center text-base font-bold text-gray-900 -ml-10">수거 확인</h1>
+          <h1 className="flex-1 text-center text-base font-bold text-gray-900 -ml-10 pointer-events-none">수거 확인</h1>
         </div>
       </motion.header>
 
