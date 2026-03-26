@@ -20,7 +20,7 @@ interface CafePickupRecord {
 }
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: typeof CheckCircle2 }> = {
-  REQUESTED: { label: '접수됨', color: 'text-amber-600', bgColor: 'bg-amber-50', icon: Clock },
+  REQUESTED: { label: '미배정', color: 'text-amber-600', bgColor: 'bg-amber-50', icon: Clock },
   ASSIGNED: { label: '기사 배정', color: 'text-blue-600', bgColor: 'bg-blue-50', icon: Truck },
   IN_PROGRESS: { label: '수거 중', color: 'text-eco-green', bgColor: 'bg-eco-green-100', icon: Truck },
   COMPLETED: { label: '완료', color: 'text-green-600', bgColor: 'bg-green-50', icon: CheckCircle2 },
@@ -36,6 +36,11 @@ const dateFilters = [
 
 // 더미 데이터 - 카페 관점의 수거 신청 내역
 const dummyCafePickups: CafePickupRecord[] = [
+  {
+    id: 'cp0', date: '2026-03-26T08:00:00Z', containerType: 'BOX', quantity: 2,
+    estimatedWeight: 10, actualWeight: null, status: 'REQUESTED',
+    driverName: null, timeSlot: '09:00 ~ 12:00', settlementAmount: null, completedAt: null,
+  },
   {
     id: 'cp1', date: '2026-03-24T09:30:00Z', containerType: 'BOX', quantity: 3,
     estimatedWeight: 15, actualWeight: null, status: 'ASSIGNED',
