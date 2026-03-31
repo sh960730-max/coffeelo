@@ -21,6 +21,13 @@ import PickupRequestPage from './pages/cafe/PickupRequestPage'
 import PickupHistoryPage from './pages/cafe/PickupHistoryPage'
 import CafeSettlementPage from './pages/cafe/CafeSettlementPage'
 import CafeMorePage from './pages/cafe/CafeMorePage'
+import CafeStoreInfoPage from './pages/cafe/CafeStoreInfoPage'
+import CafeNotificationPage from './pages/cafe/CafeNotificationPage'
+import CafeAnnouncementPage from './pages/cafe/CafeAnnouncementPage'
+import CafeFAQPage from './pages/cafe/CafeFAQPage'
+import CafeInquiryPage from './pages/cafe/CafeInquiryPage'
+import CafeTermsPage from './pages/cafe/CafeTermsPage'
+import CafePrivacyPage from './pages/cafe/CafePrivacyPage'
 
 // Company
 import CompanyLayout from './pages/company/CompanyLayout'
@@ -98,6 +105,13 @@ function AppRoutes() {
         <Route path="history" element={<PickupHistoryPage />} />
         <Route path="settlement" element={<CafeSettlementPage />} />
         <Route path="more" element={<CafeMorePage />} />
+        <Route path="store-info" element={<CafeStoreInfoPage />} />
+        <Route path="notifications" element={<CafeNotificationPage />} />
+        <Route path="announcements" element={<CafeAnnouncementPage />} />
+        <Route path="faq" element={<CafeFAQPage />} />
+        <Route path="inquiry" element={<CafeInquiryPage />} />
+        <Route path="terms" element={<CafeTermsPage />} />
+        <Route path="privacy" element={<CafePrivacyPage />} />
       </Route>
 
       {/* 소속회사 관리자 */}
