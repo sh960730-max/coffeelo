@@ -348,7 +348,7 @@ export default function PickupRequestPage() {
               </div>
               <motion.button
                 whileTap={{ scale: 0.9 }}
-                onClick={takeStoragePhoto}
+                onClick={handleCameraClick}
                 className="absolute bottom-2 right-2 px-3 py-1.5 bg-white/90 rounded-lg text-[11px] font-semibold text-gray-600 shadow-sm"
               >
                 재촬영
