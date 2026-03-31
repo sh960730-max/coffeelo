@@ -26,6 +26,7 @@ export default function PickupRequestPage() {
   const [endHour, setEndHour] = useState(12)
   const [memo, setMemo] = useState('')
   const [storagePhoto, setStoragePhoto] = useState<string | null>(null)
+  const [storagePhotoFile, setStoragePhotoFile] = useState<File | null>(null)
   const cameraInputRef = useRef<HTMLInputElement>(null)
 
   const handleCameraClick = () => {
@@ -37,6 +38,7 @@ export default function PickupRequestPage() {
     if (!file) return
     const url = URL.createObjectURL(file)
     setStoragePhoto(url)
+    setStoragePhotoFile(file)
   }
   const [showDropdown, setShowDropdown] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
@@ -62,6 +64,24 @@ export default function PickupRequestPage() {
     if (!cafeId) return
     setIsSubmitting(true)
 
+    // 보관장소 사진 업로드
+    let storagePhotoUrl: string | null = null
+    if (storagePhotoFile) {
+      try {
+        const ext = storagePhotoFile.name.split('.').pop() || 'jpg'
+        const fileName = `${cafeId}_${Date.now()}.${ext}`
+        const { data: uploadData } = await supabase.storage
+          .from('pickup-photos')
+          .upload(fileName, storagePhotoFile, { upsert: true })
+        if (uploadData) {
+          const { data: { publicUrl } } = supabase.storage
+            .from('pickup-photos')
+            .getPublicUrl(uploadData.path)
+          storagePhotoUrl = publicUrl
+        }
+      } catch {}
+    }
+
     const db = supabase as any
     const { error } = await db.from('pickups').insert({
       cafe_id: cafeId,
@@ -72,6 +92,7 @@ export default function PickupRequestPage() {
       pickup_time_start: formatHour(startHour),
       pickup_time_end: formatHour(endHour),
       note: memo || null,
+      storage_photo_url: storagePhotoUrl,
     })
 
     setIsSubmitting(false)
@@ -352,12 +373,7 @@ export default function PickupRequestPage() {
 
           {storagePhoto ? (
             <div className="relative w-full h-40 bg-gray-100 rounded-xl overflow-hidden">
-              <div className="w-full h-full bg-gradient-to-br from-teal-100/50 to-eco-green/10 flex items-center justify-center">
-                <div className="text-center">
-                  <Image className="w-10 h-10 text-teal-500 mx-auto" />
-                  <p className="text-sm text-teal-600 font-semibold mt-2">사진 등록 완료</p>
-                </div>
-              </div>
+              <img src={storagePhoto} className="w-full h-full object-cover" />
               <motion.button
                 whileTap={{ scale: 0.9 }}
                 onClick={handleCameraClick}

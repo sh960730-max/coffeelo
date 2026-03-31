@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Camera, Scale, Plus, Trash2, Package,
-  ChevronDown, ChevronUp, Check, Image, MapPin, Loader2
+  ChevronDown, ChevronUp, Check, Image, MapPin, Loader2,
+  MessageSquare, Clock
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
@@ -50,6 +51,10 @@ export default function PickupConfirm() {
   const driverId = (user as any)?.id
 
   const [storeInfo, setStoreInfo] = useState<StoreData>(defaultStore)
+  const [pickupNote, setPickupNote] = useState<string | null>(null)
+  const [storagePhotoUrl, setStoragePhotoUrl] = useState<string | null>(null)
+  const [pickupTimeStart, setPickupTimeStart] = useState<string | null>(null)
+  const [pickupTimeEnd, setPickupTimeEnd] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [containers, setContainers] = useState<ContainerItem[]>([
     { id: 1, type: 'box', weight: '', photoUrl: null, photoFile: null },
@@ -84,6 +89,10 @@ export default function PickupConfirm() {
             address: cafe?.address ?? '',
             containerType,
           })
+          setPickupNote(data.note ?? null)
+          setStoragePhotoUrl(data.storage_photo_url ?? null)
+          setPickupTimeStart(data.pickup_time_start ?? null)
+          setPickupTimeEnd(data.pickup_time_end ?? null)
           setContainers(
             Array.from({ length: qty }, (_, i) => ({
               id: i + 1,
@@ -215,6 +224,55 @@ export default function PickupConfirm() {
             </div>
           )}
         </motion.div>
+
+        {/* ── 점주 전달 사항 ── */}
+        {(pickupNote || storagePhotoUrl || pickupTimeStart) && (
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.08 }}
+            className="mt-4 bg-amber-50 border border-amber-200 rounded-2xl p-4"
+          >
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-7 h-7 bg-amber-100 rounded-lg flex items-center justify-center">
+                <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+              </div>
+              <h3 className="text-sm font-bold text-amber-800">점주 전달 사항</h3>
+            </div>
+
+            {/* 희망 수거 시간 */}
+            {pickupTimeStart && pickupTimeEnd && (
+              <div className="flex items-center gap-2 mb-2">
+                <Clock className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                <span className="text-xs text-amber-700 font-medium">
+                  희망 시간: {pickupTimeStart} ~ {pickupTimeEnd}
+                </span>
+              </div>
+            )}
+
+            {/* 메모 */}
+            {pickupNote && (
+              <div className="bg-white rounded-xl px-3 py-2.5 mb-3">
+                <p className="text-xs font-semibold text-gray-500 mb-1">메모</p>
+                <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{pickupNote}</p>
+              </div>
+            )}
+
+            {/* 보관장소 사진 */}
+            {storagePhotoUrl && (
+              <div>
+                <p className="text-xs font-semibold text-amber-700 mb-1.5">보관장소 사진</p>
+                <div className="w-full rounded-xl overflow-hidden">
+                  <img
+                    src={storagePhotoUrl}
+                    alt="보관장소"
+                    className="w-full object-cover max-h-48"
+                  />
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
 
         {/* ── 박스/봉지별 무게 측정 ── */}
         <motion.div
