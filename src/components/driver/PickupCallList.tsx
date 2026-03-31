@@ -44,22 +44,29 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     setDisplayCalls(calls)
   }, [calls])
 
-  // 주소에서 층/호 등 세부정보 제거 후 geocoding
-  const cleanAddress = (address: string): string => {
-    // "서울 서초구 서초중앙로24길 10 1층 101호" → "서울 서초구 서초중앙로24길 10"
-    return address
-      .replace(/\s*\d+층.*$/i, '')      // ~층 이후 제거
-      .replace(/\s*\d+호.*$/i, '')       // ~호 이후 제거
-      .replace(/\s*(지하|B)\d+.*/i, '')  // 지하 제거
+  // 주소 단계별 축약 후보 생성
+  // "서울 서초구 서초중앙로24길 10 1층 101호" →
+  // ["서울 서초구 서초중앙로24길 10", "서울 서초구 서초중앙로24길", "서울 서초구", "서울특별시 서초구"]
+  const buildQueries = (address: string): string[] => {
+    const base = address
+      .replace(/\s*\d+층.*$/i, '')
+      .replace(/\s*\d+호.*$/i, '')
+      .replace(/\s*(지하|B)\d+.*/i, '')
       .trim()
+    const parts = base.split(' ')
+    const candidates: string[] = [base]
+    // 도로명 숫자 제거 버전 (서초중앙로24길 10 → 서초중앙로)
+    const roadStripped = base.replace(/\s+\d+$/, '').replace(/\d+길/, '길').replace(/\d+로/, '로')
+    if (roadStripped !== base) candidates.push(roadStripped)
+    // 시/구 단위 축약
+    if (parts.length >= 3) candidates.push(parts.slice(0, 3).join(' '))
+    if (parts.length >= 2) candidates.push(parts.slice(0, 2).join(' '))
+    return [...new Set(candidates)]
   }
 
   // OpenStreetMap Nominatim으로 주소 → 좌표 변환
   const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
-    const cleaned = cleanAddress(address)
-    // 시도 1: 정제된 주소
-    // 시도 2: 구+동 단위로 축약 (예: "서울 서초구")
-    const queries = [cleaned, cleaned.split(' ').slice(0, 3).join(' ')]
+    const queries = buildQueries(address)
     for (const q of queries) {
       try {
         const res = await fetch(
