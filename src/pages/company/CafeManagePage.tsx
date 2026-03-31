@@ -105,7 +105,15 @@ export default function CafeManagePage() {
   const handleApprove = async (cafeId: string) => {
     setApproving(cafeId)
     const db = supabase as any
-    await db.from('cafes').update({ status: 'APPROVED' }).eq('id', cafeId)
+    const { error } = await db.from('cafes').update({ status: 'APPROVED' }).eq('id', cafeId)
+    if (error) {
+      console.error('승인 오류:', error)
+      alert('승인 처리 중 오류가 발생했습니다.\nSupabase RLS 정책을 확인해주세요.\n' + error.message)
+      setApproving(null)
+      return
+    }
+    // 즉시 UI 업데이트
+    setPendingCafes(prev => prev.filter(c => c.id !== cafeId))
     await loadCafes()
     setApproving(null)
   }
@@ -113,7 +121,15 @@ export default function CafeManagePage() {
   const handleReject = async (cafeId: string) => {
     setApproving(cafeId)
     const db = supabase as any
-    await db.from('cafes').update({ status: 'REJECTED' }).eq('id', cafeId)
+    const { error } = await db.from('cafes').update({ status: 'REJECTED' }).eq('id', cafeId)
+    if (error) {
+      console.error('거부 오류:', error)
+      alert('거부 처리 중 오류가 발생했습니다.\n' + error.message)
+      setApproving(null)
+      return
+    }
+    // 즉시 UI 업데이트
+    setPendingCafes(prev => prev.filter(c => c.id !== cafeId))
     await loadCafes()
     setApproving(null)
   }
