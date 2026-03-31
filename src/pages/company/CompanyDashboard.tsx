@@ -38,14 +38,16 @@ interface UnassignedRequest {
   desiredTime: string
   containerCount: number
   estimatedKg: number
+  driverName: string | null
+  status: string
 }
 
 const unassignedRequests: UnassignedRequest[] = [
-  { id: 'u1', cafeName: '스타벅스 신촌점', storeType: 'starbucks', address: '서대문구 신촌로 25', requestedAt: '09:10', desiredTime: '13:00 - 15:00', containerCount: 4, estimatedKg: 36 },
-  { id: 'u2', cafeName: '커피나무 홍대점', storeType: 'individual', address: '마포구 홍대입구로 33', requestedAt: '09:42', desiredTime: '14:00 - 16:00', containerCount: 2, estimatedKg: 18 },
-  { id: 'u3', cafeName: '이디야 마포점', storeType: 'franchise', address: '마포구 마포대로 120', requestedAt: '10:05', desiredTime: '15:00 - 17:00', containerCount: 3, estimatedKg: 27 },
-  { id: 'u4', cafeName: '블루보틀 합정점', storeType: 'franchise', address: '마포구 양화로 110', requestedAt: '10:33', desiredTime: '14:30 - 16:30', containerCount: 5, estimatedKg: 44 },
-  { id: 'u5', cafeName: '카페 드 몽블랑', storeType: 'individual', address: '마포구 성미산로 78', requestedAt: '11:20', desiredTime: '16:00 - 18:00', containerCount: 2, estimatedKg: 15 },
+  { id: 'u1', cafeName: '스타벅스 신촌점', storeType: 'starbucks', address: '서대문구 신촌로 25', requestedAt: '09:10', desiredTime: '13:00 - 15:00', containerCount: 4, estimatedKg: 36, driverName: null, status: 'REQUESTED' },
+  { id: 'u2', cafeName: '커피나무 홍대점', storeType: 'individual', address: '마포구 홍대입구로 33', requestedAt: '09:42', desiredTime: '14:00 - 16:00', containerCount: 2, estimatedKg: 18, driverName: null, status: 'REQUESTED' },
+  { id: 'u3', cafeName: '이디야 마포점', storeType: 'franchise', address: '마포구 마포대로 120', requestedAt: '10:05', desiredTime: '15:00 - 17:00', containerCount: 3, estimatedKg: 27, driverName: null, status: 'REQUESTED' },
+  { id: 'u4', cafeName: '블루보틀 합정점', storeType: 'franchise', address: '마포구 양화로 110', requestedAt: '10:33', desiredTime: '14:30 - 16:30', containerCount: 5, estimatedKg: 44, driverName: null, status: 'REQUESTED' },
+  { id: 'u5', cafeName: '카페 드 몽블랑', storeType: 'individual', address: '마포구 성미산로 78', requestedAt: '11:20', desiredTime: '16:00 - 18:00', containerCount: 2, estimatedKg: 15, driverName: null, status: 'REQUESTED' },
 ]
 
 /* ── 기사별 오늘 수거내역 더미 데이터 ── */
@@ -158,17 +160,17 @@ export default function CompanyDashboard() {
           status: d.is_online ? 'online' : 'offline', todayKg: 0, pickups: 0,
         })))
       }
-      // 2. 미배정 수거 요청 (회사 소속 카페의 REQUESTED 상태)
+      // 2. 수거 요청 (REQUESTED + ASSIGNED) - 배정 기사 포함
       const { data: companyCafes } = await db.from('cafes').select('id').eq('company', companyName)
       const companyCafeIds = (companyCafes || []).map((c: any) => c.id)
-      const unassignedQuery = db
+      const pendingQuery = db
         .from('pickups')
-        .select('*, cafe:cafes(name, address, store_type)')
-        .eq('status', 'REQUESTED')
+        .select('*, cafe:cafes(name, address, store_type), driver:drivers(name)')
+        .in('status', ['REQUESTED', 'ASSIGNED', 'EN_ROUTE', 'ARRIVED', 'LOADED'])
         .order('requested_at', { ascending: false })
       const { data: unassigned } = companyCafeIds.length > 0
-        ? await unassignedQuery.in('cafe_id', companyCafeIds)
-        : await unassignedQuery.limit(0)
+        ? await pendingQuery.in('cafe_id', companyCafeIds)
+        : await pendingQuery.limit(0)
       if (unassigned) {
         setUnassignedList(unassigned.map((p: any) => ({
           id: p.id,
@@ -182,6 +184,8 @@ export default function CompanyDashboard() {
           desiredTime: '-',
           containerCount: p.quantity ?? 0,
           estimatedKg: p.estimated_weight ?? 0,
+          driverName: p.driver?.name ?? null,
+          status: p.status,
         })))
       }
       // 3. 오늘/이번주 수거 통계 (소속 기사 기준)
@@ -606,8 +610,10 @@ export default function CompanyDashboard() {
                       <Package className="w-5 h-5 text-amber-500" />
                     </div>
                     <div>
-                      <h2 className="text-base font-bold text-gray-900">미배정 수거 요청</h2>
-                      <p className="text-xs text-gray-400">기사 미배정 · {unassignedList.length}건 대기 중</p>
+                      <h2 className="text-base font-bold text-gray-900">수거 요청 현황</h2>
+                      <p className="text-xs text-gray-400">
+                        미배정 {unassignedList.filter(r => r.status === 'REQUESTED').length}건 · 진행 중 {unassignedList.filter(r => r.status !== 'REQUESTED').length}건
+                      </p>
                     </div>
                   </div>
                   <motion.button
@@ -630,15 +636,27 @@ export default function CompanyDashboard() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: idx * 0.05 }}
-                      className="bg-white border border-amber-100 rounded-2xl p-4"
+                      className={`bg-white rounded-2xl p-4 border ${
+                        req.status === 'REQUESTED'
+                          ? 'border-amber-100'
+                          : 'border-eco-green/20'
+                      }`}
                     >
                       {/* 상단: 매장명 + 요청시각 */}
                       <div className="flex items-start justify-between mb-2">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded text-white ${badge.bg}`}>
                             {badge.label}
                           </span>
                           <p className="text-sm font-bold text-gray-900">{req.cafeName}</p>
+                          {/* 상태 뱃지 */}
+                          {req.status === 'REQUESTED' ? (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600">미배정</span>
+                          ) : (
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-eco-green-100 text-eco-green">
+                              {req.status === 'ASSIGNED' ? '배정완료' : req.status === 'EN_ROUTE' ? '이동중' : req.status === 'ARRIVED' ? '도착' : '상차완료'}
+                            </span>
+                          )}
                         </div>
                         <span className="text-[10px] text-gray-400 flex items-center gap-0.5 shrink-0 ml-2">
                           <Clock className="w-2.5 h-2.5" />
@@ -647,24 +665,32 @@ export default function CompanyDashboard() {
                       </div>
 
                       {/* 주소 */}
-                      <div className="flex items-center gap-1 mb-2.5">
+                      <div className="flex items-center gap-1 mb-2">
                         <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
                         <span className="text-[11px] text-gray-500">{req.address}</span>
                       </div>
 
-                      {/* 하단: 희망수거시간 + 수량/무게 */}
+                      {/* 배정 기사 */}
+                      <div className="flex items-center gap-1 mb-2.5">
+                        <Truck className="w-3 h-3 text-gray-400 shrink-0" />
+                        {req.driverName ? (
+                          <span className="text-[11px] font-semibold text-eco-green">{req.driverName} 기사</span>
+                        ) : (
+                          <span className="text-[11px] text-gray-400">담당 기사 미배정</span>
+                        )}
+                      </div>
+
+                      {/* 하단: 수량/무게 */}
                       <div className="flex items-center gap-2">
-                        <div className="flex items-center gap-1 bg-blue-50 rounded-lg px-2.5 py-1.5 flex-1">
-                          <Calendar className="w-3 h-3 text-blue-400" />
-                          <span className="text-[11px] text-blue-600 font-medium">{req.desiredTime}</span>
-                        </div>
                         <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2.5 py-1.5">
                           <Store className="w-3 h-3 text-gray-400" />
                           <span className="text-[11px] text-gray-600">{req.containerCount}박스</span>
                         </div>
-                        <div className="bg-eco-green-100 rounded-lg px-2.5 py-1.5">
-                          <span className="text-[11px] text-eco-green font-semibold">~{req.estimatedKg}kg</span>
-                        </div>
+                        {req.estimatedKg > 0 && (
+                          <div className="bg-eco-green-100 rounded-lg px-2.5 py-1.5">
+                            <span className="text-[11px] text-eco-green font-semibold">~{req.estimatedKg}kg</span>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   )
