@@ -47,8 +47,9 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
 })
 
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth()
+function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode; requiredRole?: string }) {
+  const { isAuthenticated, isLoading, role } = useAuth()
+  const defaultRoute = role === 'cafe' ? '/cafe' : role === 'company' ? '/company' : '/driver'
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -57,6 +58,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     )
   }
   if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (requiredRole && role !== requiredRole) return <Navigate to={defaultRoute} replace />
   return <>{children}</>
 }
 
@@ -89,7 +91,7 @@ function AppRoutes() {
       />
 
       {/* 기사용 */}
-      <Route path="/driver" element={<ProtectedRoute><DriverLayout /></ProtectedRoute>}>
+      <Route path="/driver" element={<ProtectedRoute requiredRole="driver"><DriverLayout /></ProtectedRoute>}>
         <Route index element={<DriverHomePage />} />
         <Route path="pickups" element={<PickupListPage />} />
         <Route path="weigh" element={<WeighPage />} />
@@ -99,7 +101,7 @@ function AppRoutes() {
       </Route>
 
       {/* 점주용 */}
-      <Route path="/cafe" element={<ProtectedRoute><CafeLayout /></ProtectedRoute>}>
+      <Route path="/cafe" element={<ProtectedRoute requiredRole="cafe"><CafeLayout /></ProtectedRoute>}>
         <Route index element={<CafeHomePage />} />
         <Route path="request" element={<PickupRequestPage />} />
         <Route path="history" element={<PickupHistoryPage />} />
@@ -115,7 +117,7 @@ function AppRoutes() {
       </Route>
 
       {/* 소속회사 관리자 */}
-      <Route path="/company" element={<ProtectedRoute><CompanyLayout /></ProtectedRoute>}>
+      <Route path="/company" element={<ProtectedRoute requiredRole="company"><CompanyLayout /></ProtectedRoute>}>
         <Route index element={<CompanyDashboard />} />
         <Route path="drivers" element={<DriverManagePage />} />
         <Route path="pickups" element={<AllPickupsPage />} />

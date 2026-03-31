@@ -69,11 +69,12 @@ export default function PickupListPage() {
     setLoadingCafes(true)
     const db = supabase as any
     db.from('cafes')
-      .select('id, name, address, phone, store_type, company')
+      .select('id, name, address, phone, type, company')
       .eq('driver_id', driverId)
       .eq('status', 'APPROVED')
       .order('name')
-      .then(({ data }: any) => {
+      .then(({ data, error }: any) => {
+        console.log('담당 매장 조회:', data, error)
         if (data) setAssignedCafes(data)
         setLoadingCafes(false)
       })
@@ -290,7 +291,7 @@ export default function PickupListPage() {
               <div className="space-y-2.5">
                 <p className="text-xs text-gray-400 px-1">총 {assignedCafes.length}개 매장이 배정되어 있습니다</p>
                 {assignedCafes.map((cafe, idx) => {
-                  const typeStyle = storeTypeStyle[cafe.store_type || 'INDIVIDUAL']
+                  const typeStyle = storeTypeStyle[cafe.type || 'INDIVIDUAL']
                   return (
                     <motion.div
                       key={cafe.id}

@@ -40,7 +40,11 @@
       "Bash(npx tsc:*)",
       "Bash(find C:/SMARTECOSYS/src/components/company -type f -name *.tsx)",
       "Bash(gh run:*)",
-      "Bash(npx vite:*)"
+      "Bash(npx vite:*)",
+      "Bash(supabase --version)",
+      "Bash(node -e \":*)",
+      "Bash(cd /tmp)",
+      "Bash(grep -E \"^pg$|^postgres$|^pg-\")"
     ]
   }
 }
