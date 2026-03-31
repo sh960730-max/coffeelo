@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Building2, Scale, ClipboardList, Users, Bell,
   TrendingUp, Truck, Circle, ChevronRight, Package,
-  ArrowLeft, MapPin, Clock, Coffee, CheckCircle2, X
+  MapPin, Clock, X, Store, Calendar
 } from 'lucide-react'
 
 /* ── 더미 데이터 ── */
@@ -23,7 +23,27 @@ const statusConfig = {
 const summaryCards = [
   { label: '총 수거량', value: '1,250kg', icon: Scale, color: 'text-eco-green', bg: 'bg-eco-green-100', trend: '+12%' },
   { label: '수거 건수', value: '32건', icon: ClipboardList, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+5건' },
-  { label: '활동 기사', value: '8명', icon: Users, color: 'text-amber-600', bg: 'bg-amber-50', trend: '' },
+  { label: '활동 기사', value: '4명', icon: Users, color: 'text-amber-600', bg: 'bg-amber-50', trend: '' },
+]
+
+/* ── 미배정 수거요청 더미 데이터 ── */
+interface UnassignedRequest {
+  id: string
+  cafeName: string
+  storeType: 'starbucks' | 'franchise' | 'individual'
+  address: string
+  requestedAt: string
+  desiredTime: string
+  containerCount: number
+  estimatedKg: number
+}
+
+const unassignedRequests: UnassignedRequest[] = [
+  { id: 'u1', cafeName: '스타벅스 신촌점', storeType: 'starbucks', address: '서대문구 신촌로 25', requestedAt: '09:10', desiredTime: '13:00 - 15:00', containerCount: 4, estimatedKg: 36 },
+  { id: 'u2', cafeName: '커피나무 홍대점', storeType: 'individual', address: '마포구 홍대입구로 33', requestedAt: '09:42', desiredTime: '14:00 - 16:00', containerCount: 2, estimatedKg: 18 },
+  { id: 'u3', cafeName: '이디야 마포점', storeType: 'franchise', address: '마포구 마포대로 120', requestedAt: '10:05', desiredTime: '15:00 - 17:00', containerCount: 3, estimatedKg: 27 },
+  { id: 'u4', cafeName: '블루보틀 합정점', storeType: 'franchise', address: '마포구 양화로 110', requestedAt: '10:33', desiredTime: '14:30 - 16:30', containerCount: 5, estimatedKg: 44 },
+  { id: 'u5', cafeName: '카페 드 몽블랑', storeType: 'individual', address: '마포구 성미산로 78', requestedAt: '11:20', desiredTime: '16:00 - 18:00', containerCount: 2, estimatedKg: 15 },
 ]
 
 /* ── 기사별 오늘 수거내역 더미 데이터 ── */
@@ -91,6 +111,7 @@ const driverPickups: Record<string, PickupRecord[]> = {
 export default function CompanyDashboard() {
   const [pendingCount] = useState(5)
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null)
+  const [showUnassigned, setShowUnassigned] = useState(false)
 
   const selectedDriverInfo = driverStatuses.find(d => d.id === selectedDriver)
   const selectedPickups = selectedDriver ? (driverPickups[selectedDriver] || []) : []
@@ -129,18 +150,20 @@ export default function CompanyDashboard() {
         {/* 미처리 수거 요청 배너 */}
         <AnimatePresence>
           {pendingCount > 0 && (
-            <motion.div
+            <motion.button
               initial={{ opacity: 0, height: 0, marginTop: 0 }}
               animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
               exit={{ opacity: 0, height: 0, marginTop: 0 }}
-              className="bg-white/15 backdrop-blur rounded-xl px-4 py-3 flex items-center justify-between"
+              whileTap={{ scale: 0.97 }}
+              onClick={() => setShowUnassigned(true)}
+              className="w-full bg-white/15 backdrop-blur rounded-xl px-4 py-3 flex items-center justify-between"
             >
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-amber-300" />
                 <span className="text-sm text-white font-medium">미배정 수거 요청 {pendingCount}건</span>
               </div>
               <ChevronRight className="w-4 h-4 text-white/60" />
-            </motion.div>
+            </motion.button>
           )}
         </AnimatePresence>
       </header>
@@ -244,50 +267,267 @@ export default function CompanyDashboard() {
         </motion.div>
 
         {/* 이번 주 수거 추이 */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.55 }}
-          className="mt-6 bg-white rounded-2xl p-4 shadow-card mb-4"
-        >
-          <h3 className="text-sm font-bold text-gray-800 mb-3">이번 주 수거 추이</h3>
-          <div className="flex items-end gap-1.5 h-24">
-            {[
-              { day: '월', kg: 1100 },
-              { day: '화', kg: 980 },
-              { day: '수', kg: 1350 },
-              { day: '목', kg: 1200 },
-              { day: '금', kg: 1150 },
-              { day: '토', kg: 1250 },
-              { day: '일', kg: 0 },
-            ].map((d, i) => {
-              const maxKg = 1350
-              const height = d.kg > 0 ? Math.max((d.kg / maxKg) * 100, 8) : 4
-              const isToday = i === new Date().getDay() - 1
-              return (
-                <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
-                  {d.kg > 0 && (
-                    <span className="text-[8px] text-gray-400">{d.kg}</span>
-                  )}
-                  <motion.div
-                    initial={{ height: 0 }}
-                    animate={{ height: `${height}%` }}
-                    transition={{ duration: 0.6, delay: 0.6 + i * 0.05 }}
-                    className={`w-full rounded-t-md ${
-                      isToday
-                        ? 'bg-gradient-to-t from-eco-green to-eco-green-300'
-                        : d.kg > 0
-                          ? 'bg-gray-200'
-                          : 'bg-gray-100'
-                    }`}
-                  />
-                  <span className={`text-[10px] font-medium ${isToday ? 'text-eco-green' : 'text-gray-400'}`}>{d.day}</span>
-                </div>
-              )
-            })}
-          </div>
-        </motion.div>
+        {(() => {
+          const weekData = [
+            { day: '월', kg: 1100 },
+            { day: '화', kg: 980 },
+            { day: '수', kg: 1350 },
+            { day: '목', kg: 1200 },
+            { day: '금', kg: 1150 },
+            { day: '토', kg: 1250 },
+            { day: '일', kg: 0 },
+          ]
+          const todayIdx = (() => {
+            const d = new Date().getDay()
+            return d === 0 ? 6 : d - 1
+          })()
+          const maxKg = Math.max(...weekData.map(d => d.kg))
+          const minKg = Math.min(...weekData.filter(d => d.kg > 0).map(d => d.kg))
+          const svgW = 300
+          const svgH = 90
+          const padL = 6
+          const padR = 6
+          const padT = 14
+          const padB = 4
+          const step = (svgW - padL - padR) / (weekData.length - 1)
+
+          const getY = (kg: number) =>
+            kg === 0
+              ? svgH - padB
+              : padT + ((maxKg - kg) / (maxKg - minKg + 1)) * (svgH - padT - padB)
+
+          const points = weekData.map((d, i) => ({
+            x: padL + i * step,
+            y: getY(d.kg),
+            kg: d.kg,
+          }))
+
+          // Smooth bezier path
+          const pathD = points.reduce((acc, pt, i) => {
+            if (i === 0) return `M ${pt.x},${pt.y}`
+            const prev = points[i - 1]
+            const cpX = (prev.x + pt.x) / 2
+            return `${acc} C ${cpX},${prev.y} ${cpX},${pt.y} ${pt.x},${pt.y}`
+          }, '')
+
+          // Area fill path
+          const areaD = `${pathD} L ${points[points.length - 1].x},${svgH - padB} L ${points[0].x},${svgH - padB} Z`
+
+          return (
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.55 }}
+              className="mt-6 bg-white rounded-2xl p-4 shadow-card mb-4"
+            >
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-bold text-gray-800">이번 주 수거 추이</h3>
+                <span className="text-[10px] text-gray-400">단위: kg</span>
+              </div>
+
+              {/* 라인 그래프 SVG */}
+              <svg
+                viewBox={`0 0 ${svgW} ${svgH}`}
+                className="w-full"
+                style={{ overflow: 'visible' }}
+              >
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#22c55e" stopOpacity="0.18" />
+                    <stop offset="100%" stopColor="#22c55e" stopOpacity="0.01" />
+                  </linearGradient>
+                </defs>
+
+                {/* 가로 가이드라인 */}
+                {[0, 0.33, 0.66, 1].map((ratio, i) => {
+                  const y = padT + ratio * (svgH - padT - padB)
+                  return (
+                    <line
+                      key={i}
+                      x1={padL} y1={y} x2={svgW - padR} y2={y}
+                      stroke="#f0f0f0" strokeWidth="1"
+                    />
+                  )
+                })}
+
+                {/* 영역 채우기 */}
+                <path d={areaD} fill="url(#areaGrad)" />
+
+                {/* 라인 */}
+                <motion.path
+                  d={pathD}
+                  fill="none"
+                  stroke="#22c55e"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={{ pathLength: 0, opacity: 0 }}
+                  animate={{ pathLength: 1, opacity: 1 }}
+                  transition={{ duration: 1, delay: 0.6, ease: 'easeOut' }}
+                />
+
+                {/* 데이터 포인트 & 값 레이블 */}
+                {points.map((pt, i) => {
+                  const d = weekData[i]
+                  const isToday = i === todayIdx
+                  const isActive = d.kg > 0
+                  return (
+                    <g key={i}>
+                      {isActive && (
+                        <>
+                          {/* 오늘 강조 원 */}
+                          {isToday && (
+                            <circle
+                              cx={pt.x} cy={pt.y} r="7"
+                              fill="#22c55e" fillOpacity="0.15"
+                            />
+                          )}
+                          <circle
+                            cx={pt.x} cy={pt.y} r={isToday ? 4 : 3}
+                            fill={isToday ? '#22c55e' : '#fff'}
+                            stroke="#22c55e"
+                            strokeWidth={isToday ? 0 : 2}
+                          />
+                          {/* kg 값 */}
+                          <text
+                            x={pt.x} y={pt.y - 8}
+                            textAnchor="middle"
+                            fontSize="8"
+                            fill={isToday ? '#22c55e' : '#aaa'}
+                            fontWeight={isToday ? 'bold' : 'normal'}
+                          >
+                            {d.kg >= 1000 ? `${(d.kg / 1000).toFixed(1)}t` : `${d.kg}`}
+                          </text>
+                        </>
+                      )}
+                    </g>
+                  )
+                })}
+              </svg>
+
+              {/* 요일 레이블 */}
+              <div className="flex justify-between mt-1 px-0.5">
+                {weekData.map((d, i) => {
+                  const isToday = i === todayIdx
+                  return (
+                    <span
+                      key={d.day}
+                      className={`text-[10px] font-medium flex-1 text-center ${isToday ? 'text-eco-green font-bold' : 'text-gray-400'}`}
+                    >
+                      {d.day}
+                    </span>
+                  )
+                })}
+              </div>
+
+              {/* 주간 합계 */}
+              <div className="mt-3 pt-3 border-t border-gray-100 flex items-center justify-between">
+                <span className="text-xs text-gray-400">주간 총 수거량</span>
+                <span className="text-sm font-bold text-eco-green">
+                  {weekData.reduce((s, d) => s + d.kg, 0).toLocaleString()}kg
+                </span>
+              </div>
+            </motion.div>
+          )
+        })()}
       </div>
+
+      {/* ── 미배정 수거요청 바텀시트 ── */}
+      <AnimatePresence>
+        {showUnassigned && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowUnassigned(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 헤더 */}
+              <div className="sticky top-0 bg-white z-10 px-5 pt-4 pb-3 border-b border-gray-100">
+                <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center">
+                      <Package className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-gray-900">미배정 수거 요청</h2>
+                      <p className="text-xs text-gray-400">기사 미배정 · {unassignedRequests.length}건 대기 중</p>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowUnassigned(false)}
+                    className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </motion.button>
+                </div>
+              </div>
+
+              {/* 목록 */}
+              <div className="overflow-y-auto max-h-[70vh] px-5 py-3 space-y-2.5">
+                {unassignedRequests.map((req, idx) => {
+                  const badge = storeTypeBadge[req.storeType]
+                  return (
+                    <motion.div
+                      key={req.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="bg-white border border-amber-100 rounded-2xl p-4"
+                    >
+                      {/* 상단: 매장명 + 요청시각 */}
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded text-white ${badge.bg}`}>
+                            {badge.label}
+                          </span>
+                          <p className="text-sm font-bold text-gray-900">{req.cafeName}</p>
+                        </div>
+                        <span className="text-[10px] text-gray-400 flex items-center gap-0.5 shrink-0 ml-2">
+                          <Clock className="w-2.5 h-2.5" />
+                          {req.requestedAt} 요청
+                        </span>
+                      </div>
+
+                      {/* 주소 */}
+                      <div className="flex items-center gap-1 mb-2.5">
+                        <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                        <span className="text-[11px] text-gray-500">{req.address}</span>
+                      </div>
+
+                      {/* 하단: 희망수거시간 + 수량/무게 */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 bg-blue-50 rounded-lg px-2.5 py-1.5 flex-1">
+                          <Calendar className="w-3 h-3 text-blue-400" />
+                          <span className="text-[11px] text-blue-600 font-medium">{req.desiredTime}</span>
+                        </div>
+                        <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2.5 py-1.5">
+                          <Store className="w-3 h-3 text-gray-400" />
+                          <span className="text-[11px] text-gray-600">{req.containerCount}박스</span>
+                        </div>
+                        <div className="bg-eco-green-100 rounded-lg px-2.5 py-1.5">
+                          <span className="text-[11px] text-eco-green font-semibold">~{req.estimatedKg}kg</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )
+                })}
+                <div className="h-4" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── 기사별 오늘 수거내역 모달 ── */}
       <AnimatePresence>
