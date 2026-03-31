@@ -31,6 +31,10 @@ import SettlementManagePage from './pages/company/SettlementManagePage'
 import CafeManagePage from './pages/company/CafeManagePage'
 import AnnouncementPage from './pages/company/AnnouncementPage'
 import CompanyMorePage from './pages/company/CompanyMorePage'
+import CompanyInfoPage from './pages/company/CompanyInfoPage'
+import NotificationSettingPage from './pages/company/NotificationSettingPage'
+import TermsPage from './pages/company/TermsPage'
+import PrivacyPage from './pages/company/PrivacyPage'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -105,6 +109,10 @@ function AppRoutes() {
         <Route path="cafes" element={<CafeManagePage />} />
         <Route path="announcements" element={<AnnouncementPage />} />
         <Route path="more" element={<CompanyMorePage />} />
+        <Route path="info" element={<CompanyInfoPage />} />
+        <Route path="notifications" element={<NotificationSettingPage />} />
+        <Route path="terms" element={<TermsPage />} />
+        <Route path="privacy" element={<PrivacyPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to={isAuthenticated ? defaultRoute : '/login'} replace />} />

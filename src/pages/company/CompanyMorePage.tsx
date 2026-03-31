@@ -67,15 +67,15 @@ export default function CompanyMorePage() {
     {
       title: '설정',
       items: [
-        { icon: Building2, label: '회사 정보', desc: '회사 정보 수정' },
-        { icon: Bell, label: '알림 설정', desc: '푸시 알림, 정산 알림' },
+        { icon: Building2, label: '회사 정보', desc: '회사 정보 수정', path: '/company/info' },
+        { icon: Bell, label: '알림 설정', desc: '푸시 알림, 정산 알림', path: '/company/notifications' },
       ],
     },
     {
       title: '약관 및 정보',
       items: [
-        { icon: FileText, label: '이용약관', desc: '' },
-        { icon: Shield, label: '개인정보처리방침', desc: '' },
+        { icon: FileText, label: '이용약관', desc: '', path: '/company/terms' },
+        { icon: Shield, label: '개인정보처리방침', desc: '', path: '/company/privacy' },
       ],
     },
   ]
