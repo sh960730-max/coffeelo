@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import KakaoAddressModal from '../../components/KakaoAddressModal'
 
 const typeConfig: Record<string, { label: string; color: string }> = {
   STARBUCKS:  { label: '스벅',       color: 'bg-emerald-50 text-emerald-600' },
@@ -31,6 +32,7 @@ export default function CafeManagePage() {
   const [form, setForm] = useState({ name: '', type: 'FRANCHISE', address: '', phone: '' })
   const [saving, setSaving] = useState(false)
   const [approving, setApproving] = useState<string | null>(null)
+  const [showAddressModal, setShowAddressModal] = useState(false)
 
   useEffect(() => {
     if (!companyName) return
@@ -410,13 +412,17 @@ export default function CafeManagePage() {
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">주소</label>
-                  <input
-                    type="text"
-                    placeholder="매장 주소"
-                    value={form.address}
-                    onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
-                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-eco-green/30"
-                  />
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowAddressModal(true)}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 bg-gray-50 rounded-xl text-sm text-left"
+                  >
+                    <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
+                    <span className={form.address ? 'text-gray-800' : 'text-gray-400'}>
+                      {form.address || '주소 검색 (클릭)'}
+                    </span>
+                  </motion.button>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-gray-500 mb-1 block">연락처</label>
@@ -443,6 +449,13 @@ export default function CafeManagePage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 카카오 주소 검색 모달 */}
+      <KakaoAddressModal
+        isOpen={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        onSelect={(addr) => setForm(f => ({ ...f, address: addr }))}
+      />
     </div>
   )
 }

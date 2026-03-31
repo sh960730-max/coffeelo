@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Coffee, Phone, Lock, User, ArrowRight, ArrowLeft, Leaf, Truck, Store, Building2, MapPin, ChevronDown, Check } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import type { UserRole } from '../contexts/AuthContext'
+import KakaoAddressModal from '../components/KakaoAddressModal'
 
 const roles: { key: UserRole; label: string; icon: typeof Truck; desc: string }[] = [
   { key: 'driver', label: '기사', icon: Truck, desc: '커피박 수거 기사' },
@@ -38,6 +39,7 @@ export default function SignupPage() {
   const [cafeName, setCafeName] = useState('')
   const [cafeAddress, setCafeAddress] = useState('')
   const [storeType, setStoreType] = useState('INDIVIDUAL')
+  const [showAddressModal, setShowAddressModal] = useState(false)
 
   // 기사 전용
   const [truckType, setTruckType] = useState('1톤 트럭')
@@ -384,17 +386,17 @@ export default function SignupPage() {
                       className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
                     />
                   </div>
-                  <div className="relative">
-                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/40" />
-                    <input
-                      type="text"
-                      placeholder="매장 주소"
-                      value={cafeAddress}
-                      onChange={(e) => setCafeAddress(e.target.value)}
-                      required
-                      className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
-                    />
-                  </div>
+                  <motion.button
+                    type="button"
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowAddressModal(true)}
+                    className="w-full flex items-center gap-3 pl-4 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl outline-none focus:border-white/50 text-left"
+                  >
+                    <MapPin className="w-5 h-5 text-white/40 flex-shrink-0" />
+                    <span className={`text-sm font-medium flex-1 ${cafeAddress ? 'text-white' : 'text-white/40'}`}>
+                      {cafeAddress || '매장 주소 (클릭하여 검색)'}
+                    </span>
+                  </motion.button>
                 </motion.div>
               )}
 
@@ -554,6 +556,13 @@ export default function SignupPage() {
           </motion.form>
         )}
       </AnimatePresence>
+
+      {/* 카카오 주소 검색 모달 */}
+      <KakaoAddressModal
+        isOpen={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        onSelect={(addr) => setCafeAddress(addr)}
+      />
     </div>
   )
 }
