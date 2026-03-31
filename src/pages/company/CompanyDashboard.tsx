@@ -137,12 +137,17 @@ export default function CompanyDashboard() {
           status: d.is_online ? 'online' : 'offline', todayKg: 0, pickups: 0,
         })))
       }
-      // 2. 미배정 수거 요청 (REQUESTED 상태)
-      const { data: unassigned } = await db
+      // 2. 미배정 수거 요청 (회사 소속 카페의 REQUESTED 상태)
+      const { data: companyCafes } = await db.from('cafes').select('id').eq('company', companyName)
+      const companyCafeIds = (companyCafes || []).map((c: any) => c.id)
+      const unassignedQuery = db
         .from('pickups')
         .select('*, cafe:cafes(name, address, store_type)')
         .eq('status', 'REQUESTED')
         .order('requested_at', { ascending: false })
+      const { data: unassigned } = companyCafeIds.length > 0
+        ? await unassignedQuery.in('cafe_id', companyCafeIds)
+        : await unassignedQuery.limit(0)
       if (unassigned) {
         setUnassignedList(unassigned.map((p: any) => ({
           id: p.id,
@@ -154,8 +159,8 @@ export default function CompanyDashboard() {
             ? new Date(p.requested_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
             : '-',
           desiredTime: '-',
-          containerCount: 0,
-          estimatedKg: 0,
+          containerCount: p.quantity ?? 0,
+          estimatedKg: p.estimated_weight ?? 0,
         })))
       }
       // 3. 오늘/이번주 수거 통계 (소속 기사 기준)
