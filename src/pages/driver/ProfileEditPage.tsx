@@ -9,25 +9,16 @@ export default function ProfileEditPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [name, setName] = useState((user as any)?.name ?? '');
+  const [phone, setPhone] = useState((user as any)?.phone ?? '');
   const [saving, setSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
-    const fetchDriver = async () => {
-      if (!(user as any)?.id) return;
-      const { data } = await supabase
-        .from('drivers')
-        .select('name, phone')
-        .eq('user_id', (user as any).id)
-        .single();
-      if (data) {
-        setName(data.name ?? '');
-        setPhone(data.phone ?? '');
-      }
-    };
-    fetchDriver();
+    if (user) {
+      setName((user as any).name ?? '');
+      setPhone((user as any).phone ?? '');
+    }
   }, [user]);
 
   const handleSave = async () => {
@@ -36,7 +27,7 @@ export default function ProfileEditPage() {
     await supabase
       .from('drivers')
       .update({ name, phone })
-      .eq('user_id', (user as any)?.id);
+      .eq('id', (user as any)?.id);
     setSaving(false);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2500);

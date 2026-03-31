@@ -11,25 +11,16 @@ export default function VehicleInfoPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [truckType, setTruckType] = useState('');
-  const [licensePlate, setLicensePlate] = useState('');
+  const [truckType, setTruckType] = useState((user as any)?.truck_type ?? '');
+  const [licensePlate, setLicensePlate] = useState((user as any)?.license_plate ?? '');
   const [saving, setSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
-    const fetchDriver = async () => {
-      if (!(user as any)?.id) return;
-      const { data } = await supabase
-        .from('drivers')
-        .select('truck_type, license_plate')
-        .eq('user_id', (user as any).id)
-        .single();
-      if (data) {
-        setTruckType(data.truck_type ?? '');
-        setLicensePlate(data.license_plate ?? '');
-      }
-    };
-    fetchDriver();
+    if (user) {
+      setTruckType((user as any).truck_type ?? '');
+      setLicensePlate((user as any).license_plate ?? '');
+    }
   }, [user]);
 
   const handleSave = async () => {
@@ -38,7 +29,7 @@ export default function VehicleInfoPage() {
     await supabase
       .from('drivers')
       .update({ truck_type: truckType, license_plate: licensePlate })
-      .eq('user_id', (user as any)?.id);
+      .eq('id', (user as any)?.id);
     setSaving(false);
     setShowToast(true);
     setTimeout(() => setShowToast(false), 2500);
