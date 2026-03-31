@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Megaphone, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
 interface Announcement {
@@ -13,18 +14,28 @@ interface Announcement {
 
 export default function CafeAnnouncementPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const cafeCompany = (user as any)?.company ?? ''
+
   const [items, setItems] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  useEffect(() => { fetchAnnouncements() }, [])
+  useEffect(() => { fetchAnnouncements() }, [cafeCompany])
 
   const fetchAnnouncements = async () => {
     const db = supabase as any
-    const { data } = await db
+    let query = db
       .from('announcements')
       .select('id, title, content, created_at')
       .order('created_at', { ascending: false })
+
+    // 소속 회사 공지만 표시
+    if (cafeCompany) {
+      query = query.eq('company', cafeCompany)
+    }
+
+    const { data } = await query
     if (data) setItems(data)
     setLoading(false)
   }
