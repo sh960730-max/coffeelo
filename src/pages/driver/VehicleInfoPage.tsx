@@ -26,7 +26,7 @@ export default function VehicleInfoPage() {
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
-    await supabase
+    await (supabase as any)
       .from('drivers')
       .update({ truck_type: truckType, license_plate: licensePlate })
       .eq('id', (user as any)?.id);

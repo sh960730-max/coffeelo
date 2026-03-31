@@ -24,7 +24,7 @@ export default function ProfileEditPage() {
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
-    await supabase
+    await (supabase as any)
       .from('drivers')
       .update({ name, phone })
       .eq('id', (user as any)?.id);
