@@ -45,7 +45,7 @@ export default function CafeManagePage() {
     const { data: drivers } = await db.from('drivers').select('id').eq('company', companyName)
     const driverIds = (drivers || []).map((d: any) => d.id)
 
-    // 승인된 매장 (회사 소속 or 전체)
+    // 승인된 매장
     const { data: cafeData } = await db.from('cafes').select('*')
       .eq('company', companyName)
       .not('status', 'eq', 'PENDING')
@@ -187,75 +187,71 @@ export default function CafeManagePage() {
           <div className="flex items-center justify-center py-20">
             <Loader2 className="w-6 h-6 text-eco-green animate-spin" />
           </div>
-        ) : (
-          <>
-            {/* 승인 대기 탭 */}
-            {tab === 'pending' && (
-              <div className="space-y-2.5">
-                {pendingCafes.length === 0 ? (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
-                    <Clock className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400">승인 대기 중인 매장이 없습니다</p>
-                  </motion.div>
-                ) : (
-                  pendingCafes.map((cafe, idx) => (
-                    <motion.div
-                      key={cafe.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className="bg-white rounded-2xl shadow-card p-4"
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
-                          <Coffee className="w-5 h-5 text-amber-500" />
+        ) : tab === 'pending' ? (
+          /* 승인 대기 탭 */
+          <div className="space-y-2.5">
+            {pendingCafes.length === 0 ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
+                <Clock className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">승인 대기 중인 매장이 없습니다</p>
+              </motion.div>
+            ) : (
+              pendingCafes.map((cafe, idx) => (
+                <motion.div
+                  key={cafe.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.05 }}
+                  className="bg-white rounded-2xl shadow-card p-4"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+                      <Coffee className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{cafe.name}</p>
+                      {cafe.address && (
+                        <div className="flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3 h-3 text-gray-300" />
+                          <span className="text-[11px] text-gray-400 truncate">{cafe.address}</span>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-gray-800 truncate">{cafe.name}</p>
-                          {cafe.address && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <MapPin className="w-3 h-3 text-gray-300" />
-                              <span className="text-[11px] text-gray-400 truncate">{cafe.address}</span>
-                            </div>
-                          )}
-                        </div>
-                        <span className="text-[10px] bg-amber-50 text-amber-600 font-semibold px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0">
-                          <Clock className="w-3 h-3" />
-                          대기중
-                        </span>
-                      </div>
-                      {cafe.phone && (
-                        <p className="text-[11px] text-gray-400 mb-3">연락처: {cafe.phone}</p>
                       )}
-                      <div className="flex gap-2">
-                        <motion.button
-                          whileTap={{ scale: 0.97 }}
-                          disabled={approving === cafe.id}
-                          onClick={() => handleApprove(cafe.id)}
-                          className="flex-1 bg-eco-green text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
-                        >
-                          {approving === cafe.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                          승인
-                        </motion.button>
-                        <motion.button
-                          whileTap={{ scale: 0.97 }}
-                          disabled={approving === cafe.id}
-                          onClick={() => handleReject(cafe.id)}
-                          className="flex-1 bg-red-50 text-red-500 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
-                        >
-                          {approving === cafe.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
-                          거부
-                        </motion.button>
-                      </div>
-                    </motion.div>
-                  ))
-                )}
-              </div>
+                    </div>
+                    <span className="text-[10px] bg-amber-50 text-amber-600 font-semibold px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0">
+                      <Clock className="w-3 h-3" />
+                      대기중
+                    </span>
+                  </div>
+                  {cafe.phone && (
+                    <p className="text-[11px] text-gray-400 mb-3">연락처: {cafe.phone}</p>
+                  )}
+                  <div className="flex gap-2">
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      disabled={approving === cafe.id}
+                      onClick={() => handleApprove(cafe.id)}
+                      className="flex-1 bg-eco-green text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      {approving === cafe.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                      승인
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      disabled={approving === cafe.id}
+                      onClick={() => handleReject(cafe.id)}
+                      className="flex-1 bg-red-50 text-red-500 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
+                    >
+                      {approving === cafe.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                      거부
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ))
             )}
-
-            {/* 등록 매장 탭 */}
-            {tab === 'active' && <>
-            {/* 유형별 요약 */}
+          </div>
+        ) : (
+          /* 등록 매장 탭 */
+          <>
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -269,7 +265,6 @@ export default function CafeManagePage() {
               ))}
             </motion.div>
 
-            {/* 매장 목록 */}
             <div className="space-y-2.5">
               {filtered.map((cafe, idx) => {
                 const cfg = typeConfig[cafe.type] || typeConfig.INDIVIDUAL
@@ -361,7 +356,6 @@ export default function CafeManagePage() {
                 </p>
               </motion.div>
             )}
-            </>}
           </>
         )}
       </div>
