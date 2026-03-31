@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Building2, Scale, ClipboardList, Users, Bell,
   TrendingUp, Truck, Circle, ChevronRight, Package,
-  MapPin, Clock, X, Store, Calendar
+  MapPin, Clock, X, Store, Calendar, CheckCircle, AlertCircle
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -49,6 +49,14 @@ const unassignedRequests: UnassignedRequest[] = [
   { id: 'u4', cafeName: '블루보틀 합정점', storeType: 'franchise', address: '마포구 양화로 110', requestedAt: '10:33', desiredTime: '14:30 - 16:30', containerCount: 5, estimatedKg: 44, driverName: null, status: 'REQUESTED' },
   { id: 'u5', cafeName: '카페 드 몽블랑', storeType: 'individual', address: '마포구 성미산로 78', requestedAt: '11:20', desiredTime: '16:00 - 18:00', containerCount: 2, estimatedKg: 15, driverName: null, status: 'REQUESTED' },
 ]
+
+interface PendingCafe {
+  id: string
+  name: string
+  address: string
+  storeType: string
+  createdAt: string
+}
 
 /* ── 기사별 오늘 수거내역 더미 데이터 ── */
 interface PickupRecord {
@@ -128,6 +136,9 @@ export default function CompanyDashboard() {
   const [showUnassigned, setShowUnassigned] = useState(false)
   const [selectedDriverPickups, setSelectedDriverPickups] = useState<any[]>([])
   const [loadingDriverDetail, setLoadingDriverDetail] = useState(false)
+  const [showNotifPanel, setShowNotifPanel] = useState(false)
+  const [pendingCafes, setPendingCafes] = useState<PendingCafe[]>([])
+  const totalNotifCount = pendingCafes.length + pendingCount
 
   // 기사 온라인 상태 주기적 갱신 (30초)
   useEffect(() => {
@@ -160,6 +171,25 @@ export default function CompanyDashboard() {
           status: d.is_online ? 'online' : 'offline', todayKg: 0, pickups: 0,
         })))
       }
+      // 2-0. 가맹 승인 대기 카페 (PENDING)
+      const { data: pendingCafeData } = await db
+        .from('cafes')
+        .select('id, name, address, store_type, created_at')
+        .eq('company', companyName)
+        .eq('status', 'PENDING')
+        .order('created_at', { ascending: false })
+      if (pendingCafeData) {
+        setPendingCafes(pendingCafeData.map((c: any) => ({
+          id: c.id,
+          name: c.name ?? '알 수 없음',
+          address: c.address ?? '-',
+          storeType: c.store_type ?? 'INDIVIDUAL',
+          createdAt: c.created_at
+            ? new Date(c.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : '-',
+        })))
+      }
+
       // 2. 수거 요청 (REQUESTED + ASSIGNED) - 배정 기사 포함
       const { data: companyCafes } = await db.from('cafes').select('id').eq('company', companyName)
       const companyCafeIds = (companyCafes || []).map((c: any) => c.id)
@@ -292,16 +322,17 @@ export default function CompanyDashboard() {
           </div>
           <motion.button
             whileTap={{ scale: 0.9 }}
+            onClick={() => setShowNotifPanel(true)}
             className="relative w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center"
           >
             <Bell className="w-5 h-5 text-white" />
-            {pendingCount > 0 && (
+            {totalNotifCount > 0 && (
               <motion.span
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center"
               >
-                {pendingCount}
+                {totalNotifCount}
               </motion.span>
             )}
           </motion.button>
@@ -583,6 +614,137 @@ export default function CompanyDashboard() {
           )
         })()}
       </div>
+
+      {/* ── 알림 패널 바텀시트 ── */}
+      <AnimatePresence>
+        {showNotifPanel && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowNotifPanel(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[85vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* 헤더 */}
+              <div className="sticky top-0 bg-white z-10 px-5 pt-4 pb-3 border-b border-gray-100">
+                <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 bg-red-50 rounded-xl flex items-center justify-center">
+                      <Bell className="w-5 h-5 text-red-500" />
+                    </div>
+                    <div>
+                      <h2 className="text-base font-bold text-gray-900">알림</h2>
+                      <p className="text-xs text-gray-400">총 {totalNotifCount}건의 알림</p>
+                    </div>
+                  </div>
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => setShowNotifPanel(false)}
+                    className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </motion.button>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto max-h-[70vh] px-5 py-4 space-y-4">
+                {/* 가맹 승인 요청 섹션 */}
+                {pendingCafes.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <AlertCircle className="w-4 h-4 text-amber-500" />
+                      <h3 className="text-xs font-bold text-gray-700">가맹 승인 대기</h3>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full">{pendingCafes.length}건</span>
+                    </div>
+                    <div className="space-y-2.5">
+                      {pendingCafes.map((cafe, idx) => {
+                        const typeMap: Record<string, { label: string; bg: string }> = {
+                          STARBUCKS: { label: '스벅', bg: 'bg-green-600' },
+                          FRANCHISE: { label: '프랜차이즈', bg: 'bg-orange-500' },
+                          INDIVIDUAL: { label: '개인카페', bg: 'bg-purple-500' },
+                        }
+                        const typeBadge = typeMap[cafe.storeType] ?? typeMap.INDIVIDUAL
+                        return (
+                          <motion.div
+                            key={cafe.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className="bg-amber-50 border border-amber-100 rounded-2xl p-4"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded text-white ${typeBadge.bg}`}>
+                                  {typeBadge.label}
+                                </span>
+                                <p className="text-sm font-bold text-gray-900">{cafe.name}</p>
+                                <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">승인 대기</span>
+                              </div>
+                              <span className="text-[10px] text-gray-400 shrink-0 ml-2">{cafe.createdAt}</span>
+                            </div>
+                            <div className="flex items-center gap-1 mb-3">
+                              <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                              <span className="text-[11px] text-gray-500">{cafe.address}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="flex-1 py-2 bg-eco-green rounded-xl flex items-center justify-center gap-1.5">
+                                <CheckCircle className="w-3.5 h-3.5 text-white" />
+                                <span className="text-xs font-bold text-white">승인하기</span>
+                              </div>
+                              <div className="flex-1 py-2 bg-white border border-gray-200 rounded-xl flex items-center justify-center">
+                                <span className="text-xs font-medium text-gray-500">거절</span>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* 미배정 수거 요청 섹션 */}
+                {pendingCount > 0 && (
+                  <div>
+                    <div className="flex items-center gap-1.5 mb-2.5">
+                      <Package className="w-4 h-4 text-blue-500" />
+                      <h3 className="text-xs font-bold text-gray-700">미배정 수거 요청</h3>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">{pendingCount}건</span>
+                    </div>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => { setShowNotifPanel(false); setTimeout(() => setShowUnassigned(true), 200) }}
+                      className="w-full bg-blue-50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Package className="w-4 h-4 text-blue-500" />
+                        <span className="text-sm text-gray-800 font-medium">수거 요청 {pendingCount}건 확인하기</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-gray-400" />
+                    </motion.button>
+                  </div>
+                )}
+
+                {totalNotifCount === 0 && (
+                  <div className="text-center py-12">
+                    <Bell className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                    <p className="text-sm text-gray-400">새로운 알림이 없습니다</p>
+                  </div>
+                )}
+                <div className="h-4" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── 미배정 수거요청 바텀시트 ── */}
       <AnimatePresence>

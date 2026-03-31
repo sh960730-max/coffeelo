@@ -44,7 +44,24 @@
       "Bash(supabase --version)",
       "Bash(node -e \":*)",
       "Bash(cd /tmp)",
-      "Bash(grep -E \"^pg$|^postgres$|^pg-\")"
+      "Bash(grep -E \"^pg$|^postgres$|^pg-\")",
+      "Bash(head -10 grep -n \"store_type\\\\|type:\" C:/SMARTECOSYS/src/pages/SignupPage.tsx)",
+      "Bash(curl -s \"https://ysofjeniptffnxfrddns.supabase.co/rest/v1/cafes?id=eq.7b0e6965-11d2-40dc-9b00-6ecb4c253f50&select=id,name,company,driver_id,status\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8\")",
+      "Bash(curl -s \"https://ysofjeniptffnxfrddns.supabase.co/rest/v1/drivers?id=eq.f39a9e4f-88db-46a1-9fa6-c9a96cef73d4&select=id,name,company,status\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8\")",
+      "Bash(xargs grep:*)",
+      "Bash(npx vercel:*)",
+      "Bash(vercel --prod --yes)",
+      "Bash(node_modules/.bin/vercel --prod --yes)",
+      "Bash(cmd.exe /c \"npx vercel --prod --yes\")",
+      "Bash(cmd.exe /c \"npx vercel --prod --yes 2>&1\")",
+      "Bash(cmd.exe /c \"cd C:\\\\SMARTECOSYS && npx vercel --prod --yes\")",
+      "Bash(powershell.exe -Command \"Set-Location C:\\\\SMARTECOSYS; npx vercel --prod --yes 2>&1\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem -Path C:\\\\Users\\\\SAMSUNG\\\\.vercel -ErrorAction SilentlyContinue; [System.Environment]::GetEnvironmentVariable\\(''VERCEL_TOKEN''\\)\")",
+      "Bash(powershell.exe -Command \"Get-Content C:\\\\Users\\\\SAMSUNG\\\\AppData\\\\Roaming\\\\vercel\\\\auth.json -ErrorAction SilentlyContinue\")",
+      "Bash(powershell.exe -Command \"Get-ChildItem C:\\\\Users\\\\SAMSUNG\\\\AppData\\\\Roaming\\\\ | Where-Object {$_Name -like ''*vercel*''}\")",
+      "Bash(curl -s --max-time 10 \"https://smartecosys.kr\" -o /dev/null -w \"%{http_code}\")",
+      "Bash(curl -s \"https://ysofjeniptffnxfrddns.supabase.co/rest/v1/cafes?name=eq.%EC%8A%A4%ED%83%80%EB%B2%85%EC%8A%A4%20%EB%82%A8%EB%B6%80%ED%84%B0%EB%AF%B8%EB%84%90%EC%97%AD%EC%A0%90&select=id,name,driver_id,status\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8\")",
+      "Bash(curl -s \"https://ysofjeniptffnxfrddns.supabase.co/rest/v1/drivers?id=eq.685f4f4c-671c-45e5-86a3-a96084d64daf&select=id,name,company,status\" -H \"apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8\" -H \"Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8\")"
     ]
   }
 }
