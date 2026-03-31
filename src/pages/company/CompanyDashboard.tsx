@@ -23,9 +23,9 @@ const statusConfig = {
   offline: { label: '오프라인', color: 'bg-gray-300', textColor: 'text-gray-500', bgColor: 'bg-gray-100' },
 }
 
-const summaryCardsBase = [
-  { label: '총 수거량', value: '1,250kg', icon: Scale, color: 'text-eco-green', bg: 'bg-eco-green-100', trend: '+12%' },
-  { label: '수거 건수', value: '32건', icon: ClipboardList, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+5건' },
+const summaryCardsBase = (weight: number, count: number) => [
+  { label: '총 수거량', value: weight > 0 ? `${weight.toLocaleString()}kg` : '0kg', icon: Scale, color: 'text-eco-green', bg: 'bg-eco-green-100', trend: '' },
+  { label: '수거 건수', value: `${count}건`, icon: ClipboardList, color: 'text-blue-600', bg: 'bg-blue-50', trend: '' },
 ]
 
 /* ── 미배정 수거요청 더미 데이터 ── */
@@ -114,26 +114,85 @@ export default function CompanyDashboard() {
   const { user } = useAuth()
   const companyName = (user as any)?.name ?? '관리자'
   const [driverStatuses, setDriverStatuses] = useState<DriverStatus[]>([])
-  const [pendingCount] = useState(5)
+  const [unassignedList, setUnassignedList] = useState<UnassignedRequest[]>([])
+  const [todayWeight, setTodayWeight] = useState(0)
+  const [todayCount, setTodayCount] = useState(0)
+  const [weeklyData, setWeeklyData] = useState([
+    { day: '월', kg: 0 }, { day: '화', kg: 0 }, { day: '수', kg: 0 },
+    { day: '목', kg: 0 }, { day: '금', kg: 0 }, { day: '토', kg: 0 }, { day: '일', kg: 0 },
+  ])
+  const pendingCount = unassignedList.length
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null)
+  const [showUnassigned, setShowUnassigned] = useState(false)
 
   useEffect(() => {
     if (!companyName || companyName === '관리자') return
     const db = supabase as any
-    db.from('drivers').select('*').eq('company', companyName).then(({ data }: any) => {
-      if (data) {
-        setDriverStatuses(data.map((d: any) => ({
-          id: d.id,
-          name: d.name,
-          truckType: d.truck_type,
-          status: d.is_online ? 'online' : 'offline',
-          todayKg: 0,
-          pickups: 0,
+    const load = async () => {
+      // 1. 소속 기사 목록
+      const { data: drivers } = await db.from('drivers').select('*').eq('company', companyName)
+      if (drivers) {
+        setDriverStatuses(drivers.map((d: any) => ({
+          id: d.id, name: d.name, truckType: d.truck_type,
+          status: d.is_online ? 'online' : 'offline', todayKg: 0, pickups: 0,
         })))
       }
-    })
+      // 2. 미배정 수거 요청 (REQUESTED 상태)
+      const { data: unassigned } = await db
+        .from('pickups')
+        .select('*, cafe:cafes(name, address, store_type)')
+        .eq('status', 'REQUESTED')
+        .order('requested_at', { ascending: false })
+      if (unassigned) {
+        setUnassignedList(unassigned.map((p: any) => ({
+          id: p.id,
+          cafeName: p.cafe?.name ?? '알 수 없음',
+          storeType: (p.cafe?.store_type === 'STARBUCKS' ? 'starbucks' :
+                      p.cafe?.store_type === 'FRANCHISE' ? 'franchise' : 'individual') as any,
+          address: p.cafe?.address ?? '-',
+          requestedAt: p.requested_at
+            ? new Date(p.requested_at).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+            : '-',
+          desiredTime: '-',
+          containerCount: 0,
+          estimatedKg: 0,
+        })))
+      }
+      // 3. 오늘/이번주 수거 통계 (소속 기사 기준)
+      const driverIds = (drivers || []).map((d: any) => d.id)
+      if (driverIds.length > 0) {
+        const today = new Date().toISOString().split('T')[0]
+        const { data: todayPickups } = await db
+          .from('pickups').select('total_weight')
+          .in('driver_id', driverIds).eq('status', 'COMPLETED')
+          .gte('completed_at', today + 'T00:00:00')
+        if (todayPickups) {
+          setTodayWeight(todayPickups.reduce((s: number, p: any) => s + (p.total_weight || 0), 0))
+          setTodayCount(todayPickups.length)
+        }
+        const now = new Date()
+        const dow = now.getDay()
+        const monday = new Date(now)
+        monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
+        monday.setHours(0, 0, 0, 0)
+        const { data: weekPickups } = await db
+          .from('pickups').select('completed_at, total_weight')
+          .in('driver_id', driverIds).eq('status', 'COMPLETED')
+          .gte('completed_at', monday.toISOString())
+        if (weekPickups) {
+          const days = ['월', '화', '수', '목', '금', '토', '일']
+          const acc: Record<string, number> = {}
+          weekPickups.forEach((p: any) => {
+            const d = new Date(p.completed_at)
+            const idx = d.getDay() === 0 ? 6 : d.getDay() - 1
+            acc[days[idx]] = (acc[days[idx]] || 0) + (p.total_weight || 0)
+          })
+          setWeeklyData(days.map(d => ({ day: d, kg: acc[d] || 0 })))
+        }
+      }
+    }
+    load()
   }, [companyName])
-  const [showUnassigned, setShowUnassigned] = useState(false)
 
   const selectedDriverInfo = driverStatuses.find(d => d.id === selectedDriver)
   const selectedPickups = selectedDriver ? (driverPickups[selectedDriver] || []) : []
@@ -205,7 +264,7 @@ export default function CompanyDashboard() {
         </motion.div>
 
         <div className="grid grid-cols-3 gap-2.5">
-          {[...summaryCardsBase, { label: '활동 기사', value: `${driverStatuses.length}명`, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50', trend: '' }].map((card, idx) => {
+          {[...summaryCardsBase(todayWeight, todayCount), { label: '활동 기사', value: `${driverStatuses.length}명`, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50', trend: '' }].map((card, idx) => {
             const Icon = card.icon
             return (
               <motion.div
@@ -290,15 +349,7 @@ export default function CompanyDashboard() {
 
         {/* 이번 주 수거 추이 */}
         {(() => {
-          const weekData = [
-            { day: '월', kg: 1100 },
-            { day: '화', kg: 980 },
-            { day: '수', kg: 1350 },
-            { day: '목', kg: 1200 },
-            { day: '금', kg: 1150 },
-            { day: '토', kg: 1250 },
-            { day: '일', kg: 0 },
-          ]
+          const weekData = weeklyData
           const todayIdx = (() => {
             const d = new Date().getDay()
             return d === 0 ? 6 : d - 1
@@ -482,7 +533,7 @@ export default function CompanyDashboard() {
                     </div>
                     <div>
                       <h2 className="text-base font-bold text-gray-900">미배정 수거 요청</h2>
-                      <p className="text-xs text-gray-400">기사 미배정 · {unassignedRequests.length}건 대기 중</p>
+                      <p className="text-xs text-gray-400">기사 미배정 · {unassignedList.length}건 대기 중</p>
                     </div>
                   </div>
                   <motion.button
@@ -497,7 +548,7 @@ export default function CompanyDashboard() {
 
               {/* 목록 */}
               <div className="overflow-y-auto max-h-[70vh] px-5 py-3 space-y-2.5">
-                {unassignedRequests.map((req, idx) => {
+                {unassignedList.map((req, idx) => {
                   const badge = storeTypeBadge[req.storeType]
                   return (
                     <motion.div
