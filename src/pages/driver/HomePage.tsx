@@ -77,12 +77,25 @@ export default function HomePage() {
       })))
     }
 
-    // 대기 중인 콜 (미배정 수거 요청)
-    const { data: pending } = await db
+    // 담당 카페 ID 목록
+    const { data: assignedCafes } = await db
+      .from('cafes')
+      .select('id')
+      .eq('driver_id', driverId)
+      .eq('status', 'APPROVED')
+
+    const assignedCafeIds = (assignedCafes || []).map((c: any) => c.id)
+
+    // 대기 중인 콜 (담당 카페의 미배정 수거 요청)
+    const pendingQuery = db
       .from('pickups')
       .select('*, cafe:cafes(name, address, store_type)')
       .eq('status', 'REQUESTED')
       .order('requested_at', { ascending: false })
+
+    const { data: pending } = assignedCafeIds.length > 0
+      ? await pendingQuery.in('cafe_id', assignedCafeIds)
+      : await pendingQuery
 
     if (pending) {
       setCalls(pending.map((p: any) => ({

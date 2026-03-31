@@ -61,24 +61,26 @@ export default function AllPickupsPage() {
         fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
       }
 
-      // 소속 기사 ID 목록
+      // 소속 기사 목록
       const { data: drivers } = await db.from('drivers').select('id, name').eq('company', companyName)
-      if (!drivers || drivers.length === 0) { setPickups([]); setLoading(false); return }
-
-      const driverIds = drivers.map((d: any) => d.id)
       const driverMap: Record<string, string> = {}
-      drivers.forEach((d: any) => { driverMap[d.id] = d.name })
+      ;(drivers || []).forEach((d: any) => { driverMap[d.id] = d.name })
+
+      // 소속 카페 ID 목록 (company 기준으로 수거 전체 조회)
+      const { data: cafes } = await db.from('cafes').select('id').eq('company', companyName)
+      if (!cafes || cafes.length === 0) { setPickups([]); setLoading(false); return }
+      const cafeIds = cafes.map((c: any) => c.id)
 
       const { data } = await db.from('pickups')
         .select('*, cafe:cafes(name, address, store_type)')
-        .in('driver_id', driverIds)
+        .in('cafe_id', cafeIds)
         .gte('created_at', fromDate)
         .order('created_at', { ascending: false })
 
       if (data) {
         const enriched = data.map((p: any) => ({
           ...p,
-          driverName: driverMap[p.driver_id] || '미배정',
+          driverName: p.driver_id ? (driverMap[p.driver_id] || '미배정') : '미배정',
         }))
         setPickups(enriched)
 
