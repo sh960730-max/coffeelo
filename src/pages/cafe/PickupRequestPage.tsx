@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   ArrowLeft, Package, Scale, Clock, MessageSquare,
@@ -22,6 +22,18 @@ export default function PickupRequestPage() {
   const [endHour, setEndHour] = useState(12)
   const [memo, setMemo] = useState('')
   const [storagePhoto, setStoragePhoto] = useState<string | null>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+
+  const handleCameraClick = () => {
+    cameraInputRef.current?.click()
+  }
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const url = URL.createObjectURL(file)
+    setStoragePhoto(url)
+  }
   const [showDropdown, setShowDropdown] = useState(false)
   const [showSuccess, setShowSuccess] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -345,7 +357,7 @@ export default function PickupRequestPage() {
           ) : (
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={takeStoragePhoto}
+              onClick={handleCameraClick}
               className="w-full h-32 border-2 border-dashed border-gray-200 rounded-xl flex flex-col items-center justify-center gap-2 bg-gray-50 hover:bg-gray-100 transition-colors"
             >
               <div className="w-11 h-11 bg-teal-50 rounded-xl flex items-center justify-center">
@@ -353,7 +365,18 @@ export default function PickupRequestPage() {
               </div>
               <span className="text-xs text-gray-400 font-medium">탭하여 보관장소 촬영</span>
             </motion.button>
+
           )}
+
+          {/* 카메라 input (hidden) - 항상 마운트 */}
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
         </motion.div>
 
         {/* 메모 */}
