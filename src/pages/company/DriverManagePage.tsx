@@ -55,6 +55,36 @@ export default function DriverManagePage() {
   const [submitResult, setSubmitResult] = useState<'success' | 'error' | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
   const [approving, setApproving] = useState<string | null>(null)
+  const [weeklyStats, setWeeklyStats] = useState<Record<string, { kg: number; count: number; amount: number }>>({})
+
+  /* ── 기사 카드 펼칠 때 이번 주 실적 조회 ── */
+  const fetchWeeklyStat = async (driverId: string) => {
+    if (weeklyStats[driverId]) return // 이미 조회한 경우 skip
+    const now = new Date()
+    const dow = now.getDay()
+    const monday = new Date(now)
+    monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
+    monday.setHours(0, 0, 0, 0)
+    const { data } = await db
+      .from('pickups')
+      .select('total_weight, settlement_amount, completed_at, updated_at')
+      .eq('driver_id', driverId)
+      .eq('status', 'COMPLETED')
+      .or(`completed_at.gte.${monday.toISOString()},and(completed_at.is.null,updated_at.gte.${monday.toISOString()})`)
+    if (data) {
+      const kg = data.reduce((s: number, p: any) => s + (p.total_weight || 0), 0)
+      const amount = data.reduce((s: number, p: any) => s + (p.settlement_amount || 0), 0)
+      setWeeklyStats(prev => ({ ...prev, [driverId]: { kg, count: data.length, amount } }))
+    }
+  }
+
+  const handleExpand = (driverId: string) => {
+    setExpandedId(prev => {
+      const next = prev === driverId ? null : driverId
+      if (next) fetchWeeklyStat(next)
+      return next
+    })
+  }
 
   /* ── 기사 목록 불러오기 ── */
   const fetchDrivers = async () => {
@@ -327,7 +357,7 @@ export default function DriverManagePage() {
                   className="bg-white rounded-2xl shadow-card overflow-hidden"
                 >
                   <button
-                    onClick={() => setExpandedId(isExpanded ? null : driver.id)}
+                    onClick={() => handleExpand(driver.id)}
                     className="w-full p-4 text-left"
                   >
                     <div className="flex items-center justify-between">
@@ -377,26 +407,35 @@ export default function DriverManagePage() {
                             <span className="text-xs text-gray-500">{driver.phone}</span>
                           </div>
 
-                          {/* 주간 통계 (Supabase 연동 예정) */}
+                          {/* 주간 통계 */}
                           <p className="text-[11px] font-semibold text-gray-500 mb-2">이번 주 실적</p>
-                          <div className="grid grid-cols-3 gap-2">
-                            <div className="bg-eco-green-100 rounded-lg p-2.5 text-center">
-                              <Scale className="w-3.5 h-3.5 text-eco-green mx-auto mb-1" />
-                              <p className="text-xs font-bold text-gray-800">-</p>
-                              <p className="text-[9px] text-gray-400">수거량</p>
+                          {!weeklyStats[driver.id] ? (
+                            <div className="flex justify-center py-3">
+                              <div className="w-4 h-4 border-2 border-eco-green/30 border-t-eco-green rounded-full animate-spin" />
                             </div>
-                            <div className="bg-blue-50 rounded-lg p-2.5 text-center">
-                              <ClipboardList className="w-3.5 h-3.5 text-blue-600 mx-auto mb-1" />
-                              <p className="text-xs font-bold text-gray-800">-</p>
-                              <p className="text-[9px] text-gray-400">수거 완료</p>
+                          ) : (
+                            <div className="grid grid-cols-3 gap-2">
+                              <div className="bg-eco-green-100 rounded-lg p-2.5 text-center">
+                                <Scale className="w-3.5 h-3.5 text-eco-green mx-auto mb-1" />
+                                <p className="text-xs font-bold text-gray-800">{weeklyStats[driver.id].kg.toLocaleString()}kg</p>
+                                <p className="text-[9px] text-gray-400">수거량</p>
+                              </div>
+                              <div className="bg-blue-50 rounded-lg p-2.5 text-center">
+                                <ClipboardList className="w-3.5 h-3.5 text-blue-600 mx-auto mb-1" />
+                                <p className="text-xs font-bold text-gray-800">{weeklyStats[driver.id].count}건</p>
+                                <p className="text-[9px] text-gray-400">수거 완료</p>
+                              </div>
+                              <div className="bg-amber-50 rounded-lg p-2.5 text-center">
+                                <Wallet className="w-3.5 h-3.5 text-amber-600 mx-auto mb-1" />
+                                <p className="text-xs font-bold text-gray-800">
+                                  {weeklyStats[driver.id].amount > 0
+                                    ? `${weeklyStats[driver.id].amount.toLocaleString()}원`
+                                    : '-'}
+                                </p>
+                                <p className="text-[9px] text-gray-400">정산액</p>
+                              </div>
                             </div>
-                            <div className="bg-amber-50 rounded-lg p-2.5 text-center">
-                              <Wallet className="w-3.5 h-3.5 text-amber-600 mx-auto mb-1" />
-                              <p className="text-xs font-bold text-gray-800">-</p>
-                              <p className="text-[9px] text-gray-400">정산액</p>
-                            </div>
-                          </div>
-                          <p className="text-[9px] text-gray-300 text-center mt-1.5">수거 데이터 연동 후 표시됩니다</p>
+                          )}
                         </div>
                       </motion.div>
                     )}
