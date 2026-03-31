@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Store, Search, Plus, X, ChevronDown, ChevronUp,
   MapPin, Package, Scale, Coffee, ArrowLeft, Loader2,
-  CheckCircle, XCircle, Clock
+  CheckCircle, XCircle, Clock, Truck, UserCheck
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
@@ -33,6 +33,8 @@ export default function CafeManagePage() {
   const [saving, setSaving] = useState(false)
   const [approving, setApproving] = useState<string | null>(null)
   const [showAddressModal, setShowAddressModal] = useState(false)
+  const [drivers, setDrivers] = useState<{ id: string; name: string }[]>([])
+  const [assigningCafeId, setAssigningCafeId] = useState<string | null>(null)
 
   useEffect(() => {
     if (!companyName) return
@@ -43,9 +45,10 @@ export default function CafeManagePage() {
     setLoading(true)
     const db = supabase as any
 
-    // 소속 기사 ID 목록
-    const { data: drivers } = await db.from('drivers').select('id').eq('company', companyName)
-    const driverIds = (drivers || []).map((d: any) => d.id)
+    // 소속 기사 목록
+    const { data: driversData } = await db.from('drivers').select('id, name').eq('company', companyName).eq('status', 'APPROVED')
+    if (driversData) setDrivers(driversData)
+    const driverIds = (driversData || []).map((d: any) => d.id)
 
     // 승인된 매장
     const { data: cafeData } = await db.from('cafes').select('*')
@@ -132,6 +135,14 @@ export default function CafeManagePage() {
     setPendingCafes(prev => prev.filter(c => c.id !== cafeId))
     await loadCafes()
     setApproving(null)
+  }
+
+  const handleAssignDriver = async (cafeId: string, driverId: string | null) => {
+    setAssigningCafeId(cafeId)
+    const db = supabase as any
+    await db.from('cafes').update({ driver_id: driverId }).eq('id', cafeId)
+    setCafes(prev => prev.map(c => c.id === cafeId ? { ...c, driver_id: driverId } : c))
+    setAssigningCafeId(null)
   }
 
   const filtered = cafes.filter(c =>
@@ -357,6 +368,39 @@ export default function CafeManagePage() {
                                 <span className="text-[11px] text-gray-600">{cafe.phone}</span>
                               </div>
                             )}
+
+                            {/* 기사 배정 */}
+                            <div className="mt-3 pt-3 border-t border-gray-100">
+                              <div className="flex items-center gap-1.5 mb-2">
+                                <Truck className="w-3.5 h-3.5 text-gray-400" />
+                                <p className="text-[11px] font-semibold text-gray-500">담당 기사 배정</p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={cafe.driver_id ?? ''}
+                                  onChange={e => handleAssignDriver(cafe.id, e.target.value || null)}
+                                  disabled={assigningCafeId === cafe.id}
+                                  className="flex-1 px-3 py-2 bg-gray-50 rounded-xl text-xs font-medium text-gray-700 outline-none focus:ring-2 focus:ring-eco-green/30 border border-gray-200"
+                                >
+                                  <option value="">담당 기사 없음</option>
+                                  {drivers.map(d => (
+                                    <option key={d.id} value={d.id}>{d.name}</option>
+                                  ))}
+                                </select>
+                                {assigningCafeId === cafe.id
+                                  ? <Loader2 className="w-4 h-4 text-eco-green animate-spin flex-shrink-0" />
+                                  : cafe.driver_id
+                                    ? <UserCheck className="w-4 h-4 text-eco-green flex-shrink-0" />
+                                    : null
+                                }
+                              </div>
+                              {cafe.driver_id && (
+                                <p className="text-[10px] text-eco-green mt-1.5 flex items-center gap-1">
+                                  <CheckCircle className="w-3 h-3" />
+                                  {drivers.find(d => d.id === cafe.driver_id)?.name ?? '배정됨'}
+                                </p>
+                              )}
+                            </div>
                           </div>
                         </motion.div>
                       )}
