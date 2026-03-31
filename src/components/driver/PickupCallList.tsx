@@ -36,6 +36,7 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
   const [displayCalls, setDisplayCalls] = useState<PickupCall[]>(calls)
   const [sortedByDist, setSortedByDist] = useState(false)
   const [sortingLoading, setSortingLoading] = useState(false)
+  const [sortError, setSortError] = useState<string | null>(null)
 
   // calls가 바뀌면 정렬 초기화
   useEffect(() => {
@@ -59,32 +60,32 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     return null
   }
 
-  const handleSortByDistance = async () => {
+  const handleSortByDistance = () => {
     if (sortedByDist) {
       setSortedByDist(false)
+      setSortError(null)
       setDisplayCalls(calls)
       return
     }
     if (!navigator.geolocation) {
-      alert('이 기기에서 위치 서비스를 지원하지 않습니다.')
+      setSortError('이 기기에서 위치 서비스를 지원하지 않습니다.')
       return
     }
     setSortingLoading(true)
+    setSortError(null)
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: myLat, longitude: myLng } = pos.coords
-        // 각 콜의 주소 → 좌표 변환 (병렬)
         const withCoords = await Promise.all(
           calls.map(async (c) => {
             if (c.lat != null && c.lng != null) {
               const km = haversine(myLat, myLng, c.lat, c.lng)
               return { ...c, distance: formatDist(km), _km: km }
             }
-            // 주소로 좌표 조회
             const coords = await geocodeAddress(c.address)
             if (coords) {
               const km = haversine(myLat, myLng, coords.lat, coords.lng)
-              return { ...c, distance: formatDist(km), _km: km, lat: coords.lat, lng: coords.lng }
+              return { ...c, distance: formatDist(km), _km: km }
             }
             return { ...c, _km: Infinity }
           })
@@ -96,10 +97,15 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
       },
       (err) => {
         console.error('geolocation error:', err)
-        alert('위치 정보를 가져올 수 없습니다. 브라우저 위치 권한을 허용해주세요.')
         setSortingLoading(false)
+        if (err.code === 1) {
+          // PERMISSION_DENIED
+          setSortError('위치 권한이 거부됐습니다. 브라우저 설정 → 사이트 권한에서 위치를 허용해주세요.')
+        } else {
+          setSortError('위치를 가져올 수 없습니다. 잠시 후 다시 시도해주세요.')
+        }
       },
-      { enableHighAccuracy: true, timeout: 8000 }
+      { timeout: 12000, maximumAge: 60000 }
     )
   }
 
@@ -147,6 +153,24 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
             {sortedByDist ? '거리순 ✓' : '거리순 정렬'}
           </motion.button>
         </div>
+
+        {/* 위치 에러 메시지 */}
+        <AnimatePresence>
+          {sortError && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 mb-2"
+            >
+              <MapPin className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
+              <p className="text-[11px] text-red-600 leading-snug">{sortError}</p>
+              <button onClick={() => setSortError(null)} className="ml-auto text-red-300">
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="space-y-2.5">
           <AnimatePresence>
