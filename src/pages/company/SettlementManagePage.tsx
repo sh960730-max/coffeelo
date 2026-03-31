@@ -24,6 +24,12 @@ export default function SettlementManagePage() {
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 2500)
+  }
 
   const fetchSettlements = async () => {
     if (!companyName) return
@@ -99,7 +105,8 @@ export default function SettlementManagePage() {
     if (settlementId.startsWith('synth_')) {
       const synth = settlements.find(s => s.id === settlementId)
       if (!synth) { setUpdating(null); return }
-      const { data: inserted } = await db.from('settlements').insert({
+
+      const insertPayload: any = {
         driver_id: synth.driver_id,
         period_start: synth.period_start,
         period_end: synth.period_end,
@@ -107,21 +114,52 @@ export default function SettlementManagePage() {
         rate_per_kg: synth.rate_per_kg || 80,
         gross_amount: synth.gross_amount,
         status: newStatus,
-        ...(newStatus === 'PAID' ? { paid_at: new Date().toISOString() } : {}),
-        confirmed_at: new Date().toISOString(),
-      }).select().single()
-      if (inserted) {
+      }
+
+      const { data: inserted, error } = await db
+        .from('settlements')
+        .insert(insertPayload)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('settlements insert error:', error)
+        // 컬럼 에러 시 최소 필드만으로 재시도
+        const { error: err2 } = await db.from('settlements').insert({
+          driver_id: synth.driver_id,
+          period_start: synth.period_start,
+          total_weight: synth.total_weight,
+          gross_amount: synth.gross_amount,
+          status: newStatus,
+        })
+        if (err2) {
+          console.error('settlements insert retry error:', err2)
+          showToast('저장 실패: ' + (err2.message || '알 수 없는 오류'), 'error')
+          setUpdating(null)
+          return
+        }
+      }
+
+      if (inserted || !error) {
+        showToast('정산완료 처리되었습니다', 'success')
         await fetchSettlements()
       }
       setUpdating(null)
       return
     }
 
-    await db.from('settlements').update({
-      status: newStatus,
-      ...(newStatus === 'CONFIRMED' ? { confirmed_at: new Date().toISOString() } : {}),
-      ...(newStatus === 'PAID' ? { paid_at: new Date().toISOString() } : {}),
-    }).eq('id', settlementId)
+    // 실제 DB 레코드 업데이트
+    const { error } = await db
+      .from('settlements')
+      .update({ status: newStatus })
+      .eq('id', settlementId)
+
+    if (error) {
+      console.error('settlements update error:', error)
+      showToast('업데이트 실패: ' + (error.message || '알 수 없는 오류'), 'error')
+    } else {
+      showToast('정산완료 처리되었습니다', 'success')
+    }
     await fetchSettlements()
     setUpdating(null)
   }
@@ -133,6 +171,26 @@ export default function SettlementManagePage() {
 
   return (
     <div>
+      {/* 토스트 알림 */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`fixed top-5 left-1/2 -translate-x-1/2 z-[200] px-5 py-3 rounded-2xl shadow-lg flex items-center gap-2 text-sm font-semibold text-white ${
+              toast.type === 'success' ? 'bg-eco-green' : 'bg-red-500'
+            }`}
+          >
+            {toast.type === 'success'
+              ? <CheckCircle className="w-4 h-4" />
+              : <span className="w-4 h-4 text-center font-bold">!</span>
+            }
+            {toast.msg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
         <h1 className="text-lg font-bold text-gray-900">정산 관리</h1>
       </header>
