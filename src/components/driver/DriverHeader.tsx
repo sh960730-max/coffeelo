@@ -1,8 +1,14 @@
 import { motion } from 'framer-motion'
 import { Bell, Truck, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
+import { useAuth } from '../../contexts/AuthContext'
 
 export default function DriverHeader() {
+  const { user } = useAuth()
+  const driverName = (user as any)?.name ?? '기사'
+  const driverCompany = (user as any)?.company ?? ''
+  const driverTruck = (user as any)?.truck_type ?? ''
+  const subInfo = [driverCompany, driverTruck].filter(Boolean).join(' · ')
   const [isOnline, setIsOnline] = useState(true)
 
   return (
@@ -23,10 +29,10 @@ export default function DriverHeader() {
           </div>
           <div>
             <div className="flex items-center gap-1">
-              <h1 className="text-base font-bold text-gray-900">박민수 기사님</h1>
+              <h1 className="text-base font-bold text-gray-900">{driverName} 기사님</h1>
               <ChevronDown className="w-4 h-4 text-gray-400" />
             </div>
-            <p className="text-[11px] text-gray-500 font-medium">그린물류 소속 · 1톤 트럭</p>
+            <p className="text-[11px] text-gray-500 font-medium">{subInfo}</p>
           </div>
         </div>
 
