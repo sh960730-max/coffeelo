@@ -46,6 +46,7 @@ import SettlementManagePage from './pages/company/SettlementManagePage'
 import CafeManagePage from './pages/company/CafeManagePage'
 import AnnouncementPage from './pages/company/AnnouncementPage'
 import CompanyMorePage from './pages/company/CompanyMorePage'
+import WeighRecordsPage from './pages/company/WeighRecordsPage'
 import CompanyInfoPage from './pages/company/CompanyInfoPage'
 import NotificationSettingPage from './pages/company/NotificationSettingPage'
 import TermsPage from './pages/company/TermsPage'
@@ -141,6 +142,7 @@ function AppRoutes() {
         <Route path="cafes" element={<CafeManagePage />} />
         <Route path="announcements" element={<AnnouncementPage />} />
         <Route path="more" element={<CompanyMorePage />} />
+        <Route path="weigh-records" element={<WeighRecordsPage />} />
         <Route path="info" element={<CompanyInfoPage />} />
         <Route path="notifications" element={<NotificationSettingPage />} />
         <Route path="terms" element={<TermsPage />} />

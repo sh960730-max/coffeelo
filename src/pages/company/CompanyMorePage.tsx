@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Building2, Bell, FileText, LogOut, ChevronRight, Coffee,
-  MapPin, Phone, Shield, Store, Megaphone, Users
+  MapPin, Phone, Shield, Store, Megaphone, Users, Scale
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -62,6 +62,7 @@ export default function CompanyMorePage() {
         { icon: Store, label: '매장 관리', desc: '등록된 매장 조회/관리', path: '/company/cafes' },
         { icon: Megaphone, label: '공지사항', desc: '공지 작성 및 관리', path: '/company/announcements' },
         { icon: Users, label: '기사 관리', desc: '소속 기사 조회', path: '/company/drivers' },
+        { icon: Scale, label: '집하장 계량 기록', desc: '기사별 계량판 사진 확인', path: '/company/weigh-records' },
       ],
     },
     {
