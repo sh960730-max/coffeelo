@@ -1,7 +1,23 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Clock, Coffee, ChevronRight, Zap, MessageSquare, X, Package } from 'lucide-react'
+import { MapPin, Clock, Coffee, ChevronRight, Zap, MessageSquare, X, Package, Navigation } from 'lucide-react'
 import type { PickupCall } from '../../pages/driver/HomePage'
+
+// Haversine 거리 계산 (km)
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+function formatDist(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)}m`
+  return `${km.toFixed(1)}km`
+}
 
 const storeTypeStyle = {
   starbucks:  { label: '스벅',      bg: 'bg-green-600',  text: 'text-white' },
@@ -17,6 +33,51 @@ interface PickupCallListProps {
 
 export default function PickupCallList({ calls, onAccept, onDecline }: PickupCallListProps) {
   const [selectedCall, setSelectedCall] = useState<PickupCall | null>(null)
+  const [displayCalls, setDisplayCalls] = useState<PickupCall[]>(calls)
+  const [sortedByDist, setSortedByDist] = useState(false)
+  const [sortingLoading, setSortingLoading] = useState(false)
+
+  // calls가 바뀌면 정렬 초기화
+  useEffect(() => {
+    setSortedByDist(false)
+    setDisplayCalls(calls)
+  }, [calls])
+
+  const handleSortByDistance = () => {
+    if (sortedByDist) {
+      // 정렬 해제 → 원래 순서(요청시각순)로
+      setSortedByDist(false)
+      setDisplayCalls(calls)
+      return
+    }
+    if (!navigator.geolocation) {
+      alert('이 기기에서 위치 서비스를 지원하지 않습니다.')
+      return
+    }
+    setSortingLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: myLat, longitude: myLng } = pos.coords
+        const withDist = calls.map(c => {
+          if (c.lat != null && c.lng != null) {
+            const km = haversine(myLat, myLng, c.lat, c.lng)
+            return { ...c, distance: formatDist(km), _km: km }
+          }
+          return { ...c, _km: Infinity }
+        })
+        withDist.sort((a, b) => (a as any)._km - (b as any)._km)
+        setDisplayCalls(withDist)
+        setSortedByDist(true)
+        setSortingLoading(false)
+      },
+      (err) => {
+        console.error('geolocation error:', err)
+        alert('위치 정보를 가져올 수 없습니다. 브라우저 위치 권한을 허용해주세요.')
+        setSortingLoading(false)
+      },
+      { enableHighAccuracy: true, timeout: 8000 }
+    )
+  }
 
   if (calls.length === 0) return null
 
@@ -45,12 +106,27 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
               {calls.length}
             </span>
           </div>
-          <button className="text-xs text-eco-green font-medium">거리순 정렬</button>
+          <motion.button
+            whileTap={{ scale: 0.94 }}
+            onClick={handleSortByDistance}
+            disabled={sortingLoading}
+            className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
+              sortedByDist
+                ? 'bg-eco-green text-white'
+                : 'bg-eco-green-100 text-eco-green'
+            }`}
+          >
+            {sortingLoading
+              ? <span className="w-3 h-3 border border-eco-green border-t-transparent rounded-full animate-spin" />
+              : <Navigation className="w-3 h-3" />
+            }
+            {sortedByDist ? '거리순 ✓' : '거리순 정렬'}
+          </motion.button>
         </div>
 
         <div className="space-y-2.5">
           <AnimatePresence>
-            {calls.map((call, index) => {
+            {displayCalls.map((call, index) => {
               const typeStyle = storeTypeStyle[call.storeType]
               return (
                 <motion.div
@@ -76,7 +152,12 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
                             긴급
                           </span>
                         )}
-                        <span className="text-[10px] text-gray-400 font-medium">{call.distance}</span>
+                        {call.distance && call.distance !== '-' && (
+                          <span className="text-[10px] font-semibold text-eco-green flex items-center gap-0.5">
+                            <Navigation className="w-2.5 h-2.5" />
+                            {call.distance}
+                          </span>
+                        )}
                       </div>
                       <h3 className="text-sm font-bold text-gray-900">{call.storeName}</h3>
                       <div className="flex items-center gap-1 mt-1">
