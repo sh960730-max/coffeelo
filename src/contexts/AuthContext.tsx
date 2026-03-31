@@ -96,14 +96,84 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const email = `${phone}@coffeelo.kr`
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return { error: error.message }
 
-    const { data: { session } } = await supabase.auth.getSession()
-    if (session) {
-      localStorage.setItem('coffeelo_role', loginRole)
-      await fetchUserByRole(session.user.id, loginRole)
+    // 1) 기존 계정으로 로그인 시도
+    let session = null
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+
+    if (signInError) {
+      // 기사 역할: 관리자가 미리 등록해둔 경우 첫 로그인 시 계정 자동 생성
+      if (loginRole === 'driver' && (signInError.message.includes('Invalid login credentials') || signInError.message.includes('invalid_credentials'))) {
+        // 전화번호로 관리자 등록 기사가 있는지 확인
+        const { data: preRegistered } = await (supabase as any)
+          .from('drivers')
+          .select('id')
+          .eq('phone', phone)
+          .is('auth_id', null)
+          .maybeSingle()
+
+        if (!preRegistered) {
+          return { error: '등록되지 않은 기사이거나 비밀번호가 올바르지 않습니다.' }
+        }
+
+        // 계정 생성 (첫 로그인)
+        const { error: signUpError } = await supabase.auth.signUp({ email, password })
+        if (signUpError) return { error: '계정 생성에 실패했습니다: ' + signUpError.message }
+
+        // 생성 후 바로 로그인
+        const { error: retryError } = await supabase.auth.signInWithPassword({ email, password })
+        if (retryError) return { error: retryError.message }
+      } else {
+        return { error: signInError.message }
+      }
     }
+
+    const { data: { session: currentSession } } = await supabase.auth.getSession()
+    session = currentSession
+
+    if (!session) return { error: '로그인에 실패했습니다.' }
+
+    localStorage.setItem('coffeelo_role', loginRole)
+
+    // 2) auth_id로 기존 사용자 조회
+    const table = loginRole === 'driver' ? 'drivers' : loginRole === 'cafe' ? 'cafes' : 'companies'
+    const { data: existingUser } = await (supabase as any)
+      .from(table)
+      .select('*')
+      .eq('auth_id', session.user.id)
+      .maybeSingle()
+
+    if (existingUser) {
+      setUser(existingUser)
+      setRole(loginRole)
+      setIsLoading(false)
+      return {}
+    }
+
+    // 3) 기사 역할: 전화번호로 관리자 등록 기사와 매칭 후 auth_id 업데이트
+    if (loginRole === 'driver') {
+      const { data: driverByPhone } = await (supabase as any)
+        .from('drivers')
+        .select('*')
+        .eq('phone', phone)
+        .maybeSingle()
+
+      if (driverByPhone) {
+        // auth_id 연결 (최초 로그인 시 한 번만)
+        await (supabase as any)
+          .from('drivers')
+          .update({ auth_id: session.user.id })
+          .eq('id', driverByPhone.id)
+
+        setUser({ ...driverByPhone, auth_id: session.user.id })
+        setRole('driver')
+        setIsLoading(false)
+        return {}
+      }
+      return { error: '등록된 기사 정보를 찾을 수 없습니다. 관리자에게 문의해주세요.' }
+    }
+
+    setIsLoading(false)
     return {}
   }
 
