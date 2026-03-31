@@ -105,7 +105,8 @@ export default function HomePage() {
         address: p.cafe?.address ?? '-',
         distance: '-',
         containerType: 'box' as const,
-        count: 0,
+        count: p.quantity ?? 0,
+        estimatedWeight: p.estimated_weight ?? null,
         requestedTime: p.requested_at
           ? new Date(p.requested_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
           : '-',
