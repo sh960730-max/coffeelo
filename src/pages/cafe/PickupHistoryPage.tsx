@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar, ChevronDown, ChevronUp, Package, Scale,
-  Clock, CheckCircle2, XCircle, Truck, Coffee, Loader2
+  Clock, CheckCircle2, XCircle, Truck, Coffee, Loader2,
+  ChevronLeft, ChevronRight, X
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -15,18 +16,18 @@ interface CafePickupRecord {
   estimatedWeight: number
   actualWeight: number | null
   driverName: string | null
-  notes: string | null
+  note: string | null
   settlementAmount: number | null
 }
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: typeof CheckCircle2 }> = {
-  REQUESTED:  { label: '미배정',   color: 'text-amber-600',  bgColor: 'bg-amber-50',      icon: Clock },
+  REQUESTED:  { label: '미배정',    color: 'text-amber-600',  bgColor: 'bg-amber-50',      icon: Clock },
   ASSIGNED:   { label: '기사 배정', color: 'text-blue-600',   bgColor: 'bg-blue-50',       icon: Truck },
-  EN_ROUTE:   { label: '이동 중',  color: 'text-eco-green',  bgColor: 'bg-eco-green-100', icon: Truck },
-  ARRIVED:    { label: '도착',     color: 'text-eco-green',  bgColor: 'bg-eco-green-100', icon: Truck },
-  LOADED:     { label: '수거 중',  color: 'text-eco-green',  bgColor: 'bg-eco-green-100', icon: Truck },
-  COMPLETED:  { label: '완료',     color: 'text-green-600',  bgColor: 'bg-green-50',      icon: CheckCircle2 },
-  CANCELLED:  { label: '취소',     color: 'text-red-500',    bgColor: 'bg-red-50',        icon: XCircle },
+  EN_ROUTE:   { label: '이동 중',   color: 'text-eco-green',  bgColor: 'bg-eco-green-100', icon: Truck },
+  ARRIVED:    { label: '도착',      color: 'text-eco-green',  bgColor: 'bg-eco-green-100', icon: Truck },
+  LOADED:     { label: '수거 중',   color: 'text-eco-green',  bgColor: 'bg-eco-green-100', icon: Truck },
+  COMPLETED:  { label: '완료',      color: 'text-green-600',  bgColor: 'bg-green-50',      icon: CheckCircle2 },
+  CANCELLED:  { label: '취소',      color: 'text-red-500',    bgColor: 'bg-red-50',        icon: XCircle },
 }
 
 const dateFilters = [
@@ -59,28 +60,209 @@ function getDateRange(filter: string): { from: string | null; to: string | null 
   return { from: null, to: null }
 }
 
+/* ── 달력 컴포넌트 ── */
+function DateRangePicker({
+  onConfirm, onClose,
+}: {
+  onConfirm: (from: string, to: string) => void
+  onClose: () => void
+}) {
+  const today = new Date()
+  const [viewYear, setViewYear]   = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
+  const [startDate, setStartDate] = useState<string | null>(null)
+  const [endDate, setEndDate]     = useState<string | null>(null)
+
+  const toKey = (y: number, m: number, d: number) =>
+    `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+  const todayKey = toKey(today.getFullYear(), today.getMonth(), today.getDate())
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
+    else setViewMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
+    else setViewMonth(m => m + 1)
+  }
+
+  const firstDay  = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+
+  const handleDayClick = (key: string) => {
+    if (!startDate || (startDate && endDate)) {
+      setStartDate(key); setEndDate(null)
+    } else {
+      if (key < startDate) { setStartDate(key); setEndDate(null) }
+      else setEndDate(key)
+    }
+  }
+
+  const inRange = (key: string) =>
+    startDate && endDate && key > startDate && key < endDate
+
+  const quickSelect = (days: number) => {
+    const from = new Date(today)
+    from.setDate(today.getDate() - days + 1)
+    setStartDate(toKey(from.getFullYear(), from.getMonth(), from.getDate()))
+    setEndDate(todayKey)
+  }
+
+  const handleConfirm = () => {
+    if (!startDate) return
+    const end = endDate ?? startDate
+    onConfirm(`${startDate}T00:00:00`, `${end}T23:59:59`)
+  }
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm flex items-end justify-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-md bg-white rounded-t-3xl px-5 pt-4 pb-8"
+      >
+        {/* 핸들 */}
+        <div className="flex justify-center mb-3">
+          <div className="w-10 h-1 bg-gray-200 rounded-full" />
+        </div>
+
+        {/* 헤더 */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-base font-bold text-gray-900">기간 선택</h3>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100">
+            <X className="w-4 h-4 text-gray-500" />
+          </button>
+        </div>
+
+        {/* 빠른 선택 */}
+        <div className="flex gap-2 mb-4">
+          {[
+            { label: '오늘', days: 1 },
+            { label: '이번 주', days: 7 },
+            { label: '이번 달', days: 30 },
+          ].map(q => (
+            <button key={q.label} onClick={() => quickSelect(q.days)}
+              className="flex-1 py-2 rounded-xl text-xs font-semibold bg-eco-green-100 text-eco-green">
+              {q.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 월 네비게이션 */}
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100">
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          </button>
+          <span className="text-sm font-bold text-gray-900">
+            {viewYear}년 {viewMonth + 1}월
+          </span>
+          <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100">
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
+
+        {/* 요일 헤더 */}
+        <div className="grid grid-cols-7 mb-1">
+          {dayNames.map((d, i) => (
+            <div key={d} className={`text-center text-[11px] font-semibold py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'}`}>
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* 날짜 그리드 */}
+        <div className="grid grid-cols-7 gap-y-1">
+          {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+          {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => {
+            const key = toKey(viewYear, viewMonth, day)
+            const isStart = key === startDate
+            const isEnd   = key === endDate
+            const isIn    = inRange(key)
+            const isToday = key === todayKey
+            return (
+              <button
+                key={key}
+                onClick={() => handleDayClick(key)}
+                className={`relative h-9 flex items-center justify-center text-xs font-medium rounded-xl transition-colors
+                  ${isStart || isEnd ? 'bg-eco-green text-white font-bold' :
+                    isIn ? 'bg-eco-green-100 text-eco-green rounded-none' :
+                    isToday ? 'border border-eco-green text-eco-green' :
+                    'text-gray-700 hover:bg-gray-100'}`}
+              >
+                {day}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* 선택 범위 표시 */}
+        <div className="mt-4 text-center text-xs text-gray-500 min-h-[20px]">
+          {startDate && (
+            <span className="font-semibold text-eco-green">
+              {startDate}{endDate && endDate !== startDate ? ` ~ ${endDate}` : ''}
+            </span>
+          )}
+        </div>
+
+        {/* 확인 버튼 */}
+        <button
+          onClick={handleConfirm}
+          disabled={!startDate}
+          className="w-full mt-4 py-3.5 bg-eco-green text-white font-bold rounded-2xl text-sm disabled:opacity-40"
+        >
+          확인
+        </button>
+      </motion.div>
+    </motion.div>
+  )
+}
+
+/* ── 메인 페이지 ── */
 export default function PickupHistoryPage() {
   const { user } = useAuth()
   const cafeId = (user as any)?.id
 
-  const [dateFilter, setDateFilter] = useState('month')
-  const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [pickups, setPickups] = useState<CafePickupRecord[]>([])
-  const [loading, setLoading] = useState(true)
+  const [dateFilter, setDateFilter]     = useState('month')
+  const [expandedId, setExpandedId]     = useState<string | null>(null)
+  const [pickups, setPickups]           = useState<CafePickupRecord[]>([])
+  const [loading, setLoading]           = useState(true)
+  const [showDatePicker, setShowDatePicker] = useState(false)
+  const [customRange, setCustomRange]   = useState<{ from: string; to: string } | null>(null)
 
   useEffect(() => {
     if (!cafeId) return
     fetchPickups()
-  }, [cafeId, dateFilter])
+  }, [cafeId, dateFilter, customRange])
 
   const fetchPickups = async () => {
     setLoading(true)
     const db = supabase as any
-    const { from, to } = getDateRange(dateFilter)
+
+    let from: string | null = null
+    let to:   string | null = null
+
+    if (customRange) {
+      from = customRange.from
+      to   = customRange.to
+    } else {
+      const range = getDateRange(dateFilter)
+      from = range.from
+      to   = range.to
+    }
 
     let query = db
       .from('pickups')
-      .select('id, status, estimated_weight, total_weight, created_at, completed_at, notes, drivers(name), settlements(amount)')
+      .select('id, status, estimated_weight, total_weight, created_at, completed_at, note, driver_id, settlement_amount')
       .eq('cafe_id', cafeId)
       .order('created_at', { ascending: false })
 
@@ -88,6 +270,14 @@ export default function PickupHistoryPage() {
     if (to)   query = query.lte('created_at', to)
 
     const { data } = await query
+
+    // 기사 이름 별도 조회
+    const driverIds = [...new Set((data || []).map((p: any) => p.driver_id).filter(Boolean))]
+    let driverMap: Record<string, string> = {}
+    if (driverIds.length > 0) {
+      const { data: drivers } = await db.from('drivers').select('id, name').in('id', driverIds)
+      if (drivers) driverMap = Object.fromEntries(drivers.map((d: any) => [d.id, d.name]))
+    }
 
     if (data) {
       setPickups(data.map((p: any) => ({
@@ -97,20 +287,32 @@ export default function PickupHistoryPage() {
         status: p.status,
         estimatedWeight: p.estimated_weight ?? 0,
         actualWeight: p.total_weight ?? null,
-        driverName: p.drivers?.name ?? null,
-        notes: p.notes ?? null,
-        // settlements가 배열인 경우 첫 번째, 없으면 total_weight * 80
-        settlementAmount: p.settlements?.[0]?.amount
-          ?? (p.total_weight ? Math.round(p.total_weight * 80) : null),
+        driverName: p.driver_id ? (driverMap[p.driver_id] ?? null) : null,
+        note: p.note ?? null,
+        settlementAmount: p.settlement_amount ?? (p.total_weight ? Math.round(p.total_weight * 80) : null),
       })))
     }
     setLoading(false)
   }
 
-  // 요약 통계
+  const handleFilterClick = (key: string) => {
+    setDateFilter(key)
+    setCustomRange(null)
+  }
+
+  const handleDateConfirm = (from: string, to: string) => {
+    setCustomRange({ from, to })
+    setDateFilter('')
+    setShowDatePicker(false)
+  }
+
+  const customLabel = customRange
+    ? `${customRange.from.slice(0, 10)} ~ ${customRange.to.slice(0, 10)}`
+    : null
+
   const completedPickups = pickups.filter(p => p.status === 'COMPLETED')
-  const totalWeight = completedPickups.reduce((s, p) => s + (p.actualWeight || 0), 0)
-  const totalSettlement = completedPickups.reduce((s, p) => s + (p.settlementAmount || 0), 0)
+  const totalWeight      = completedPickups.reduce((s, p) => s + (p.actualWeight || 0), 0)
+  const totalSettlement  = completedPickups.reduce((s, p) => s + (p.settlementAmount || 0), 0)
 
   return (
     <div>
@@ -121,17 +323,22 @@ export default function PickupHistoryPage() {
           {dateFilters.map(f => (
             <button
               key={f.key}
-              onClick={() => setDateFilter(f.key)}
+              onClick={() => handleFilterClick(f.key)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                dateFilter === f.key ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
+                dateFilter === f.key && !customRange ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
               }`}
             >
               {f.label}
             </button>
           ))}
-          <button className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-gray-100 text-gray-500 flex items-center gap-1">
+          <button
+            onClick={() => setShowDatePicker(true)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+              customRange ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
+            }`}
+          >
             <Calendar className="w-3 h-3" />
-            기간선택
+            {customLabel ?? '기간선택'}
           </button>
         </div>
       </header>
@@ -212,7 +419,7 @@ export default function PickupHistoryPage() {
                               <span className="text-[10px] text-gray-400">{dateStr} ({dayStr})</span>
                             </div>
                             <p className="text-sm font-medium text-gray-800 mt-1">
-                              {pickup.notes || `예상 ${pickup.estimatedWeight}kg`}
+                              {pickup.note || `예상 ${pickup.estimatedWeight}kg`}
                             </p>
                             <p className="text-[11px] text-gray-400 mt-0.5">{timeStr} 신청</p>
                           </div>
@@ -268,10 +475,10 @@ export default function PickupHistoryPage() {
                                 </span>
                               </div>
                             )}
-                            {pickup.notes && (
+                            {pickup.note && (
                               <div className="flex items-center justify-between py-1.5 border-t border-gray-50">
                                 <span className="text-xs text-gray-500">메모</span>
-                                <span className="text-xs text-gray-600">{pickup.notes}</span>
+                                <span className="text-xs text-gray-600">{pickup.note}</span>
                               </div>
                             )}
                             {pickup.completedAt && (
@@ -302,6 +509,16 @@ export default function PickupHistoryPage() {
           </div>
         )}
       </div>
+
+      {/* 달력 모달 */}
+      <AnimatePresence>
+        {showDatePicker && (
+          <DateRangePicker
+            onConfirm={handleDateConfirm}
+            onClose={() => setShowDatePicker(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
