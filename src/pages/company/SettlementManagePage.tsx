@@ -92,11 +92,34 @@ export default function SettlementManagePage() {
   useEffect(() => { fetchSettlements() }, [companyName])
 
   const updateStatus = async (settlementId: string, newStatus: string) => {
-    if (settlementId.startsWith('synth_')) return
     setUpdating(settlementId)
     const db = supabase as any
+
+    // synth_ 레코드: DB에 settlement 행 새로 생성 후 상태 저장
+    if (settlementId.startsWith('synth_')) {
+      const synth = settlements.find(s => s.id === settlementId)
+      if (!synth) { setUpdating(null); return }
+      const { data: inserted } = await db.from('settlements').insert({
+        driver_id: synth.driver_id,
+        period_start: synth.period_start,
+        period_end: synth.period_end,
+        total_weight: synth.total_weight,
+        rate_per_kg: synth.rate_per_kg || 80,
+        gross_amount: synth.gross_amount,
+        status: newStatus,
+        ...(newStatus === 'PAID' ? { paid_at: new Date().toISOString() } : {}),
+        confirmed_at: new Date().toISOString(),
+      }).select().single()
+      if (inserted) {
+        await fetchSettlements()
+      }
+      setUpdating(null)
+      return
+    }
+
     await db.from('settlements').update({
       status: newStatus,
+      ...(newStatus === 'CONFIRMED' ? { confirmed_at: new Date().toISOString() } : {}),
       ...(newStatus === 'PAID' ? { paid_at: new Date().toISOString() } : {}),
     }).eq('id', settlementId)
     await fetchSettlements()
@@ -235,7 +258,7 @@ export default function SettlementManagePage() {
                               )}
 
                               {/* 액션 버튼 */}
-                              {!ds.id.startsWith('synth_') && (statusUpper === 'PENDING') && (
+                              {(statusUpper === 'PENDING' || ds.id.startsWith('synth_')) && (
                                 <div className="flex gap-2 mt-3">
                                   <motion.button whileTap={{ scale: 0.97 }}
                                     disabled={isUpdating}
@@ -243,7 +266,7 @@ export default function SettlementManagePage() {
                                     className="flex-1 bg-blue-500 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
                                   >
                                     {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                                    확정
+                                    정산완료
                                   </motion.button>
                                   <motion.button whileTap={{ scale: 0.97 }}
                                     disabled={isUpdating}
