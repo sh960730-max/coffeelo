@@ -84,14 +84,28 @@ export default function SignupPage() {
         } as any)
         if (dbError) throw new Error(dbError.message)
       } else if (selectedRole === 'driver') {
-        const { error: dbError } = await supabase.from('drivers').insert({
+        // 관리자가 미리 등록한 기사인지 확인
+        const { data: preRegistered } = await (supabase as any)
+          .from('drivers').select('id, auth_id').eq('phone', phone).maybeSingle()
+        if (preRegistered) {
+          // 이미 등록된 기사 → auth_id 연결 후 로그인 유도
+          if (!preRegistered.auth_id) {
+            await (supabase as any).from('drivers').update({ auth_id: authId }).eq('id', preRegistered.id)
+            await supabase.auth.signOut()
+            navigate('/login', { state: { signupSuccess: true } })
+            return
+          }
+          await supabase.auth.signOut()
+          throw new Error('이미 등록된 전화번호입니다. 로그인 페이지에서 로그인해주세요.')
+        }
+        const { error: dbError } = await (supabase as any).from('drivers').insert({
           auth_id: authId,
           name: name,
           phone: phone,
           company: companyName || '미소속',
           truck_type: truckType,
           license_plate: licensePlate || null,
-        } as any)
+        })
         if (dbError) throw new Error(dbError.message)
       } else if (selectedRole === 'company') {
         const { error: dbError } = await supabase.from('companies').insert({
