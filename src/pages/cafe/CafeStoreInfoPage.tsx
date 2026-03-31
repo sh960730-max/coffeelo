@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Store, MapPin, Phone, Tag, Save, Loader2 } from 'lucide-react'
+import { ArrowLeft, Store, MapPin, Phone, Tag, Save, Loader2, Building2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -42,9 +42,24 @@ export default function CafeStoreInfoPage() {
       </header>
 
       <div className="px-5 py-6 space-y-4">
+        {/* 담당 수거업체 */}
+        <div className="bg-white rounded-2xl shadow-card p-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center">
+              <Building2 className="w-4.5 h-4.5 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-[11px] text-gray-400">담당 수거업체</p>
+              <p className="text-sm font-semibold text-gray-800">
+                {cafe?.company ?? '미지정'}
+              </p>
+            </div>
+          </div>
+        </div>
+
         {/* 매장 유형 */}
         <div className="bg-white rounded-2xl shadow-card p-4">
-          <div className="flex items-center gap-3 mb-1">
+          <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-eco-green-100 rounded-xl flex items-center justify-center">
               <Tag className="w-4.5 h-4.5 text-eco-green" />
             </div>
