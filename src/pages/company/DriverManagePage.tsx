@@ -87,7 +87,7 @@ export default function DriverManagePage() {
       license_plate: form.licensePlate.trim(),
       company: '그린물류',
       is_online: false,
-      auth_id: crypto.randomUUID(),   // 관리자 등록 시 임시 auth_id (앱 로그인 시 연동)
+      // auth_id는 기사가 앱으로 직접 로그인 시 연동됨
     })
 
     setSubmitting(false)
