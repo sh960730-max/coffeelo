@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { Bell, Truck, ChevronDown } from 'lucide-react'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -11,8 +11,21 @@ export default function DriverHeader() {
   const driverCompany = (user as any)?.company ?? ''
   const driverTruck = (user as any)?.truck_type ?? ''
   const subInfo = [driverCompany, driverTruck].filter(Boolean).join(' · ')
-  const [isOnline, setIsOnline] = useState<boolean>(() => (user as any)?.is_online ?? false)
+  const [isOnline, setIsOnline] = useState<boolean>(false)
   const [updating, setUpdating] = useState(false)
+
+  // 마운트 시 DB에서 최신 is_online 값 조회
+  useEffect(() => {
+    if (!driverId) return
+    ;(supabase as any)
+      .from('drivers')
+      .select('is_online')
+      .eq('id', driverId)
+      .single()
+      .then(({ data }: any) => {
+        if (data) setIsOnline(data.is_online ?? false)
+      })
+  }, [driverId])
 
   const handleToggle = async () => {
     if (updating || !driverId) return
