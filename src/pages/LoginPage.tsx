@@ -40,7 +40,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-eco-green to-eco-green-800 flex flex-col items-center justify-center px-6">
+    <div className="min-h-screen bg-gradient-to-b from-eco-green to-eco-green-800 flex flex-col items-center justify-between px-6">
+      {/* 상단 여백 확보용 빈 공간 */}
+      <div />
+
       {/* 로고 */}
       <motion.div
         initial={{ opacity: 0, y: -30 }}
@@ -155,6 +158,41 @@ export default function LoginPage() {
           계정이 없으신가요? <span className="text-white underline">회원가입</span>
         </button>
       </motion.form>
+
+      {/* 사업자 정보 푸터 */}
+      <motion.footer
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 0.4 }}
+        className="w-full max-w-sm mt-10 mb-6 border-t border-white/10 pt-5"
+      >
+        <p className="text-[11px] text-white/40 font-semibold mb-2.5 tracking-wide">사업자 정보</p>
+        <div className="space-y-1.5 text-[11px] text-white/35 leading-relaxed">
+          <div className="flex gap-2">
+            <span className="text-white/25 flex-shrink-0">상호명</span>
+            <span className="text-white/50 font-medium">주식회사 스마트에코시스</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-white/25 flex-shrink-0">대표자</span>
+            <span className="text-white/50">유승훈</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-white/25 flex-shrink-0 whitespace-nowrap">사업자등록번호</span>
+            <span className="text-white/50">602-88-03704</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-white/25 flex-shrink-0">주소</span>
+            <span className="text-white/50">서울시 서초구 논현로83 삼호물산 A빌딩 817호</span>
+          </div>
+          <div className="flex gap-2">
+            <span className="text-white/25 flex-shrink-0">고객센터</span>
+            <span className="text-white/50">02-6925-2927</span>
+          </div>
+        </div>
+        <p className="text-[10px] text-white/20 mt-3 text-center">
+          Copyright © 주식회사 스마트에코시스. All rights reserved.
+        </p>
+      </motion.footer>
     </div>
   )
 }
