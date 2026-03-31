@@ -166,29 +166,57 @@ export default function CompanyDashboard() {
       // 3. 오늘/이번주 수거 통계 (소속 기사 기준)
       const driverIds = (drivers || []).map((d: any) => d.id)
       if (driverIds.length > 0) {
-        const today = new Date().toISOString().split('T')[0]
+        const now = new Date()
+        const todayStr = now.toISOString().split('T')[0]
+        const todayStart = todayStr + 'T00:00:00'
+
+        // completed_at 또는 updated_at 기준 오늘 완료 건
         const { data: todayPickups } = await db
-          .from('pickups').select('total_weight')
-          .in('driver_id', driverIds).eq('status', 'COMPLETED')
-          .gte('completed_at', today + 'T00:00:00')
+          .from('pickups')
+          .select('total_weight, driver_id, completed_at, updated_at')
+          .in('driver_id', driverIds)
+          .eq('status', 'COMPLETED')
+          .or(`completed_at.gte.${todayStart},and(completed_at.is.null,updated_at.gte.${todayStart})`)
+
         if (todayPickups) {
           setTodayWeight(todayPickups.reduce((s: number, p: any) => s + (p.total_weight || 0), 0))
           setTodayCount(todayPickups.length)
+
+          // 기사별 오늘 통계 집계
+          const driverKgMap: Record<string, number> = {}
+          const driverCountMap: Record<string, number> = {}
+          todayPickups.forEach((p: any) => {
+            if (!p.driver_id) return
+            driverKgMap[p.driver_id] = (driverKgMap[p.driver_id] || 0) + (p.total_weight || 0)
+            driverCountMap[p.driver_id] = (driverCountMap[p.driver_id] || 0) + 1
+          })
+          setDriverStatuses(prev => prev.map(d => ({
+            ...d,
+            todayKg: driverKgMap[d.id] || 0,
+            pickups: driverCountMap[d.id] || 0,
+          })))
         }
-        const now = new Date()
+
         const dow = now.getDay()
         const monday = new Date(now)
         monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
         monday.setHours(0, 0, 0, 0)
+        const mondayStr = monday.toISOString()
+
         const { data: weekPickups } = await db
-          .from('pickups').select('completed_at, total_weight')
-          .in('driver_id', driverIds).eq('status', 'COMPLETED')
-          .gte('completed_at', monday.toISOString())
+          .from('pickups')
+          .select('completed_at, updated_at, total_weight')
+          .in('driver_id', driverIds)
+          .eq('status', 'COMPLETED')
+          .or(`completed_at.gte.${mondayStr},and(completed_at.is.null,updated_at.gte.${mondayStr})`)
+
         if (weekPickups) {
           const days = ['월', '화', '수', '목', '금', '토', '일']
           const acc: Record<string, number> = {}
           weekPickups.forEach((p: any) => {
-            const d = new Date(p.completed_at)
+            const ts = p.completed_at || p.updated_at
+            if (!ts) return
+            const d = new Date(ts)
             const idx = d.getDay() === 0 ? 6 : d.getDay() - 1
             acc[days[idx]] = (acc[days[idx]] || 0) + (p.total_weight || 0)
           })
