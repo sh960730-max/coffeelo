@@ -1,24 +1,60 @@
-import { useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
-import { Scale, Truck, Camera, Check, ArrowRight, Image as ImageIcon, Plus, ChevronDown } from 'lucide-react'
-import { dummyWeighIns } from '../../lib/dummyData'
+import { useState, useEffect } from 'react'
+import { motion } from 'framer-motion'
+import { Scale, Truck, Camera, Check, ArrowRight, Image as ImageIcon } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 
 type WeighStep = 'idle' | 'loaded' | 'empty' | 'complete'
 
 export default function WeighPage() {
+  const { user } = useAuth()
+  const driverId = (user as any)?.id
+
   const [step, setStep] = useState<WeighStep>('idle')
   const [loadedWeight, setLoadedWeight] = useState('')
   const [emptyWeight, setEmptyWeight] = useState('')
   const [loadedPhoto, setLoadedPhoto] = useState(false)
   const [emptyPhoto, setEmptyPhoto] = useState(false)
+  const [history, setHistory] = useState<any[]>([])
+  const [saving, setSaving] = useState(false)
 
   const netWeight = loadedWeight && emptyWeight
     ? Math.max(0, parseFloat(loadedWeight) - parseFloat(emptyWeight))
     : 0
 
+  const fetchHistory = async () => {
+    if (!driverId) return
+    const db = supabase as any
+    const { data } = await db.from('weigh_ins')
+      .select('*')
+      .eq('driver_id', driverId)
+      .eq('status', 'COMPLETED')
+      .order('created_at', { ascending: false })
+      .limit(10)
+    if (data) setHistory(data)
+  }
+
+  useEffect(() => { fetchHistory() }, [driverId])
+
   const handleStart = () => setStep('loaded')
   const handleLoadedDone = () => setStep('empty')
-  const handleComplete = () => setStep('complete')
+
+  const handleComplete = async () => {
+    if (!driverId) return
+    setSaving(true)
+    const db = supabase as any
+    await db.from('weigh_ins').insert({
+      driver_id: driverId,
+      loaded_weight: parseFloat(loadedWeight),
+      empty_weight: parseFloat(emptyWeight),
+      net_weight: netWeight,
+      status: 'COMPLETED',
+    })
+    setSaving(false)
+    setStep('complete')
+    fetchHistory()
+  }
+
   const handleReset = () => {
     setStep('idle')
     setLoadedWeight('')
@@ -29,7 +65,6 @@ export default function WeighPage() {
 
   return (
     <div>
-      {/* 헤더 */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
         <h1 className="text-lg font-bold text-gray-900">집하장 계량</h1>
         <p className="text-xs text-gray-500 mt-0.5">적재 → 하차 → 공차 무게 측정</p>
@@ -53,7 +88,6 @@ export default function WeighPage() {
           })}
         </div>
 
-        {/* 시작 상태 */}
         {step === 'idle' && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -75,13 +109,8 @@ export default function WeighPage() {
           </motion.div>
         )}
 
-        {/* 적재 무게 입력 */}
         {step === 'loaded' && (
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-4"
-          >
+          <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
             <div className="bg-white rounded-2xl p-5 shadow-card">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-coffee-brown/10 rounded-xl flex items-center justify-center">
@@ -92,7 +121,6 @@ export default function WeighPage() {
                   <p className="text-xs text-gray-500">커피박이 실린 상태의 차량 무게</p>
                 </div>
               </div>
-
               <div className="relative">
                 <input
                   type="number"
@@ -104,8 +132,6 @@ export default function WeighPage() {
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">kg</span>
               </div>
-
-              {/* 사진 촬영 */}
               <div className="mt-4">
                 {loadedPhoto ? (
                   <div className="h-24 bg-gradient-to-br from-eco-green/10 to-coffee-brown/10 rounded-xl flex items-center justify-center">
@@ -126,15 +152,12 @@ export default function WeighPage() {
                 )}
               </div>
             </div>
-
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleLoadedDone}
               disabled={!loadedWeight || !loadedPhoto}
               className={`w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 ${
-                loadedWeight && loadedPhoto
-                  ? 'bg-eco-green text-white shadow-button'
-                  : 'bg-gray-200 text-gray-400'
+                loadedWeight && loadedPhoto ? 'bg-eco-green text-white shadow-button' : 'bg-gray-200 text-gray-400'
               }`}
             >
               다음: 하차 후 공차 무게
@@ -143,19 +166,12 @@ export default function WeighPage() {
           </motion.div>
         )}
 
-        {/* 공차 무게 입력 */}
         {step === 'empty' && (
-          <motion.div
-            initial={{ opacity: 0, x: 50 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="space-y-4"
-          >
-            {/* 적재 무게 요약 */}
+          <motion.div initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} className="space-y-4">
             <div className="bg-gray-50 rounded-xl p-3 flex items-center justify-between">
               <span className="text-xs text-gray-500">적재 무게</span>
               <span className="text-sm font-bold text-gray-700">{parseFloat(loadedWeight).toLocaleString()} kg</span>
             </div>
-
             <div className="bg-white rounded-2xl p-5 shadow-card">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-12 h-12 bg-gray-100 rounded-xl flex items-center justify-center">
@@ -166,7 +182,6 @@ export default function WeighPage() {
                   <p className="text-xs text-gray-500">커피박 하차 후 빈 차량 무게</p>
                 </div>
               </div>
-
               <div className="relative">
                 <input
                   type="number"
@@ -178,7 +193,6 @@ export default function WeighPage() {
                 />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">kg</span>
               </div>
-
               <div className="mt-4">
                 {emptyPhoto ? (
                   <div className="h-24 bg-gradient-to-br from-eco-green/10 to-coffee-brown/10 rounded-xl flex items-center justify-center">
@@ -199,8 +213,6 @@ export default function WeighPage() {
                 )}
               </div>
             </div>
-
-            {/* 실시간 순수 무게 */}
             {emptyWeight && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -216,23 +228,21 @@ export default function WeighPage() {
                 </p>
               </motion.div>
             )}
-
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleComplete}
-              disabled={!emptyWeight || !emptyPhoto}
+              disabled={!emptyWeight || !emptyPhoto || saving}
               className={`w-full py-4 rounded-2xl text-base font-bold ${
-                emptyWeight && emptyPhoto
+                emptyWeight && emptyPhoto && !saving
                   ? 'bg-gradient-to-r from-eco-green to-eco-green-600 text-white shadow-button'
                   : 'bg-gray-200 text-gray-400'
               }`}
             >
-              계량 완료
+              {saving ? '저장 중...' : '계량 완료'}
             </motion.button>
           </motion.div>
         )}
 
-        {/* 완료 */}
         {step === 'complete' && (
           <motion.div
             initial={{ opacity: 0, scale: 0.9 }}
@@ -248,7 +258,6 @@ export default function WeighPage() {
               <Check className="w-10 h-10 text-eco-green" />
             </motion.div>
             <h2 className="text-xl font-bold text-gray-900 mt-5">계량 완료!</h2>
-
             <div className="bg-white rounded-2xl p-5 shadow-card mt-5 text-left">
               <div className="space-y-3">
                 <div className="flex justify-between">
@@ -269,7 +278,6 @@ export default function WeighPage() {
                 </div>
               </div>
             </div>
-
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleReset}
@@ -280,30 +288,37 @@ export default function WeighPage() {
           </motion.div>
         )}
 
-        {/* 오늘 계량 이력 */}
+        {/* 최근 계량 이력 */}
         <div className="mt-8">
           <h3 className="text-base font-bold text-gray-900 mb-3">최근 계량 이력</h3>
-          <div className="space-y-2">
-            {dummyWeighIns.map((w) => {
-              const date = new Date(w.date)
-              return (
-                <div key={w.id} className="bg-white rounded-xl p-3.5 shadow-card flex items-center justify-between">
-                  <div>
-                    <p className="text-xs text-gray-400">
-                      {date.getMonth() + 1}/{date.getDate()} {date.getHours()}:{String(date.getMinutes()).padStart(2, '0')}
-                    </p>
-                    <p className="text-sm font-semibold text-gray-700 mt-0.5">
-                      {w.loaded_weight?.toLocaleString()} → {w.empty_weight?.toLocaleString()} kg
-                    </p>
+          {history.length === 0 ? (
+            <div className="text-center py-8">
+              <Scale className="w-8 h-8 text-gray-200 mx-auto" />
+              <p className="text-sm text-gray-400 mt-2">계량 이력이 없습니다</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {history.map((w) => {
+                const date = new Date(w.created_at)
+                return (
+                  <div key={w.id} className="bg-white rounded-xl p-3.5 shadow-card flex items-center justify-between">
+                    <div>
+                      <p className="text-xs text-gray-400">
+                        {date.getMonth() + 1}/{date.getDate()} {date.getHours()}:{String(date.getMinutes()).padStart(2, '0')}
+                      </p>
+                      <p className="text-sm font-semibold text-gray-700 mt-0.5">
+                        {w.loaded_weight?.toLocaleString()} → {w.empty_weight?.toLocaleString()} kg
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-base font-bold text-eco-green">{w.net_weight?.toLocaleString()} kg</p>
+                      <p className="text-[10px] text-amber-600">{((w.net_weight || 0) * 80).toLocaleString()}원</p>
+                    </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-base font-bold text-eco-green">{w.net_weight?.toLocaleString()} kg</p>
-                    <p className="text-[10px] text-amber-600">{((w.net_weight || 0) * 80).toLocaleString()}원</p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -1,7 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Wallet, TrendingUp, Calendar, ChevronDown, ChevronUp, Scale, MapPin } from 'lucide-react'
-import { dummySettlements, dummyPickups } from '../../lib/dummyData'
+import { Wallet, TrendingUp, Calendar, ChevronDown, ChevronUp, Scale } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 
 const statusStyle: Record<string, { label: string; color: string }> = {
   PENDING: { label: '대기', color: 'bg-amber-50 text-amber-600' },
@@ -11,20 +12,75 @@ const statusStyle: Record<string, { label: string; color: string }> = {
 }
 
 export default function SettlementPage() {
+  const { user } = useAuth()
+  const driverId = (user as any)?.id
+
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [settlements, setSettlements] = useState<any[]>([])
+  const [todayAmount, setTodayAmount] = useState(0)
+  const [weekAmount, setWeekAmount] = useState(0)
+  const [monthAmount, setMonthAmount] = useState(0)
+  const [weeklyData, setWeeklyData] = useState([
+    { day: '월', amount: 0 }, { day: '화', amount: 0 }, { day: '수', amount: 0 },
+    { day: '목', amount: 0 }, { day: '금', amount: 0 }, { day: '토', amount: 0 }, { day: '일', amount: 0 },
+  ])
 
-  // 요약 데이터 계산
-  const completedPickups = dummyPickups.filter(p => p.status === 'COMPLETED')
-  const todayAmount = completedPickups
-    .filter(p => {
-      const d = new Date(p.completed_at || '')
-      const today = new Date()
-      return d.toDateString() === today.toDateString()
-    })
-    .reduce((s, p) => s + (p.settlement_amount || 0), 0)
+  useEffect(() => {
+    if (!driverId) return
+    const db = supabase as any
+    const load = async () => {
+      const now = new Date()
+      const today = now.toISOString().split('T')[0]
 
-  const weekAmount = dummySettlements[0]?.gross_amount || 0
-  const monthAmount = dummySettlements.reduce((s, st) => s + st.gross_amount, 0)
+      // 오늘 수입
+      const { data: todayPickups } = await db.from('pickups')
+        .select('settlement_amount')
+        .eq('driver_id', driverId).eq('status', 'COMPLETED')
+        .gte('completed_at', today + 'T00:00:00')
+      if (todayPickups) {
+        setTodayAmount(todayPickups.reduce((s: number, p: any) => s + (p.settlement_amount || 0), 0))
+      }
+
+      // 이번 주 (월~일)
+      const dow = now.getDay()
+      const monday = new Date(now)
+      monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
+      monday.setHours(0, 0, 0, 0)
+      const { data: weekPickups } = await db.from('pickups')
+        .select('completed_at, settlement_amount')
+        .eq('driver_id', driverId).eq('status', 'COMPLETED')
+        .gte('completed_at', monday.toISOString())
+      if (weekPickups) {
+        setWeekAmount(weekPickups.reduce((s: number, p: any) => s + (p.settlement_amount || 0), 0))
+        const days = ['월', '화', '수', '목', '금', '토', '일']
+        const acc: Record<string, number> = {}
+        weekPickups.forEach((p: any) => {
+          const d = new Date(p.completed_at)
+          const idx = d.getDay() === 0 ? 6 : d.getDay() - 1
+          acc[days[idx]] = (acc[days[idx]] || 0) + (p.settlement_amount || 0)
+        })
+        setWeeklyData(days.map(d => ({ day: d, amount: acc[d] || 0 })))
+      }
+
+      // 이번 달
+      const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+      const { data: monthPickups } = await db.from('pickups')
+        .select('settlement_amount')
+        .eq('driver_id', driverId).eq('status', 'COMPLETED')
+        .gte('completed_at', firstOfMonth)
+      if (monthPickups) {
+        setMonthAmount(monthPickups.reduce((s: number, p: any) => s + (p.settlement_amount || 0), 0))
+      }
+
+      // 정산 내역
+      const { data: settlementsData } = await db.from('settlements')
+        .select('*')
+        .eq('driver_id', driverId)
+        .order('period_start', { ascending: false })
+      if (settlementsData) setSettlements(settlementsData)
+    }
+    load()
+  }, [driverId])
 
   const summaryCards = [
     { label: '오늘', amount: todayAmount, icon: Wallet, color: 'text-eco-green', bg: 'bg-eco-green-100' },
@@ -32,21 +88,18 @@ export default function SettlementPage() {
     { label: '이번 달', amount: monthAmount, icon: Calendar, color: 'text-amber-600', bg: 'bg-amber-50' },
   ]
 
-  // 주간 바 차트 데이터
-  const weeklyData = [
-    { day: '월', amount: 85600 },
-    { day: '화', amount: 78400 },
-    { day: '수', amount: 108000 },
-    { day: '목', amount: 96000 },
-    { day: '금', amount: 68000 },
-    { day: '토', amount: 102400 },
-    { day: '일', amount: 0 },
-  ]
-  const maxAmount = Math.max(...weeklyData.map(d => d.amount))
+  const maxAmount = Math.max(...weeklyData.map(d => d.amount), 1)
+  const todayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1 })()
+
+  // 이번 주 날짜 범위 표시
+  const now = new Date()
+  const dow = now.getDay()
+  const mon = new Date(now); mon.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  const weekRangeStr = `${mon.getMonth() + 1}/${mon.getDate()} ~ ${sun.getMonth() + 1}/${sun.getDate()}`
 
   return (
     <div>
-      {/* 헤더 */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
         <h1 className="text-lg font-bold text-gray-900">정산</h1>
       </header>
@@ -85,13 +138,12 @@ export default function SettlementPage() {
         >
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-sm font-bold text-gray-800">이번 주 수입</h3>
-            <span className="text-[11px] text-gray-400">3/18 ~ 3/24</span>
+            <span className="text-[11px] text-gray-400">{weekRangeStr}</span>
           </div>
-
           <div className="flex items-end gap-1.5 h-28">
             {weeklyData.map((d, i) => {
               const height = d.amount > 0 ? Math.max((d.amount / maxAmount) * 100, 8) : 4
-              const isToday = i === 5 // 토요일 (오늘)
+              const isToday = i === todayIdx
               return (
                 <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
                   {d.amount > 0 && (
@@ -115,103 +167,96 @@ export default function SettlementPage() {
         {/* 정산 내역 */}
         <div className="mt-6">
           <h3 className="text-base font-bold text-gray-900 mb-3">정산 내역</h3>
-          <div className="space-y-2.5">
-            {dummySettlements.map((settlement, idx) => {
-              const isExpanded = expandedId === settlement.id
-              const style = statusStyle[settlement.status]
-              const startDate = new Date(settlement.period_start)
-              const endDate = new Date(settlement.period_end)
-              const periodStr = `${startDate.getMonth() + 1}/${startDate.getDate()} ~ ${endDate.getMonth() + 1}/${endDate.getDate()}`
+          {settlements.length === 0 ? (
+            <div className="text-center py-10">
+              <Scale className="w-8 h-8 text-gray-200 mx-auto" />
+              <p className="text-sm text-gray-400 mt-2">정산 내역이 없습니다</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {settlements.map((settlement, idx) => {
+                const isExpanded = expandedId === settlement.id
+                const style = statusStyle[settlement.status] || statusStyle.PENDING
+                const startDate = new Date(settlement.period_start)
+                const endDate = new Date(settlement.period_end)
+                const periodStr = `${startDate.getMonth() + 1}/${startDate.getDate()} ~ ${endDate.getMonth() + 1}/${endDate.getDate()}`
 
-              return (
-                <motion.div
-                  key={settlement.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.5 + idx * 0.08 }}
-                  className="bg-white rounded-2xl shadow-card overflow-hidden"
-                >
-                  <button
-                    onClick={() => setExpandedId(isExpanded ? null : settlement.id)}
-                    className="w-full p-4 text-left"
+                return (
+                  <motion.div
+                    key={settlement.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.5 + idx * 0.08 }}
+                    className="bg-white rounded-2xl shadow-card overflow-hidden"
                   >
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-xs text-gray-400">{periodStr}</span>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${style.color}`}>
-                            {style.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-3 mt-1">
-                          <div className="flex items-center gap-1">
-                            <Scale className="w-3 h-3 text-gray-400" />
-                            <span className="text-xs text-gray-600">{settlement.total_weight.toLocaleString()}kg</span>
-                          </div>
-                          <span className="text-xs text-gray-400">×</span>
-                          <span className="text-xs text-gray-600">{settlement.rate_per_kg}원/kg</span>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-base font-bold text-gray-900">
-                          {settlement.gross_amount.toLocaleString()}원
-                        </p>
-                        {isExpanded ? (
-                          <ChevronUp className="w-4 h-4 text-gray-300 ml-auto mt-1" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-gray-300 ml-auto mt-1" />
-                        )}
-                      </div>
-                    </div>
-                  </button>
-
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0 }}
-                      animate={{ height: 'auto' }}
-                      className="border-t border-gray-100 px-4 py-3"
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : settlement.id)}
+                      className="w-full p-4 text-left"
                     >
-                      <p className="text-[11px] font-semibold text-gray-500 mb-2">일별 상세</p>
-                      {[
-                        { date: '3/18 (월)', weight: 1100, amount: 88000 },
-                        { date: '3/19 (화)', weight: 980, amount: 78400 },
-                        { date: '3/20 (수)', weight: 1350, amount: 108000 },
-                        { date: '3/21 (목)', weight: 1200, amount: 96000 },
-                        { date: '3/22 (금)', weight: 850, amount: 68000 },
-                        { date: '3/23 (토)', weight: 1250, amount: 100000 },
-                      ].map(d => (
-                        <div key={d.date} className="flex items-center justify-between py-1.5 border-b border-gray-50 last:border-0">
-                          <span className="text-xs text-gray-500">{d.date}</span>
-                          <div className="flex items-center gap-3">
-                            <span className="text-xs text-gray-600">{d.weight.toLocaleString()}kg</span>
-                            <span className="text-xs font-semibold text-gray-800">{d.amount.toLocaleString()}원</span>
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xs text-gray-400">{periodStr}</span>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${style.color}`}>
+                              {style.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 mt-1">
+                            <div className="flex items-center gap-1">
+                              <Scale className="w-3 h-3 text-gray-400" />
+                              <span className="text-xs text-gray-600">{settlement.total_weight?.toLocaleString()}kg</span>
+                            </div>
+                            <span className="text-xs text-gray-400">×</span>
+                            <span className="text-xs text-gray-600">{settlement.rate_per_kg}원/kg</span>
                           </div>
                         </div>
-                      ))}
-                      {settlement.paid_at && (
-                        <div className="mt-2 pt-2 border-t border-gray-100">
-                          <span className="text-[11px] text-eco-green">
-                            지급일: {new Date(settlement.paid_at).toLocaleDateString('ko-KR')}
-                          </span>
+                        <div className="text-right">
+                          <p className="text-base font-bold text-gray-900">
+                            {settlement.gross_amount?.toLocaleString()}원
+                          </p>
+                          {isExpanded ? (
+                            <ChevronUp className="w-4 h-4 text-gray-300 ml-auto mt-1" />
+                          ) : (
+                            <ChevronDown className="w-4 h-4 text-gray-300 ml-auto mt-1" />
+                          )}
                         </div>
-                      )}
-                    </motion.div>
-                  )}
-                </motion.div>
-              )
-            })}
-          </div>
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: 'auto' }}
+                        className="border-t border-gray-100 px-4 py-3"
+                      >
+                        <div className="space-y-2">
+                          {settlement.net_amount && (
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-500">실지급액</span>
+                              <span className="text-xs font-bold text-eco-green">{settlement.net_amount?.toLocaleString()}원</span>
+                            </div>
+                          )}
+                          {settlement.paid_at && (
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-500">지급일</span>
+                              <span className="text-xs text-eco-green">{new Date(settlement.paid_at).toLocaleDateString('ko-KR')}</span>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )
+              })}
+            </div>
+          )}
         </div>
 
         {/* 계좌 정보 */}
         <div className="mt-6 bg-white rounded-2xl p-4 shadow-card mb-8">
           <h3 className="text-sm font-bold text-gray-800 mb-2">정산 계좌</h3>
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs text-gray-500">국민은행</p>
-              <p className="text-sm font-semibold text-gray-800">123-456-789012</p>
-            </div>
-            <span className="text-xs text-gray-400">박민수</span>
+            <p className="text-sm text-gray-500">계좌 정보를 등록해주세요</p>
           </div>
           <p className="text-[10px] text-gray-400 mt-2">매주 월요일 정산, 수요일 지급</p>
         </div>
