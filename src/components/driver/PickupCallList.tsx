@@ -44,17 +44,38 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     setDisplayCalls(calls)
   }, [calls])
 
-  // OpenStreetMap Nominatim으로 주소 → 좌표 변환 (API 키 불필요)
+  // 주소에서 층/호 등 세부정보 제거 후 geocoding
+  const cleanAddress = (address: string): string => {
+    // "서울 서초구 서초중앙로24길 10 1층 101호" → "서울 서초구 서초중앙로24길 10"
+    return address
+      .replace(/\s*\d+층.*$/i, '')      // ~층 이후 제거
+      .replace(/\s*\d+호.*$/i, '')       // ~호 이후 제거
+      .replace(/\s*(지하|B)\d+.*/i, '')  // 지하 제거
+      .trim()
+  }
+
+  // OpenStreetMap Nominatim으로 주소 → 좌표 변환
   const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address + ' 대한민국')}&format=json&limit=1&accept-language=ko`,
-        { headers: { 'User-Agent': 'SmartEcoSys/1.0' } }
-      )
-      const json = await res.json()
-      if (json?.[0]) return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) }
-    } catch (e) {
-      console.error('geocode error:', e)
+    const cleaned = cleanAddress(address)
+    // 시도 1: 정제된 주소
+    // 시도 2: 구+동 단위로 축약 (예: "서울 서초구")
+    const queries = [cleaned, cleaned.split(' ').slice(0, 3).join(' ')]
+    for (const q of queries) {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ', 대한민국')}&format=json&limit=1&accept-language=ko&countrycodes=kr`,
+          { headers: { 'User-Agent': 'SmartEcoSys-Driver/1.0' } }
+        )
+        const json = await res.json()
+        if (json?.[0]) {
+          console.log(`✅ geocode "${q}" → ${json[0].lat}, ${json[0].lon}`)
+          return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) }
+        }
+        console.warn(`❌ geocode no result: "${q}"`)
+      } catch (e) {
+        console.error('geocode error:', e)
+      }
+      await new Promise(r => setTimeout(r, 1100))
     }
     return null
   }
@@ -72,28 +93,32 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     }
     setSortingLoading(true)
     setSortError(null)
+    // 정렬 시작 시점의 calls 캡처 (비동기 중 변경 방지)
+    const snapshot = [...calls]
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: myLat, longitude: myLng } = pos.coords
-        // Nominatim 1초 제한 → 순차 처리
+        console.log(`📍 내 위치: ${myLat}, ${myLng}`)
         const withCoords: any[] = []
-        for (let i = 0; i < calls.length; i++) {
-          const c = calls[i]
+        for (let i = 0; i < snapshot.length; i++) {
+          const c = snapshot[i]
           if (c.lat != null && c.lng != null) {
             const km = haversine(myLat, myLng, c.lat, c.lng)
             withCoords.push({ ...c, distance: formatDist(km), _km: km })
           } else {
-            if (i > 0) await new Promise(r => setTimeout(r, 1100)) // rate limit
+            if (i > 0) await new Promise(r => setTimeout(r, 1100))
             const coords = await geocodeAddress(c.address)
             if (coords) {
               const km = haversine(myLat, myLng, coords.lat, coords.lng)
+              console.log(`🏪 ${c.storeName}: ${km.toFixed(2)}km`)
               withCoords.push({ ...c, distance: formatDist(km), _km: km })
             } else {
-              withCoords.push({ ...c, _km: Infinity })
+              console.warn(`⚠️ geocode 실패: ${c.address}`)
+              withCoords.push({ ...c, distance: '?', _km: Infinity })
             }
           }
         }
-        withCoords.sort((a, b) => (a as any)._km - (b as any)._km)
+        withCoords.sort((a, b) => a._km - b._km)
         setDisplayCalls(withCoords)
         setSortedByDist(true)
         setSortingLoading(false)
