@@ -44,16 +44,15 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     setDisplayCalls(calls)
   }, [calls])
 
-  // 카카오 REST API로 주소 → 좌표 변환
+  // OpenStreetMap Nominatim으로 주소 → 좌표 변환 (API 키 불필요)
   const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
     try {
       const res = await fetch(
-        `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
-        { headers: { Authorization: 'KakaoAK 9d98432e37b0e1da2a7f5ad84ec07649' } }
+        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(address + ' 대한민국')}&format=json&limit=1&accept-language=ko`,
+        { headers: { 'User-Agent': 'SmartEcoSys/1.0' } }
       )
       const json = await res.json()
-      const doc = json?.documents?.[0]
-      if (doc) return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) }
+      if (json?.[0]) return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) }
     } catch (e) {
       console.error('geocode error:', e)
     }
@@ -76,20 +75,24 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude: myLat, longitude: myLng } = pos.coords
-        const withCoords = await Promise.all(
-          calls.map(async (c) => {
-            if (c.lat != null && c.lng != null) {
-              const km = haversine(myLat, myLng, c.lat, c.lng)
-              return { ...c, distance: formatDist(km), _km: km }
-            }
+        // Nominatim 1초 제한 → 순차 처리
+        const withCoords: any[] = []
+        for (let i = 0; i < calls.length; i++) {
+          const c = calls[i]
+          if (c.lat != null && c.lng != null) {
+            const km = haversine(myLat, myLng, c.lat, c.lng)
+            withCoords.push({ ...c, distance: formatDist(km), _km: km })
+          } else {
+            if (i > 0) await new Promise(r => setTimeout(r, 1100)) // rate limit
             const coords = await geocodeAddress(c.address)
             if (coords) {
               const km = haversine(myLat, myLng, coords.lat, coords.lng)
-              return { ...c, distance: formatDist(km), _km: km }
+              withCoords.push({ ...c, distance: formatDist(km), _km: km })
+            } else {
+              withCoords.push({ ...c, _km: Infinity })
             }
-            return { ...c, _km: Infinity }
-          })
-        )
+          }
+        }
         withCoords.sort((a, b) => (a as any)._km - (b as any)._km)
         setDisplayCalls(withCoords)
         setSortedByDist(true)
