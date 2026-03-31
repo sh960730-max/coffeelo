@@ -68,13 +68,13 @@ export default function PickupConfirm() {
     if (!id) return
     const db = supabase as any
     db.from('pickups')
-      .select('*, cafe:cafes(name, address, type, store_type)')
+      .select('*, cafe:cafes(name, address, store_type)')
       .eq('id', id)
       .single()
       .then(({ data }: any) => {
         if (data) {
           const cafe = data.cafe
-          const rawType = cafe?.type || cafe?.store_type || 'INDIVIDUAL'
+          const rawType = cafe?.store_type || 'INDIVIDUAL'
           const containerType: 'box' | 'bag' =
             (data.container_type || 'BOX').toUpperCase() === 'BOX' ? 'box' : 'bag'
           const qty = data.quantity || 1

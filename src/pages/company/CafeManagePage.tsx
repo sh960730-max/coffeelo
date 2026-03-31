@@ -95,7 +95,7 @@ export default function CafeManagePage() {
     const db = supabase as any
     await db.from('cafes').insert({
       name: form.name.trim(),
-      type: form.type,
+      store_type: form.type,
       address: form.address.trim() || null,
       phone: form.phone.trim() || null,
     })
@@ -150,7 +150,7 @@ export default function CafeManagePage() {
   )
 
   const typeCounts: Record<string, number> = { STARBUCKS: 0, FRANCHISE: 0, INDIVIDUAL: 0 }
-  cafes.forEach(c => { if (c.type && typeCounts[c.type] !== undefined) typeCounts[c.type]++ })
+  cafes.forEach(c => { if (c.store_type && typeCounts[c.store_type] !== undefined) typeCounts[c.store_type]++ })
 
   return (
     <div>
@@ -296,7 +296,7 @@ export default function CafeManagePage() {
 
             <div className="space-y-2.5">
               {filtered.map((cafe, idx) => {
-                const cfg = typeConfig[cafe.type] || typeConfig.INDIVIDUAL
+                const cfg = typeConfig[cafe.store_type] || typeConfig.INDIVIDUAL
                 const isExpanded = expandedId === cafe.id
                 const stats = cafeStats[cafe.id] || { pickups: 0, kg: 0 }
 

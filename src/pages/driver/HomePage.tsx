@@ -60,7 +60,7 @@ export default function HomePage() {
     // 진행 중인 수거 (이 기사에게 배정된)
     const { data: active } = await db
       .from('pickups')
-      .select('*, cafe:cafes(name, address, store_type, type, phone)')
+      .select('*, cafe:cafes(name, address, store_type, phone)')
       .eq('driver_id', driverId)
       .in('status', ['ASSIGNED', 'EN_ROUTE', 'ARRIVED', 'LOADED'])
       .order('created_at', { ascending: true })
@@ -69,7 +69,7 @@ export default function HomePage() {
       setActivePickups(active.map((p: any) => ({
         id: p.id,
         storeName: p.cafe?.name ?? '알 수 없음',
-        storeType: mapStoreType(p.cafe?.type || p.cafe?.store_type || 'INDIVIDUAL'),
+        storeType: mapStoreType(p.cafe?.store_type || 'INDIVIDUAL'),
         address: p.cafe?.address ?? '-',
         containerType: (p.container_type === 'BAG' ? 'bag' : 'box') as 'box' | 'bag',
         estimatedCount: p.quantity ?? 0,
