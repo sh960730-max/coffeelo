@@ -91,15 +91,22 @@ export default function Header() {
   }
 
   const unreadCount = notifs.filter(n => !readIds.has(n.id)).length
+  const visibleNotifs = notifs.filter(n => !readIds.has(n.id))
 
   const handleOpen = () => {
     setShowPanel(true)
   }
 
   const handleClose = () => {
-    // 모두 읽음 처리
-    setReadIds(new Set(notifs.map(n => n.id)))
     setShowPanel(false)
+  }
+
+  const handleReadNotif = (id: string) => {
+    setReadIds(prev => new Set([...prev, id]))
+  }
+
+  const handleReadAll = () => {
+    setReadIds(new Set(notifs.map(n => n.id)))
   }
 
   return (
@@ -179,61 +186,74 @@ export default function Header() {
                     </span>
                   )}
                 </div>
-                <motion.button
-                  whileTap={{ scale: 0.9 }}
-                  onClick={handleClose}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
-                >
-                  <X className="w-4 h-4 text-gray-500" />
-                </motion.button>
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={handleReadAll}
+                      className="text-xs text-eco-green font-semibold"
+                    >
+                      모두 읽음
+                    </button>
+                  )}
+                  <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={handleClose}
+                    className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
+                  >
+                    <X className="w-4 h-4 text-gray-500" />
+                  </motion.button>
+                </div>
               </div>
 
               {/* 알림 목록 */}
               <div className="overflow-y-auto flex-1 px-5 pb-8">
-                {notifs.length === 0 ? (
+                {visibleNotifs.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-16 text-gray-400">
                     <Bell className="w-10 h-10 opacity-30 mb-3" />
-                    <p className="text-sm">알림이 없습니다</p>
+                    <p className="text-sm">새로운 알림이 없습니다</p>
                   </div>
                 ) : (
                   <div className="space-y-2 pt-1">
-                    {notifs.map((n) => {
-                      const isRead = readIds.has(n.id)
-                      const Icon = n.type === 'announcement' ? Megaphone
-                        : n.title.includes('완료') ? CheckCircle2
-                        : n.title.includes('도착') ? Truck
-                        : Truck
-                      return (
-                        <div
-                          key={n.id}
-                          className={`flex items-start gap-3 p-3.5 rounded-2xl transition-colors ${
-                            isRead ? 'bg-gray-50' : 'bg-eco-green-100/60'
-                          }`}
-                        >
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                            n.type === 'announcement' ? 'bg-amber-100' :
-                            n.title.includes('완료') ? 'bg-green-100' : 'bg-blue-100'
-                          }`}>
-                            <Icon className={`w-4.5 h-4.5 ${
-                              n.type === 'announcement' ? 'text-amber-600' :
-                              n.title.includes('완료') ? 'text-green-600' : 'text-blue-600'
-                            }`} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className={`text-sm font-semibold ${isRead ? 'text-gray-600' : 'text-gray-900'}`}>
-                                {n.title}
-                              </p>
-                              {!isRead && (
-                                <div className="w-2 h-2 bg-eco-green rounded-full flex-shrink-0" />
-                              )}
-                            </div>
-                            <p className="text-xs text-gray-400 mt-0.5 truncate">{n.body}</p>
-                            <p className="text-[11px] text-gray-300 mt-1">{n.time}</p>
-                          </div>
-                        </div>
-                      )
-                    })}
+                    <AnimatePresence>
+                      {visibleNotifs.map((n) => {
+                        const Icon = n.type === 'announcement' ? Megaphone
+                          : n.title.includes('완료') ? CheckCircle2
+                          : n.title.includes('도착') ? Truck
+                          : Truck
+                        return (
+                          <motion.div
+                            key={n.id}
+                            initial={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' }}
+                            transition={{ duration: 0.25 }}
+                          >
+                            <motion.button
+                              whileTap={{ scale: 0.98 }}
+                              onClick={() => handleReadNotif(n.id)}
+                              className="w-full flex items-start gap-3 p-3.5 rounded-2xl bg-eco-green-100/60 text-left"
+                            >
+                              <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                                n.type === 'announcement' ? 'bg-amber-100' :
+                                n.title.includes('완료') ? 'bg-green-100' : 'bg-blue-100'
+                              }`}>
+                                <Icon className={`w-4.5 h-4.5 ${
+                                  n.type === 'announcement' ? 'text-amber-600' :
+                                  n.title.includes('완료') ? 'text-green-600' : 'text-blue-600'
+                                }`} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-2">
+                                  <p className="text-sm font-semibold text-gray-900">{n.title}</p>
+                                  <div className="w-2 h-2 bg-eco-green rounded-full flex-shrink-0" />
+                                </div>
+                                <p className="text-xs text-gray-400 mt-0.5 truncate">{n.body}</p>
+                                <p className="text-[11px] text-gray-300 mt-1">{n.time}</p>
+                              </div>
+                            </motion.button>
+                          </motion.div>
+                        )
+                      })}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
