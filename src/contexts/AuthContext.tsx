@@ -116,15 +116,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return { error: '등록되지 않은 기사이거나 비밀번호가 올바르지 않습니다.' }
         }
 
-        // 계정 생성 (첫 로그인)
+        // 계정 생성 시도 (첫 로그인)
         const { error: signUpError } = await supabase.auth.signUp({ email, password })
-        if (signUpError) return { error: '계정 생성에 실패했습니다: ' + signUpError.message }
+        if (signUpError) {
+          // 이미 auth 계정이 있지만 비밀번호가 다른 경우
+          if (signUpError.message.toLowerCase().includes('already registered') || signUpError.message.toLowerCase().includes('already been registered')) {
+            return { error: '이미 가입된 전화번호입니다. 가입 시 설정한 비밀번호를 입력해주세요.' }
+          }
+          return { error: '계정 생성에 실패했습니다: ' + signUpError.message }
+        }
 
         // 생성 후 바로 로그인
         const { error: retryError } = await supabase.auth.signInWithPassword({ email, password })
         if (retryError) return { error: retryError.message }
       } else {
-        return { error: signInError.message }
+        return { error: '전화번호 또는 비밀번호가 올바르지 않습니다.' }
       }
     }
 
