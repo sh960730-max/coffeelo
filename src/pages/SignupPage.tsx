@@ -38,6 +38,7 @@ export default function SignupPage() {
   // 점주 전용
   const [cafeName, setCafeName] = useState('')
   const [cafeAddress, setCafeAddress] = useState('')
+  const [cafeAddressDetail, setCafeAddressDetail] = useState('')
   const [storeType, setStoreType] = useState('INDIVIDUAL')
   const [showAddressModal, setShowAddressModal] = useState(false)
 
@@ -105,11 +106,12 @@ export default function SignupPage() {
 
       // 2. 역할별 테이블에 데이터 삽입
       if (selectedRole === 'cafe') {
+        const fullAddress = [cafeAddress, cafeAddressDetail].filter(Boolean).join(' ') || '주소 미입력'
         const { error: dbError } = await supabase.from('cafes').insert({
           auth_id: authId,
           name: cafeName || name + '의 카페',
           store_type: storeType,
-          address: cafeAddress || '주소 미입력',
+          address: fullAddress,
           phone: phone,
           company: cafeCompanyName || null,
           status: 'PENDING',
@@ -397,6 +399,16 @@ export default function SignupPage() {
                       {cafeAddress || '매장 주소 (클릭하여 검색)'}
                     </span>
                   </motion.button>
+                  <div className="relative">
+                    <MapPin className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-white/20" />
+                    <input
+                      type="text"
+                      placeholder="상세주소 (동/호수, 층 등)"
+                      value={cafeAddressDetail}
+                      onChange={(e) => setCafeAddressDetail(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-white placeholder-white/40 text-sm font-medium outline-none focus:border-white/50"
+                    />
+                  </div>
                 </motion.div>
               )}
 
