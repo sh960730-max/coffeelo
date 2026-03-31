@@ -70,16 +70,21 @@ export default function PickupRequestPage() {
       try {
         const ext = storagePhotoFile.name.split('.').pop() || 'jpg'
         const fileName = `${cafeId}_${Date.now()}.${ext}`
-        const { data: uploadData } = await supabase.storage
+        const { data: uploadData, error: uploadError } = await supabase.storage
           .from('pickup-photos')
           .upload(fileName, storagePhotoFile, { upsert: true })
+        if (uploadError) {
+          console.error('사진 업로드 실패:', uploadError.message)
+        }
         if (uploadData) {
           const { data: { publicUrl } } = supabase.storage
             .from('pickup-photos')
             .getPublicUrl(uploadData.path)
           storagePhotoUrl = publicUrl
         }
-      } catch {}
+      } catch (e) {
+        console.error('사진 업로드 예외:', e)
+      }
     }
 
     const db = supabase as any
