@@ -2,14 +2,26 @@ import { motion } from 'framer-motion'
 import { Bell, Truck, ChevronDown } from 'lucide-react'
 import { useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 
 export default function DriverHeader() {
   const { user } = useAuth()
+  const driverId = (user as any)?.id
   const driverName = (user as any)?.name ?? '기사'
   const driverCompany = (user as any)?.company ?? ''
   const driverTruck = (user as any)?.truck_type ?? ''
   const subInfo = [driverCompany, driverTruck].filter(Boolean).join(' · ')
-  const [isOnline, setIsOnline] = useState(true)
+  const [isOnline, setIsOnline] = useState<boolean>(() => (user as any)?.is_online ?? false)
+  const [updating, setUpdating] = useState(false)
+
+  const handleToggle = async () => {
+    if (updating || !driverId) return
+    const next = !isOnline
+    setIsOnline(next)
+    setUpdating(true)
+    await (supabase as any).from('drivers').update({ is_online: next }).eq('id', driverId)
+    setUpdating(false)
+  }
 
   return (
     <motion.header
@@ -52,12 +64,13 @@ export default function DriverHeader() {
       <div className="px-5 pb-3">
         <motion.button
           whileTap={{ scale: 0.98 }}
-          onClick={() => setIsOnline(!isOnline)}
+          onClick={handleToggle}
+          disabled={updating}
           className={`w-full flex items-center justify-between px-4 py-2.5 rounded-xl transition-all duration-300 ${
             isOnline
               ? 'bg-eco-green-100 border border-eco-green-200'
               : 'bg-gray-100 border border-gray-200'
-          }`}
+          } ${updating ? 'opacity-70' : ''}`}
         >
           <div className="flex items-center gap-2">
             <div className={`w-2.5 h-2.5 rounded-full ${isOnline ? 'bg-green-400 animate-pulse' : 'bg-gray-400'}`} />

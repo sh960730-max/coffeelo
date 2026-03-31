@@ -127,6 +127,25 @@ export default function CompanyDashboard() {
   const [selectedDriverPickups, setSelectedDriverPickups] = useState<any[]>([])
   const [loadingDriverDetail, setLoadingDriverDetail] = useState(false)
 
+  // 기사 온라인 상태 주기적 갱신 (30초)
+  useEffect(() => {
+    if (!companyName || companyName === '관리자') return
+    const db = supabase as any
+    const refreshOnlineStatus = async () => {
+      const { data: drivers } = await db.from('drivers').select('id, is_online').eq('company', companyName)
+      if (drivers) {
+        setDriverStatuses(prev => prev.map(d => {
+          const fresh = drivers.find((fd: any) => fd.id === d.id)
+          if (!fresh) return d
+          const newStatus = fresh.is_online ? 'online' : 'offline'
+          return { ...d, status: newStatus }
+        }))
+      }
+    }
+    const interval = setInterval(refreshOnlineStatus, 30000)
+    return () => clearInterval(interval)
+  }, [companyName])
+
   useEffect(() => {
     if (!companyName || companyName === '관리자') return
     const db = supabase as any
