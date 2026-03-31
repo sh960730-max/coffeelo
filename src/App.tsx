@@ -13,6 +13,14 @@ import WeighPage from './pages/driver/WeighPage'
 import SettlementPage from './pages/driver/SettlementPage'
 import DriverMorePage from './pages/driver/MorePage'
 import PickupConfirm from './pages/PickupConfirm'
+import DriverProfileEditPage from './pages/driver/ProfileEditPage'
+import DriverVehicleInfoPage from './pages/driver/VehicleInfoPage'
+import DriverNotificationPage from './pages/driver/NotificationPage'
+import DriverAnnouncementPage from './pages/driver/AnnouncementPage'
+import DriverFAQPage from './pages/driver/FAQPage'
+import DriverInquiryPage from './pages/driver/InquiryPage'
+import DriverTermsPage from './pages/driver/TermsPage'
+import DriverPrivacyPage from './pages/driver/PrivacyPage'
 
 // Cafe
 import CafeLayout from './pages/cafe/CafeLayout'
@@ -98,6 +106,14 @@ function AppRoutes() {
         <Route path="settlement" element={<SettlementPage />} />
         <Route path="more" element={<DriverMorePage />} />
         <Route path="pickup/:id" element={<PickupConfirm />} />
+        <Route path="profile-edit" element={<DriverProfileEditPage />} />
+        <Route path="vehicle-info" element={<DriverVehicleInfoPage />} />
+        <Route path="notifications" element={<DriverNotificationPage />} />
+        <Route path="announcements" element={<DriverAnnouncementPage />} />
+        <Route path="faq" element={<DriverFAQPage />} />
+        <Route path="inquiry" element={<DriverInquiryPage />} />
+        <Route path="terms" element={<DriverTermsPage />} />
+        <Route path="privacy" element={<DriverPrivacyPage />} />
       </Route>
 
       {/* 점주용 */}

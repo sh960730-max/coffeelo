@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useNavigate } from 'react-router-dom'
 import {
   User, Truck, Bell, Megaphone, HelpCircle, MessageCircle,
   FileText, Shield, LogOut, ChevronRight, Coffee
@@ -9,6 +10,7 @@ import { supabase } from '../../lib/supabase'
 
 export default function MorePage() {
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
   const driver = user as any
   const driverId = driver?.id
 
@@ -58,24 +60,24 @@ export default function MorePage() {
     {
       title: '내 정보',
       items: [
-        { icon: User, label: '내 정보 수정', desc: '이름, 연락처 변경' },
-        { icon: Truck, label: '차량 정보', desc: '차종, 번호판' },
-        { icon: Bell, label: '알림 설정', desc: '푸시 알림, 콜 알림음' },
+        { icon: User, label: '내 정보 수정', desc: '이름, 연락처 변경', route: '/driver/profile-edit' },
+        { icon: Truck, label: '차량 정보', desc: '차종, 번호판', route: '/driver/vehicle-info' },
+        { icon: Bell, label: '알림 설정', desc: '푸시 알림, 콜 알림음', route: '/driver/notifications' },
       ],
     },
     {
       title: '고객지원',
       items: [
-        { icon: Megaphone, label: '공지사항', desc: announcementCount > 0 ? `${announcementCount}개의 공지` : '공지사항' },
-        { icon: HelpCircle, label: '자주 묻는 질문', desc: 'FAQ' },
-        { icon: MessageCircle, label: '문의하기', desc: '카카오톡 채널' },
+        { icon: Megaphone, label: '공지사항', desc: announcementCount > 0 ? `${announcementCount}개의 공지` : '공지사항', route: '/driver/announcements' },
+        { icon: HelpCircle, label: '자주 묻는 질문', desc: 'FAQ', route: '/driver/faq' },
+        { icon: MessageCircle, label: '문의하기', desc: '전화/이메일', route: '/driver/inquiry' },
       ],
     },
     {
       title: '약관 및 정보',
       items: [
-        { icon: FileText, label: '이용약관', desc: '' },
-        { icon: Shield, label: '개인정보처리방침', desc: '' },
+        { icon: FileText, label: '이용약관', desc: '', route: '/driver/terms' },
+        { icon: Shield, label: '개인정보처리방침', desc: '', route: '/driver/privacy' },
       ],
     },
   ]
@@ -152,6 +154,7 @@ export default function MorePage() {
                   <motion.button
                     key={item.label}
                     whileTap={{ scale: 0.99, backgroundColor: '#f9fafb' }}
+                    onClick={() => navigate(item.route)}
                     className="w-full flex items-center justify-between px-4 py-3.5"
                   >
                     <div className="flex items-center gap-3">
