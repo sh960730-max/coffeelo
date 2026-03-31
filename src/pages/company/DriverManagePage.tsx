@@ -94,7 +94,16 @@ export default function DriverManagePage() {
 
     if (error) {
       console.error('기사 등록 오류:', error)
-      setErrorMsg(error.message || '등록에 실패했습니다. 다시 시도해주세요.')
+      // 알기 쉬운 한국어 오류 메시지
+      let msg = '등록에 실패했습니다. 다시 시도해주세요.'
+      if (error.message.includes('drivers_phone_key') || error.message.includes('duplicate key')) {
+        msg = '이미 등록된 전화번호입니다. 다른 번호를 입력해주세요.'
+      } else if (error.message.includes('drivers_auth_id_fkey')) {
+        msg = 'DB 설정 오류입니다. 관리자에게 문의해주세요.'
+      } else if (error.message.includes('violates not-null')) {
+        msg = '필수 항목이 누락되었습니다.'
+      }
+      setErrorMsg(msg)
       setSubmitResult('error')
     } else {
       setSubmitResult('success')
