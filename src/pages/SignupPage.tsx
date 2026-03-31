@@ -47,6 +47,11 @@ export default function SignupPage() {
   const [showCompanyDropdown, setShowCompanyDropdown] = useState(false)
   const companyDropdownRef = useRef<HTMLDivElement>(null)
 
+  // 점주 전용 - 담당 회사
+  const [cafeCompanyName, setCafeCompanyName] = useState('')
+  const [showCafeCompanyDropdown, setShowCafeCompanyDropdown] = useState(false)
+  const cafeCompanyDropdownRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     const db = supabase as any
     db.from('companies').select('id, name').order('name').then(({ data }: any) => {
@@ -58,6 +63,9 @@ export default function SignupPage() {
     const handleClick = (e: MouseEvent) => {
       if (companyDropdownRef.current && !companyDropdownRef.current.contains(e.target as Node)) {
         setShowCompanyDropdown(false)
+      }
+      if (cafeCompanyDropdownRef.current && !cafeCompanyDropdownRef.current.contains(e.target as Node)) {
+        setShowCafeCompanyDropdown(false)
       }
     }
     document.addEventListener('mousedown', handleClick)
@@ -101,6 +109,8 @@ export default function SignupPage() {
           store_type: storeType,
           address: cafeAddress || '주소 미입력',
           phone: phone,
+          company: cafeCompanyName || null,
+          status: 'PENDING',
         } as any)
         if (dbError) throw new Error(dbError.message)
       } else if (selectedRole === 'driver') {
@@ -298,6 +308,48 @@ export default function SignupPage() {
                   animate={{ opacity: 1, height: 'auto' }}
                   className="space-y-3 pt-2"
                 >
+                  {/* 수거 담당 회사 드롭다운 */}
+                  <div className="relative" ref={cafeCompanyDropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setShowCafeCompanyDropdown(!showCafeCompanyDropdown)}
+                      className="w-full flex items-center px-4 py-3.5 bg-white/10 border border-white/20 rounded-2xl text-sm font-medium outline-none focus:border-white/50 transition-colors"
+                    >
+                      <Building2 className="w-5 h-5 text-white/40 mr-3 flex-shrink-0" />
+                      <span className={cafeCompanyName ? 'text-white' : 'text-white/40'}>
+                        {cafeCompanyName || '수거 담당 회사 선택'}
+                      </span>
+                      <ChevronDown className={`w-4 h-4 text-white/40 ml-auto transition-transform ${showCafeCompanyDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+                    <AnimatePresence>
+                      {showCafeCompanyDropdown && (
+                        <motion.div
+                          initial={{ opacity: 0, y: -8, scaleY: 0.9 }}
+                          animate={{ opacity: 1, y: 0, scaleY: 1 }}
+                          exit={{ opacity: 0, y: -8, scaleY: 0.9 }}
+                          transition={{ duration: 0.15 }}
+                          style={{ transformOrigin: 'top' }}
+                          className="absolute left-0 right-0 mt-1 z-50 bg-eco-green-800 border border-white/20 rounded-2xl overflow-hidden shadow-2xl"
+                        >
+                          {companies.length === 0 ? (
+                            <div className="px-4 py-3 text-xs text-white/30 text-center">등록된 회사가 없습니다</div>
+                          ) : (
+                            companies.map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                onClick={() => { setCafeCompanyName(c.name); setShowCafeCompanyDropdown(false) }}
+                                className="w-full flex items-center justify-between px-4 py-3.5 text-sm text-white hover:bg-white/10 transition-colors border-b border-white/10 last:border-0"
+                              >
+                                <span className="font-medium">{c.name}</span>
+                                {cafeCompanyName === c.name && <Check className="w-4 h-4 text-eco-green-300" />}
+                              </button>
+                            ))
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
                   <p className="text-xs text-white/50 font-medium">매장 유형</p>
                   <div className="flex gap-2">
                     {storeTypes.map(t => {

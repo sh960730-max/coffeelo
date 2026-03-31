@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Store, Search, Plus, X, ChevronDown, ChevronUp,
-  MapPin, Package, Scale, Coffee, ArrowLeft, Loader2
+  MapPin, Package, Scale, Coffee, ArrowLeft, Loader2,
+  CheckCircle, XCircle, Clock
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
@@ -19,7 +20,9 @@ export default function CafeManagePage() {
   const { user } = useAuth()
   const companyName = (user as any)?.name ?? ''
 
+  const [tab, setTab] = useState<'active' | 'pending'>('active')
   const [cafes, setCafes] = useState<any[]>([])
+  const [pendingCafes, setPendingCafes] = useState<any[]>([])
   const [cafeStats, setCafeStats] = useState<Record<string, { pickups: number; kg: number }>>({})
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -27,6 +30,7 @@ export default function CafeManagePage() {
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name: '', type: 'FRANCHISE', address: '', phone: '' })
   const [saving, setSaving] = useState(false)
+  const [approving, setApproving] = useState<string | null>(null)
 
   useEffect(() => {
     if (!companyName) return
@@ -41,9 +45,20 @@ export default function CafeManagePage() {
     const { data: drivers } = await db.from('drivers').select('id').eq('company', companyName)
     const driverIds = (drivers || []).map((d: any) => d.id)
 
-    // 매장 전체 목록
-    const { data: cafeData } = await db.from('cafes').select('*').order('name')
+    // 승인된 매장 (회사 소속 or 전체)
+    const { data: cafeData } = await db.from('cafes').select('*')
+      .eq('company', companyName)
+      .not('status', 'eq', 'PENDING')
+      .not('status', 'eq', 'REJECTED')
+      .order('name')
     if (cafeData) setCafes(cafeData)
+
+    // 승인 대기 매장
+    const { data: pendingData } = await db.from('cafes').select('*')
+      .eq('company', companyName)
+      .eq('status', 'PENDING')
+      .order('created_at', { ascending: false })
+    if (pendingData) setPendingCafes(pendingData)
 
     // 이번 달 픽업 통계
     if (driverIds.length > 0) {
@@ -85,6 +100,22 @@ export default function CafeManagePage() {
     setSaving(false)
   }
 
+  const handleApprove = async (cafeId: string) => {
+    setApproving(cafeId)
+    const db = supabase as any
+    await db.from('cafes').update({ status: 'APPROVED' }).eq('id', cafeId)
+    await loadCafes()
+    setApproving(null)
+  }
+
+  const handleReject = async (cafeId: string) => {
+    setApproving(cafeId)
+    const db = supabase as any
+    await db.from('cafes').update({ status: 'REJECTED' }).eq('id', cafeId)
+    await loadCafes()
+    setApproving(null)
+  }
+
   const filtered = cafes.filter(c =>
     c.name?.includes(searchQuery) || c.address?.includes(searchQuery)
   )
@@ -116,16 +147,39 @@ export default function CafeManagePage() {
           </motion.button>
         </div>
 
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="매장명 또는 주소 검색"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-eco-green/30"
-          />
+        {/* 탭 */}
+        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mt-3">
+          <button
+            onClick={() => setTab('active')}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${tab === 'active' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}
+          >
+            등록 매장
+          </button>
+          <button
+            onClick={() => setTab('pending')}
+            className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1 ${tab === 'pending' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}
+          >
+            승인 대기
+            {pendingCafes.length > 0 && (
+              <span className="bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                {pendingCafes.length}
+              </span>
+            )}
+          </button>
         </div>
+
+        {tab === 'active' && (
+          <div className="relative mt-3">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="매장명 또는 주소 검색"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-eco-green/30"
+            />
+          </div>
+        )}
       </header>
 
       <div className="px-5 py-4">
@@ -135,6 +189,72 @@ export default function CafeManagePage() {
           </div>
         ) : (
           <>
+            {/* 승인 대기 탭 */}
+            {tab === 'pending' && (
+              <div className="space-y-2.5">
+                {pendingCafes.length === 0 ? (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
+                    <Clock className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                    <p className="text-sm text-gray-400">승인 대기 중인 매장이 없습니다</p>
+                  </motion.div>
+                ) : (
+                  pendingCafes.map((cafe, idx) => (
+                    <motion.div
+                      key={cafe.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="bg-white rounded-2xl shadow-card p-4"
+                    >
+                      <div className="flex items-center gap-3 mb-3">
+                        <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center">
+                          <Coffee className="w-5 h-5 text-amber-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold text-gray-800 truncate">{cafe.name}</p>
+                          {cafe.address && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-3 h-3 text-gray-300" />
+                              <span className="text-[11px] text-gray-400 truncate">{cafe.address}</span>
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-[10px] bg-amber-50 text-amber-600 font-semibold px-2 py-1 rounded-lg flex items-center gap-1 flex-shrink-0">
+                          <Clock className="w-3 h-3" />
+                          대기중
+                        </span>
+                      </div>
+                      {cafe.phone && (
+                        <p className="text-[11px] text-gray-400 mb-3">연락처: {cafe.phone}</p>
+                      )}
+                      <div className="flex gap-2">
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          disabled={approving === cafe.id}
+                          onClick={() => handleApprove(cafe.id)}
+                          className="flex-1 bg-eco-green text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          {approving === cafe.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                          승인
+                        </motion.button>
+                        <motion.button
+                          whileTap={{ scale: 0.97 }}
+                          disabled={approving === cafe.id}
+                          onClick={() => handleReject(cafe.id)}
+                          className="flex-1 bg-red-50 text-red-500 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
+                        >
+                          {approving === cafe.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <XCircle className="w-3.5 h-3.5" />}
+                          거부
+                        </motion.button>
+                      </div>
+                    </motion.div>
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* 등록 매장 탭 */}
+            {tab === 'active' && <>
             {/* 유형별 요약 */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -241,6 +361,7 @@ export default function CafeManagePage() {
                 </p>
               </motion.div>
             )}
+            </>}
           </>
         )}
       </div>
