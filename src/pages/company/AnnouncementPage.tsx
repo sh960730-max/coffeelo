@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Megaphone, Plus, X, Trash2, Calendar, ChevronRight } from 'lucide-react'
+import { Megaphone, Plus, X, Trash2, Calendar, ChevronRight, ArrowLeft } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { dummyAnnouncements } from '../../lib/dummyData'
 
 interface LocalAnnouncement {
@@ -11,6 +12,7 @@ interface LocalAnnouncement {
 }
 
 export default function AnnouncementPage() {
+  const navigate = useNavigate()
   const [announcements, setAnnouncements] = useState<LocalAnnouncement[]>([
     ...dummyAnnouncements,
     {
@@ -58,7 +60,16 @@ export default function AnnouncementPage() {
       {/* 헤더 */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-bold text-gray-900">공지사항</h1>
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={() => navigate(-1)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-50"
+            >
+              <ArrowLeft className="w-4.5 h-4.5 text-gray-600" />
+            </motion.button>
+            <h1 className="text-lg font-bold text-gray-900">공지사항</h1>
+          </div>
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => setShowModal(true)}

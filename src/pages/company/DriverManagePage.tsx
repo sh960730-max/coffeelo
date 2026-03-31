@@ -3,8 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, UserPlus, Truck, Phone, ChevronDown, ChevronUp,
   Scale, ClipboardList, Wallet, X, Circle, Loader2, CheckCircle2, AlertCircle,
-  Clock, UserCheck, UserX
+  Clock, UserCheck, UserX, ArrowLeft
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -39,6 +40,7 @@ interface DriverDisplay extends Driver {
 }
 
 export default function DriverManagePage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const companyName = (user as any)?.name ?? ''
   const [tab, setTab] = useState<'active' | 'pending'>('active')
@@ -152,7 +154,16 @@ export default function DriverManagePage() {
       {/* 헤더 */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
         <div className="flex items-center justify-between mb-3">
-          <h1 className="text-lg font-bold text-gray-900">기사 관리</h1>
+          <div className="flex items-center gap-3">
+            <motion.button
+              whileTap={{ scale: 0.92 }}
+              onClick={() => navigate(-1)}
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-gray-50"
+            >
+              <ArrowLeft className="w-4.5 h-4.5 text-gray-600" />
+            </motion.button>
+            <h1 className="text-lg font-bold text-gray-900">기사 관리</h1>
+          </div>
           <motion.button
             whileTap={{ scale: 0.95 }}
             onClick={() => { setShowModal(true); setSubmitResult(null); setErrorMsg('') }}
