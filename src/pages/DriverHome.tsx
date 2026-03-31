@@ -28,7 +28,7 @@ export default function DriverHome() {
             exit={{ x: '100%' }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
           >
-            <PickupConfirm onBack={() => setShowPickupConfirm(false)} />
+            <PickupConfirm />
           </motion.div>
         ) : (
           <motion.div
