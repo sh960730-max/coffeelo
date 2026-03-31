@@ -1,33 +1,27 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, UserPlus, Truck, Phone, ChevronDown, ChevronUp,
-  Scale, ClipboardList, Wallet, X, Circle
+  Scale, ClipboardList, Wallet, X, Circle, Loader2, CheckCircle2, AlertCircle
 } from 'lucide-react'
+import { supabase } from '../../lib/supabase'
 
-/* ── 더미 기사 데이터 ── */
-const dummyDrivers = [
-  {
-    id: 'd1', name: '박민수', phone: '010-1234-5678', company: '그린물류',
-    truckType: '1톤 트럭', licensePlate: '12가 3456', status: 'online' as const,
-    weeklyKg: 2350, weeklyPickups: 42, weeklyAmount: 188000,
-  },
-  {
-    id: 'd2', name: '김영호', phone: '010-2345-6789', company: '그린물류',
-    truckType: '1톤 트럭', licensePlate: '34나 7890', status: 'collecting' as const,
-    weeklyKg: 1980, weeklyPickups: 35, weeklyAmount: 158400,
-  },
-  {
-    id: 'd3', name: '이준혁', phone: '010-3456-7890', company: '그린물류',
-    truckType: '0.5톤 트럭', licensePlate: '56다 1234', status: 'offline' as const,
-    weeklyKg: 1450, weeklyPickups: 28, weeklyAmount: 116000,
-  },
-  {
-    id: 'd4', name: '최지훈', phone: '010-4567-8901', company: '그린물류',
-    truckType: '1톤 트럭', licensePlate: '78라 5678', status: 'online' as const,
-    weeklyKg: 2100, weeklyPickups: 38, weeklyAmount: 168000,
-  },
-]
+interface Driver {
+  id: string
+  auth_id: string
+  phone: string
+  name: string
+  company: string
+  truck_type: string
+  license_plate: string | null
+  profile_photo: string | null
+  is_online: boolean
+  created_at: string
+  updated_at: string
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const db = supabase as any
 
 const statusConfig = {
   online: { label: '온라인', textColor: 'text-emerald-600', bgColor: 'bg-emerald-50', dotColor: 'bg-emerald-400' },
@@ -35,14 +29,87 @@ const statusConfig = {
   offline: { label: '오프라인', textColor: 'text-gray-500', bgColor: 'bg-gray-100', dotColor: 'bg-gray-300' },
 }
 
+type StatusKey = keyof typeof statusConfig
+
+interface DriverDisplay extends Driver {
+  statusKey: StatusKey
+}
+
 export default function DriverManagePage() {
+  const [drivers, setDrivers] = useState<DriverDisplay[]>([])
+  const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({ name: '', phone: '', truckType: '1톤 트럭', licensePlate: '' })
+  const [submitting, setSubmitting] = useState(false)
+  const [submitResult, setSubmitResult] = useState<'success' | 'error' | null>(null)
+  const [errorMsg, setErrorMsg] = useState('')
 
-  const filtered = dummyDrivers.filter(d =>
-    d.name.includes(searchQuery) || d.licensePlate.includes(searchQuery)
+  /* ── 기사 목록 불러오기 ── */
+  const fetchDrivers = async () => {
+    setLoading(true)
+    const { data, error } = await db
+      .from('drivers')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    if (!error && data) {
+      const mapped: DriverDisplay[] = (data as Driver[]).map(d => ({
+        ...d,
+        statusKey: (d.is_online ? 'online' : 'offline') as StatusKey,
+      }))
+      setDrivers(mapped)
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => {
+    fetchDrivers()
+  }, [])
+
+  /* ── 기사 등록 ── */
+  const handleRegister = async () => {
+    if (!form.name.trim() || !form.phone.trim() || !form.licensePlate.trim()) {
+      setErrorMsg('이름, 전화번호, 차량번호를 모두 입력해주세요.')
+      setSubmitResult('error')
+      return
+    }
+
+    setSubmitting(true)
+    setSubmitResult(null)
+    setErrorMsg('')
+
+    const { error } = await db.from('drivers').insert({
+      name: form.name.trim(),
+      phone: form.phone.trim(),
+      truck_type: form.truckType,
+      license_plate: form.licensePlate.trim(),
+      company: '그린물류',
+      is_online: false,
+      auth_id: crypto.randomUUID(),   // 관리자 등록 시 임시 auth_id (앱 로그인 시 연동)
+    })
+
+    setSubmitting(false)
+
+    if (error) {
+      console.error('기사 등록 오류:', error)
+      setErrorMsg(error.message || '등록에 실패했습니다. 다시 시도해주세요.')
+      setSubmitResult('error')
+    } else {
+      setSubmitResult('success')
+      setForm({ name: '', phone: '', truckType: '1톤 트럭', licensePlate: '' })
+      await fetchDrivers()
+      setTimeout(() => {
+        setShowModal(false)
+        setSubmitResult(null)
+      }, 1200)
+    }
+  }
+
+  const filtered = drivers.filter(d =>
+    d.name.includes(searchQuery) ||
+    (d.license_plate ?? '').includes(searchQuery)
   )
 
   return (
@@ -53,7 +120,7 @@ export default function DriverManagePage() {
           <h1 className="text-lg font-bold text-gray-900">기사 관리</h1>
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => setShowModal(true)}
+            onClick={() => { setShowModal(true); setSubmitResult(null); setErrorMsg('') }}
             className="flex items-center gap-1.5 bg-eco-green text-white text-xs font-semibold px-3 py-2 rounded-xl"
           >
             <UserPlus className="w-3.5 h-3.5" />
@@ -81,10 +148,10 @@ export default function DriverManagePage() {
           animate={{ opacity: 1, y: 0 }}
           className="flex items-center gap-3 mb-4"
         >
-          <span className="text-xs text-gray-400">전체 {dummyDrivers.length}명</span>
+          <span className="text-xs text-gray-400">전체 {drivers.length}명</span>
           <div className="flex items-center gap-3 ml-auto">
             {Object.entries(statusConfig).map(([key, cfg]) => {
-              const count = dummyDrivers.filter(d => d.status === key).length
+              const count = drivers.filter(d => d.statusKey === key).length
               return (
                 <div key={key} className="flex items-center gap-1">
                   <Circle className={`w-2 h-2 fill-current ${cfg.textColor}`} />
@@ -95,104 +162,120 @@ export default function DriverManagePage() {
           </div>
         </motion.div>
 
+        {/* 로딩 */}
+        {loading && (
+          <div className="flex items-center justify-center py-16">
+            <Loader2 className="w-6 h-6 text-eco-green animate-spin" />
+          </div>
+        )}
+
         {/* 기사 카드 목록 */}
-        <div className="space-y-2.5">
-          {filtered.map((driver, idx) => {
-            const cfg = statusConfig[driver.status]
-            const isExpanded = expandedId === driver.id
+        {!loading && (
+          <div className="space-y-2.5">
+            {filtered.map((driver, idx) => {
+              const cfg = statusConfig[driver.statusKey]
+              const isExpanded = expandedId === driver.id
 
-            return (
-              <motion.div
-                key={driver.id}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: idx * 0.06 }}
-                className="bg-white rounded-2xl shadow-card overflow-hidden"
-              >
-                <button
-                  onClick={() => setExpandedId(isExpanded ? null : driver.id)}
-                  className="w-full p-4 text-left"
+              return (
+                <motion.div
+                  key={driver.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.06 }}
+                  className="bg-white rounded-2xl shadow-card overflow-hidden"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center relative">
-                        <Truck className="w-5 h-5 text-gray-500" />
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${cfg.dotColor} rounded-full border-2 border-white`} />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm font-semibold text-gray-800">{driver.name}</p>
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${cfg.bgColor} ${cfg.textColor}`}>
-                            {cfg.label}
-                          </span>
+                  <button
+                    onClick={() => setExpandedId(isExpanded ? null : driver.id)}
+                    className="w-full p-4 text-left"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-11 h-11 bg-gray-100 rounded-xl flex items-center justify-center relative">
+                          <Truck className="w-5 h-5 text-gray-500" />
+                          <div className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${cfg.dotColor} rounded-full border-2 border-white`} />
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px] text-gray-400">{driver.truckType}</span>
-                          <span className="text-gray-300">·</span>
-                          <span className="text-[11px] text-gray-400">{driver.licensePlate}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-gray-800">{driver.name}</p>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${cfg.bgColor} ${cfg.textColor}`}>
+                              {cfg.label}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[11px] text-gray-400">{driver.truck_type}</span>
+                            {driver.license_plate && (
+                              <>
+                                <span className="text-gray-300">·</span>
+                                <span className="text-[11px] text-gray-400">{driver.license_plate}</span>
+                              </>
+                            )}
+                          </div>
                         </div>
                       </div>
+                      {isExpanded
+                        ? <ChevronUp className="w-4 h-4 text-gray-300" />
+                        : <ChevronDown className="w-4 h-4 text-gray-300" />
+                      }
                     </div>
-                    {isExpanded
-                      ? <ChevronUp className="w-4 h-4 text-gray-300" />
-                      : <ChevronDown className="w-4 h-4 text-gray-300" />
-                    }
-                  </div>
-                </button>
+                  </button>
 
-                <AnimatePresence>
-                  {isExpanded && (
-                    <motion.div
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
-                      className="border-t border-gray-100"
-                    >
-                      <div className="p-4 pt-3">
-                        {/* 연락처 */}
-                        <div className="flex items-center gap-2 mb-3">
-                          <Phone className="w-3.5 h-3.5 text-gray-400" />
-                          <span className="text-xs text-gray-500">{driver.phone}</span>
-                        </div>
+                  <AnimatePresence>
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="border-t border-gray-100"
+                      >
+                        <div className="p-4 pt-3">
+                          {/* 연락처 */}
+                          <div className="flex items-center gap-2 mb-3">
+                            <Phone className="w-3.5 h-3.5 text-gray-400" />
+                            <span className="text-xs text-gray-500">{driver.phone}</span>
+                          </div>
 
-                        {/* 주간 통계 */}
-                        <p className="text-[11px] font-semibold text-gray-500 mb-2">이번 주 실적</p>
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="bg-eco-green-100 rounded-lg p-2.5 text-center">
-                            <Scale className="w-3.5 h-3.5 text-eco-green mx-auto mb-1" />
-                            <p className="text-xs font-bold text-gray-800">{driver.weeklyKg.toLocaleString()}kg</p>
-                            <p className="text-[9px] text-gray-400">수거량</p>
+                          {/* 주간 통계 (Supabase 연동 예정) */}
+                          <p className="text-[11px] font-semibold text-gray-500 mb-2">이번 주 실적</p>
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="bg-eco-green-100 rounded-lg p-2.5 text-center">
+                              <Scale className="w-3.5 h-3.5 text-eco-green mx-auto mb-1" />
+                              <p className="text-xs font-bold text-gray-800">-</p>
+                              <p className="text-[9px] text-gray-400">수거량</p>
+                            </div>
+                            <div className="bg-blue-50 rounded-lg p-2.5 text-center">
+                              <ClipboardList className="w-3.5 h-3.5 text-blue-600 mx-auto mb-1" />
+                              <p className="text-xs font-bold text-gray-800">-</p>
+                              <p className="text-[9px] text-gray-400">수거 완료</p>
+                            </div>
+                            <div className="bg-amber-50 rounded-lg p-2.5 text-center">
+                              <Wallet className="w-3.5 h-3.5 text-amber-600 mx-auto mb-1" />
+                              <p className="text-xs font-bold text-gray-800">-</p>
+                              <p className="text-[9px] text-gray-400">정산액</p>
+                            </div>
                           </div>
-                          <div className="bg-blue-50 rounded-lg p-2.5 text-center">
-                            <ClipboardList className="w-3.5 h-3.5 text-blue-600 mx-auto mb-1" />
-                            <p className="text-xs font-bold text-gray-800">{driver.weeklyPickups}건</p>
-                            <p className="text-[9px] text-gray-400">수거 완료</p>
-                          </div>
-                          <div className="bg-amber-50 rounded-lg p-2.5 text-center">
-                            <Wallet className="w-3.5 h-3.5 text-amber-600 mx-auto mb-1" />
-                            <p className="text-xs font-bold text-gray-800">{(driver.weeklyAmount / 10000).toFixed(1)}만</p>
-                            <p className="text-[9px] text-gray-400">정산액</p>
-                          </div>
+                          <p className="text-[9px] text-gray-300 text-center mt-1.5">수거 데이터 연동 후 표시됩니다</p>
                         </div>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </motion.div>
+              )
+            })}
+
+            {filtered.length === 0 && !loading && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="text-center py-12"
+              >
+                <Search className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">
+                  {searchQuery ? '검색 결과가 없습니다' : '등록된 기사가 없습니다'}
+                </p>
               </motion.div>
-            )
-          })}
-        </div>
-
-        {filtered.length === 0 && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="text-center py-12"
-          >
-            <Search className="w-10 h-10 text-gray-200 mx-auto mb-2" />
-            <p className="text-sm text-gray-400">검색 결과가 없습니다</p>
-          </motion.div>
+            )}
+          </div>
         )}
       </div>
 
@@ -204,7 +287,7 @@ export default function DriverManagePage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-end justify-center"
-            onClick={() => setShowModal(false)}
+            onClick={() => !submitting && setShowModal(false)}
           >
             <motion.div
               initial={{ y: '100%' }}
@@ -216,7 +299,7 @@ export default function DriverManagePage() {
             >
               <div className="flex items-center justify-between mb-5">
                 <h2 className="text-base font-bold text-gray-900">기사 등록</h2>
-                <button onClick={() => setShowModal(false)}>
+                <button onClick={() => !submitting && setShowModal(false)}>
                   <X className="w-5 h-5 text-gray-400" />
                 </button>
               </div>
@@ -266,12 +349,44 @@ export default function DriverManagePage() {
                 </div>
               </div>
 
+              {/* 결과 메시지 */}
+              <AnimatePresence>
+                {submitResult === 'success' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mt-3 flex items-center gap-2 bg-eco-green-100 text-eco-green rounded-xl px-3 py-2.5"
+                  >
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span className="text-xs font-medium">기사가 등록되었습니다!</span>
+                  </motion.div>
+                )}
+                {submitResult === 'error' && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="mt-3 flex items-center gap-2 bg-red-50 text-red-500 rounded-xl px-3 py-2.5"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span className="text-xs font-medium">{errorMsg}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               <motion.button
                 whileTap={{ scale: 0.97 }}
-                className="w-full mt-5 bg-eco-green text-white font-semibold py-3 rounded-xl text-sm"
-                onClick={() => setShowModal(false)}
+                disabled={submitting}
+                className="w-full mt-4 bg-eco-green text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-70"
+                onClick={handleRegister}
               >
-                등록하기
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    등록 중...
+                  </>
+                ) : '등록하기'}
               </motion.button>
             </motion.div>
           </motion.div>
