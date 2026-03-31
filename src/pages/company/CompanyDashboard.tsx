@@ -5,6 +5,7 @@ import {
   TrendingUp, Truck, Circle, ChevronRight, Package,
   MapPin, Clock, X, Store, Calendar
 } from 'lucide-react'
+import { useAuth } from '../../contexts/AuthContext'
 
 /* ── 더미 데이터 ── */
 const driverStatuses = [
@@ -109,6 +110,8 @@ const driverPickups: Record<string, PickupRecord[]> = {
 }
 
 export default function CompanyDashboard() {
+  const { user } = useAuth()
+  const companyName = (user as any)?.name ?? '관리자'
   const [pendingCount] = useState(5)
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null)
   const [showUnassigned, setShowUnassigned] = useState(false)
@@ -128,7 +131,7 @@ export default function CompanyDashboard() {
               <Building2 className="w-5 h-5 text-white/80" />
               <span className="text-sm text-white/70">소속회사 관리자</span>
             </div>
-            <h1 className="text-xl font-bold text-white">그린물류 관리자</h1>
+            <h1 className="text-xl font-bold text-white">{companyName} 관리자</h1>
           </div>
           <motion.button
             whileTap={{ scale: 0.9 }}
