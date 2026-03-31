@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Building2, Scale, ClipboardList, Users, Bell,
@@ -6,14 +6,16 @@ import {
   MapPin, Clock, X, Store, Calendar
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 
-/* ── 더미 데이터 ── */
-const driverStatuses = [
-  { id: 'd1', name: '박민수', truckType: '1톤 트럭', status: 'collecting' as const, todayKg: 385, pickups: 12 },
-  { id: 'd2', name: '김영호', truckType: '1톤 트럭', status: 'online' as const, todayKg: 210, pickups: 7 },
-  { id: 'd3', name: '이준혁', truckType: '0.5톤 트럭', status: 'collecting' as const, todayKg: 320, pickups: 9 },
-  { id: 'd4', name: '최지훈', truckType: '1톤 트럭', status: 'offline' as const, todayKg: 335, pickups: 4 },
-]
+interface DriverStatus {
+  id: string
+  name: string
+  truckType: string
+  status: 'online' | 'collecting' | 'offline'
+  todayKg: number
+  pickups: number
+}
 
 const statusConfig = {
   online: { label: '온라인', color: 'bg-emerald-400', textColor: 'text-emerald-600', bgColor: 'bg-emerald-50' },
@@ -21,10 +23,9 @@ const statusConfig = {
   offline: { label: '오프라인', color: 'bg-gray-300', textColor: 'text-gray-500', bgColor: 'bg-gray-100' },
 }
 
-const summaryCards = [
+const summaryCardsBase = [
   { label: '총 수거량', value: '1,250kg', icon: Scale, color: 'text-eco-green', bg: 'bg-eco-green-100', trend: '+12%' },
   { label: '수거 건수', value: '32건', icon: ClipboardList, color: 'text-blue-600', bg: 'bg-blue-50', trend: '+5건' },
-  { label: '활동 기사', value: '4명', icon: Users, color: 'text-amber-600', bg: 'bg-amber-50', trend: '' },
 ]
 
 /* ── 미배정 수거요청 더미 데이터 ── */
@@ -112,8 +113,26 @@ const driverPickups: Record<string, PickupRecord[]> = {
 export default function CompanyDashboard() {
   const { user } = useAuth()
   const companyName = (user as any)?.name ?? '관리자'
+  const [driverStatuses, setDriverStatuses] = useState<DriverStatus[]>([])
   const [pendingCount] = useState(5)
   const [selectedDriver, setSelectedDriver] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!companyName || companyName === '관리자') return
+    const db = supabase as any
+    db.from('drivers').select('*').eq('company', companyName).then(({ data }: any) => {
+      if (data) {
+        setDriverStatuses(data.map((d: any) => ({
+          id: d.id,
+          name: d.name,
+          truckType: d.truck_type,
+          status: d.is_online ? 'online' : 'offline',
+          todayKg: 0,
+          pickups: 0,
+        })))
+      }
+    })
+  }, [companyName])
   const [showUnassigned, setShowUnassigned] = useState(false)
 
   const selectedDriverInfo = driverStatuses.find(d => d.id === selectedDriver)
@@ -186,7 +205,7 @@ export default function CompanyDashboard() {
         </motion.div>
 
         <div className="grid grid-cols-3 gap-2.5">
-          {summaryCards.map((card, idx) => {
+          {[...summaryCardsBase, { label: '활동 기사', value: `${driverStatuses.length}명`, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50', trend: '' }].map((card, idx) => {
             const Icon = card.icon
             return (
               <motion.div

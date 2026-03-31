@@ -5,6 +5,7 @@ import {
   Scale, ClipboardList, Wallet, X, Circle, Loader2, CheckCircle2, AlertCircle
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface Driver {
   id: string
@@ -36,6 +37,8 @@ interface DriverDisplay extends Driver {
 }
 
 export default function DriverManagePage() {
+  const { user } = useAuth()
+  const companyName = (user as any)?.name ?? ''
   const [drivers, setDrivers] = useState<DriverDisplay[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
@@ -49,10 +52,9 @@ export default function DriverManagePage() {
   /* ── 기사 목록 불러오기 ── */
   const fetchDrivers = async () => {
     setLoading(true)
-    const { data, error } = await db
-      .from('drivers')
-      .select('*')
-      .order('created_at', { ascending: false })
+    let query = db.from('drivers').select('*').order('created_at', { ascending: false })
+    if (companyName) query = query.eq('company', companyName)
+    const { data, error } = await query
 
     if (!error && data) {
       const mapped: DriverDisplay[] = (data as Driver[]).map(d => ({
@@ -66,7 +68,8 @@ export default function DriverManagePage() {
 
   useEffect(() => {
     fetchDrivers()
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [companyName])
 
   /* ── 기사 등록 ── */
   const handleRegister = async () => {
@@ -85,7 +88,7 @@ export default function DriverManagePage() {
       phone: form.phone.trim(),
       truck_type: form.truckType,
       license_plate: form.licensePlate.trim(),
-      company: '그린물류',
+      company: companyName || '미소속',
       is_online: false,
       // auth_id는 기사가 앱으로 직접 로그인 시 연동됨
     })
