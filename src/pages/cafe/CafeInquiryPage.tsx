@@ -19,22 +19,22 @@ export default function CafeInquiryPage() {
     {
       icon: Phone,
       label: '전화 문의',
-      desc: '1588-0000',
+      desc: '02-6925-2927',
       sub: '평일 09:00 ~ 18:00 (점심 12~13시 제외)',
       color: 'bg-blue-50',
       iconColor: 'text-blue-500',
-      action: () => window.location.href = 'tel:15880000',
+      action: () => window.location.href = 'tel:0269252927',
       actionLabel: '전화하기',
     },
     {
       icon: Mail,
       label: '이메일 문의',
-      desc: 'support@coffeelo.kr',
+      desc: 'sh960730@smartecosys.kr',
       sub: '24시간 접수 / 영업일 기준 1~2일 이내 답변',
       color: 'bg-eco-green-100',
       iconColor: 'text-eco-green',
-      action: () => window.location.href = 'mailto:support@coffeelo.kr',
-      actionLabel: '메일 보내기',
+      action: () => {},
+      actionLabel: '',
     },
   ]
 
@@ -55,6 +55,7 @@ export default function CafeInquiryPage() {
 
         {channels.map((ch, idx) => {
           const Icon = ch.icon
+          const hasAction = !!ch.actionLabel
           return (
             <motion.div
               key={ch.label}
@@ -63,7 +64,7 @@ export default function CafeInquiryPage() {
               transition={{ delay: idx * 0.08 }}
               className="bg-white rounded-2xl shadow-card p-4"
             >
-              <div className="flex items-start gap-3 mb-3">
+              <div className={`flex items-start gap-3 ${hasAction ? 'mb-3' : ''}`}>
                 <div className={`w-11 h-11 ${ch.color} rounded-xl flex items-center justify-center flex-shrink-0`}>
                   <Icon className={`w-5 h-5 ${ch.iconColor}`} />
                 </div>
@@ -76,14 +77,16 @@ export default function CafeInquiryPage() {
                   </div>
                 </div>
               </div>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={ch.action}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gray-50 rounded-xl text-sm font-semibold text-gray-700"
-              >
-                {ch.actionLabel}
-                <ExternalLink className="w-3.5 h-3.5" />
-              </motion.button>
+              {hasAction && (
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={ch.action}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 bg-gray-50 rounded-xl text-sm font-semibold text-gray-700"
+                >
+                  {ch.actionLabel}
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </motion.button>
+              )}
             </motion.div>
           )
         })}
