@@ -61,7 +61,10 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
                   transition={{ duration: 0.3, delay: 0.1 * index }}
                   className="bg-white rounded-2xl p-4 shadow-card"
                 >
-                  <div className="flex items-start justify-between">
+                  <button
+                    className="flex items-start justify-between w-full text-left"
+                    onClick={() => setSelectedCall(call)}
+                  >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${typeStyle.bg} ${typeStyle.text}`}>
@@ -81,15 +84,8 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
                         <p className="text-[11px] text-gray-500 truncate">{call.address}</p>
                       </div>
                     </div>
-                    {/* 상세보기 화살표 */}
-                    <motion.button
-                      whileTap={{ scale: 0.85 }}
-                      onClick={() => setSelectedCall(call)}
-                      className="w-7 h-7 flex items-center justify-center rounded-full bg-gray-50 mt-0.5"
-                    >
-                      <ChevronRight className="w-4 h-4 text-gray-400" />
-                    </motion.button>
-                  </div>
+                    <ChevronRight className="w-4 h-4 text-gray-300 mt-1 flex-shrink-0" />
+                  </button>
 
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                     <div className="flex items-center gap-3">
