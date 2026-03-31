@@ -44,54 +44,55 @@ export default function SettlementManagePage() {
     drivers.forEach((d: any) => { driverMap[d.id] = d.name })
     const driverIds = drivers.map((d: any) => d.id)
 
-    // settlements 테이블 조회
+    const now = new Date()
+    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+
+    // 1. settlements 테이블에서 이번 달 실제 정산 레코드 조회
     const { data: settlementsData } = await db.from('settlements')
       .select('*')
       .in('driver_id', driverIds)
+      .gte('period_start', firstOfMonth)
       .order('period_start', { ascending: false })
 
-    if (settlementsData && settlementsData.length > 0) {
-      setSettlements(settlementsData.map((s: any) => ({
-        ...s,
-        driverName: driverMap[s.driver_id] || '알 수 없음',
-      })))
-      setLoading(false)
-      return
-    }
+    // settlements에 이미 있는 driver_id 목록
+    const settledDriverIds = new Set((settlementsData || []).map((s: any) => s.driver_id))
 
-    // settlements 없으면 이번달 pickups에서 기사별 집계
-    const now = new Date()
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    // 2. 이번달 pickups에서 아직 settlement 없는 기사 집계 (synth)
     const { data: pickups } = await db.from('pickups')
       .select('driver_id, total_weight, settlement_amount, completed_at')
       .in('driver_id', driverIds)
       .eq('status', 'COMPLETED')
       .gte('completed_at', firstOfMonth)
 
-    if (pickups) {
-      const agg: Record<string, { kg: number; amount: number }> = {}
-      pickups.forEach((p: any) => {
-        if (!agg[p.driver_id]) agg[p.driver_id] = { kg: 0, amount: 0 }
-        agg[p.driver_id].kg += p.total_weight || 0
-        agg[p.driver_id].amount += p.settlement_amount || 0
-      })
-      const nowDate = now
-      const firstDay = new Date(nowDate.getFullYear(), nowDate.getMonth(), 1)
-      const periodStr = `${firstDay.getMonth() + 1}/1 ~ ${nowDate.getMonth() + 1}/${nowDate.getDate()}`
-      const synth = Object.entries(agg).map(([driverId, v]) => ({
-        id: `synth_${driverId}`,
-        driver_id: driverId,
-        driverName: driverMap[driverId] || '알 수 없음',
-        period_start: firstDay.toISOString(),
-        period_end: nowDate.toISOString(),
-        periodStr,
-        total_weight: v.kg,
-        rate_per_kg: 80,
-        gross_amount: v.amount || Math.round(v.kg * 80),
-        status: 'PENDING',
-      }))
-      setSettlements(synth)
-    }
+    const agg: Record<string, { kg: number; amount: number }> = {}
+    ;(pickups || []).forEach((p: any) => {
+      if (!p.driver_id || settledDriverIds.has(p.driver_id)) return // 이미 settlements에 있으면 제외
+      if (!agg[p.driver_id]) agg[p.driver_id] = { kg: 0, amount: 0 }
+      agg[p.driver_id].kg += p.total_weight || 0
+      agg[p.driver_id].amount += p.settlement_amount || 0
+    })
+
+    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
+    const periodStr = `${firstDay.getMonth() + 1}/1 ~ ${now.getMonth() + 1}/${now.getDate()}`
+    const synthList = Object.entries(agg).map(([driverId, v]) => ({
+      id: `synth_${driverId}`,
+      driver_id: driverId,
+      driverName: driverMap[driverId] || '알 수 없음',
+      period_start: firstDay.toISOString(),
+      period_end: now.toISOString(),
+      periodStr,
+      total_weight: v.kg,
+      rate_per_kg: 80,
+      gross_amount: v.amount || Math.round(v.kg * 80),
+      status: 'PENDING',
+    }))
+
+    // 3. DB 정산 + 미정산 synth 합치기
+    const realList = (settlementsData || []).map((s: any) => ({
+      ...s,
+      driverName: driverMap[s.driver_id] || '알 수 없음',
+    }))
+    setSettlements([...realList, ...synthList])
     setLoading(false)
   }
 
