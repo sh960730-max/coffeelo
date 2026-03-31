@@ -149,15 +149,16 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-xl max-w-md mx-auto overflow-hidden"
+              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-xl max-w-md mx-auto flex flex-col"
+              style={{ maxHeight: '88vh' }}
             >
               {/* 핸들 */}
-              <div className="flex justify-center pt-3 pb-1">
+              <div className="flex justify-center pt-3 pb-1 flex-shrink-0">
                 <div className="w-10 h-1 bg-gray-200 rounded-full" />
               </div>
 
-              {/* 닫기 버튼 */}
-              <div className="flex items-center justify-between px-5 py-3">
+              {/* 헤더 */}
+              <div className="flex items-center justify-between px-5 py-3 flex-shrink-0">
                 <h3 className="text-base font-bold text-gray-900">콜 상세 정보</h3>
                 <motion.button
                   whileTap={{ scale: 0.9 }}
@@ -168,7 +169,8 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
                 </motion.button>
               </div>
 
-              <div className="px-5 pb-6 overflow-y-auto max-h-[70vh] space-y-4">
+              {/* 스크롤 콘텐츠 */}
+              <div className="px-5 overflow-y-auto flex-1 space-y-4 pb-4">
                 {/* 매장 정보 */}
                 <div className="bg-gray-50 rounded-2xl p-4">
                   <div className="flex items-center gap-2 mb-2">
@@ -246,24 +248,24 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
                     )}
                   </div>
                 )}
+              </div>
 
-                {/* 수락/거절 버튼 */}
-                <div className="flex gap-2 pt-2 pb-2">
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => handleDecline(selectedCall.id)}
-                    className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-2xl text-sm font-bold"
-                  >
-                    거절
-                  </motion.button>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={() => handleAccept(selectedCall.id)}
-                    className="flex-1 py-3.5 bg-eco-green text-white rounded-2xl text-sm font-bold"
-                  >
-                    수락
-                  </motion.button>
-                </div>
+              {/* 하단 고정 버튼 */}
+              <div className="flex gap-2 px-5 py-4 border-t border-gray-100 flex-shrink-0 bg-white">
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => handleDecline(selectedCall.id)}
+                  className="flex-1 py-3.5 bg-gray-100 text-gray-600 rounded-2xl text-sm font-bold"
+                >
+                  거절
+                </motion.button>
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => handleAccept(selectedCall.id)}
+                  className="flex-1 py-3.5 bg-eco-green text-white rounded-2xl text-sm font-bold"
+                >
+                  수락
+                </motion.button>
               </div>
             </motion.div>
           </>
