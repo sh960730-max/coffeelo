@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, UserPlus, Truck, Phone, ChevronDown, ChevronUp,
-  Scale, ClipboardList, Wallet, X, Circle, Loader2, CheckCircle2, AlertCircle
+  Scale, ClipboardList, Wallet, X, Circle, Loader2, CheckCircle2, AlertCircle,
+  Clock, UserCheck, UserX
 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
@@ -17,6 +18,7 @@ interface Driver {
   license_plate: string | null
   profile_photo: string | null
   is_online: boolean
+  status: string
   created_at: string
   updated_at: string
 }
@@ -39,7 +41,9 @@ interface DriverDisplay extends Driver {
 export default function DriverManagePage() {
   const { user } = useAuth()
   const companyName = (user as any)?.name ?? ''
+  const [tab, setTab] = useState<'active' | 'pending'>('active')
   const [drivers, setDrivers] = useState<DriverDisplay[]>([])
+  const [pendingDrivers, setPendingDrivers] = useState<Driver[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -48,6 +52,7 @@ export default function DriverManagePage() {
   const [submitting, setSubmitting] = useState(false)
   const [submitResult, setSubmitResult] = useState<'success' | 'error' | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const [approving, setApproving] = useState<string | null>(null)
 
   /* ── 기사 목록 불러오기 ── */
   const fetchDrivers = async () => {
@@ -57,13 +62,31 @@ export default function DriverManagePage() {
     const { data, error } = await query
 
     if (!error && data) {
-      const mapped: DriverDisplay[] = (data as Driver[]).map(d => ({
+      const pending = (data as Driver[]).filter(d => d.status === 'PENDING')
+      const active = (data as Driver[]).filter(d => d.status !== 'PENDING')
+      setPendingDrivers(pending)
+      const mapped: DriverDisplay[] = active.map(d => ({
         ...d,
         statusKey: (d.is_online ? 'online' : 'offline') as StatusKey,
       }))
       setDrivers(mapped)
     }
     setLoading(false)
+  }
+
+  /* ── 기사 승인/거부 ── */
+  const handleApprove = async (driverId: string) => {
+    setApproving(driverId)
+    await db.from('drivers').update({ status: 'APPROVED' }).eq('id', driverId)
+    setApproving(null)
+    fetchDrivers()
+  }
+
+  const handleReject = async (driverId: string) => {
+    setApproving(driverId)
+    await db.from('drivers').update({ status: 'REJECTED' }).eq('id', driverId)
+    setApproving(null)
+    fetchDrivers()
   }
 
   useEffect(() => {
@@ -140,40 +163,47 @@ export default function DriverManagePage() {
           </motion.button>
         </div>
 
-        {/* 검색 바 */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="이름 또는 차량번호 검색"
-            value={searchQuery}
-            onChange={e => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-eco-green/30"
-          />
+        {/* 탭 */}
+        <div className="flex gap-2 mb-3">
+          <button
+            onClick={() => setTab('active')}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors ${
+              tab === 'active' ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            활동 기사 {drivers.length}명
+          </button>
+          <button
+            onClick={() => setTab('pending')}
+            className={`flex-1 py-2 rounded-xl text-xs font-semibold transition-colors relative ${
+              tab === 'pending' ? 'bg-amber-500 text-white' : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            승인 대기 {pendingDrivers.length}명
+            {pendingDrivers.length > 0 && tab !== 'pending' && (
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+                {pendingDrivers.length}
+              </span>
+            )}
+          </button>
         </div>
+
+        {/* 검색 바 (활동 기사 탭만) */}
+        {tab === 'active' && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="text"
+              placeholder="이름 또는 차량번호 검색"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm text-gray-800 placeholder:text-gray-400 outline-none focus:ring-2 focus:ring-eco-green/30"
+            />
+          </div>
+        )}
       </header>
 
       <div className="px-5 py-4">
-        {/* 요약 */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="flex items-center gap-3 mb-4"
-        >
-          <span className="text-xs text-gray-400">전체 {drivers.length}명</span>
-          <div className="flex items-center gap-3 ml-auto">
-            {Object.entries(statusConfig).map(([key, cfg]) => {
-              const count = drivers.filter(d => d.statusKey === key).length
-              return (
-                <div key={key} className="flex items-center gap-1">
-                  <Circle className={`w-2 h-2 fill-current ${cfg.textColor}`} />
-                  <span className="text-[10px] text-gray-400">{cfg.label} {count}</span>
-                </div>
-              )
-            })}
-          </div>
-        </motion.div>
-
         {/* 로딩 */}
         {loading && (
           <div className="flex items-center justify-center py-16">
@@ -181,8 +211,97 @@ export default function DriverManagePage() {
           </div>
         )}
 
+        {/* 승인 대기 탭 */}
+        {!loading && tab === 'pending' && (
+          <div className="space-y-2.5">
+            {pendingDrivers.length === 0 ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center py-16">
+                <Clock className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">승인 대기 중인 기사가 없습니다</p>
+              </motion.div>
+            ) : (
+              pendingDrivers.map((driver, idx) => (
+                <motion.div
+                  key={driver.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.06 }}
+                  className="bg-white rounded-2xl shadow-card p-4"
+                >
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-11 h-11 bg-amber-50 rounded-xl flex items-center justify-center">
+                      <Truck className="w-5 h-5 text-amber-500" />
+                    </div>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-semibold text-gray-800">{driver.name}</p>
+                        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600">
+                          승인 대기
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <Phone className="w-3 h-3 text-gray-400" />
+                        <span className="text-[11px] text-gray-400">{driver.phone}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mb-3">
+                    <span className="bg-gray-100 px-2 py-0.5 rounded">{driver.truck_type}</span>
+                    {driver.license_plate && (
+                      <span className="bg-gray-100 px-2 py-0.5 rounded">{driver.license_plate}</span>
+                    )}
+                    <span className="bg-gray-100 px-2 py-0.5 rounded">{driver.company}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      disabled={approving === driver.id}
+                      onClick={() => handleReject(driver.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-red-50 text-red-500 rounded-xl text-xs font-semibold disabled:opacity-50"
+                    >
+                      {approving === driver.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserX className="w-3.5 h-3.5" />}
+                      거부
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      disabled={approving === driver.id}
+                      onClick={() => handleApprove(driver.id)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-eco-green text-white rounded-xl text-xs font-semibold disabled:opacity-50"
+                    >
+                      {approving === driver.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
+                      승인
+                    </motion.button>
+                  </div>
+                </motion.div>
+              ))
+            )}
+          </div>
+        )}
+
+        {/* 활동 기사 탭 요약 */}
+        {!loading && tab === 'active' && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-3 mb-4"
+          >
+            <span className="text-xs text-gray-400">전체 {drivers.length}명</span>
+            <div className="flex items-center gap-3 ml-auto">
+              {Object.entries(statusConfig).map(([key, cfg]) => {
+                const count = drivers.filter(d => d.statusKey === key).length
+                return (
+                  <div key={key} className="flex items-center gap-1">
+                    <Circle className={`w-2 h-2 fill-current ${cfg.textColor}`} />
+                    <span className="text-[10px] text-gray-400">{cfg.label} {count}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </motion.div>
+        )}
+
         {/* 기사 카드 목록 */}
-        {!loading && (
+        {!loading && tab === 'active' && (
           <div className="space-y-2.5">
             {filtered.map((driver, idx) => {
               const cfg = statusConfig[driver.statusKey]

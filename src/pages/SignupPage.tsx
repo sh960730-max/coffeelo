@@ -125,6 +125,7 @@ export default function SignupPage() {
           company: companyName || '미소속',
           truck_type: truckType,
           license_plate: licensePlate || null,
+          status: 'PENDING',
         })
         if (dbError) throw new Error(dbError.message)
       } else if (selectedRole === 'company') {
