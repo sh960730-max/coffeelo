@@ -165,7 +165,7 @@ export default function CompanyDashboard() {
       const companyCafeIds = (companyCafes || []).map((c: any) => c.id)
       const pendingQuery = db
         .from('pickups')
-        .select('*, cafe:cafes(name, address, store_type), driver:drivers(name)')
+        .select('*, cafe:cafes(name, address, store_type, cafe_driver:drivers(name)), pickup_driver:drivers(name)')
         .in('status', ['REQUESTED', 'ASSIGNED', 'EN_ROUTE', 'ARRIVED', 'LOADED'])
         .order('requested_at', { ascending: false })
       const { data: unassigned } = companyCafeIds.length > 0
@@ -184,7 +184,8 @@ export default function CompanyDashboard() {
           desiredTime: '-',
           containerCount: p.quantity ?? 0,
           estimatedKg: p.estimated_weight ?? 0,
-          driverName: p.driver?.name ?? null,
+          // 수락한 기사 우선, 없으면 카페 담당 기사 표시
+          driverName: p.pickup_driver?.name ?? p.cafe?.cafe_driver?.name ?? null,
           status: p.status,
         })))
       }
@@ -674,7 +675,12 @@ export default function CompanyDashboard() {
                       <div className="flex items-center gap-1 mb-2.5">
                         <Truck className="w-3 h-3 text-gray-400 shrink-0" />
                         {req.driverName ? (
-                          <span className="text-[11px] font-semibold text-eco-green">{req.driverName} 기사</span>
+                          <span className="text-[11px] font-semibold text-eco-green">
+                            {req.driverName} 기사
+                            {req.status === 'REQUESTED' && (
+                              <span className="text-[10px] text-gray-400 font-normal ml-1">(담당)</span>
+                            )}
+                          </span>
                         ) : (
                           <span className="text-[11px] text-gray-400">담당 기사 미배정</span>
                         )}
