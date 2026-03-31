@@ -71,7 +71,7 @@ export default function PickupRequestPage() {
       estimated_weight: parseFloat(weight) || 0,
       pickup_time_start: formatHour(startHour),
       pickup_time_end: formatHour(endHour),
-      notes: memo || null,
+      note: memo || null,
     })
 
     setIsSubmitting(false)
