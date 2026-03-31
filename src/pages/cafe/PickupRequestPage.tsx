@@ -5,6 +5,8 @@ import {
   CheckCircle2, ChevronDown, Camera, Image, MapPin
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 
 type ContainerType = 'BOX' | 'BAG'
 
@@ -15,6 +17,8 @@ const weightPresets = [5, 10, 15, 20, 25]
 
 export default function PickupRequestPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const cafeId = (user as any)?.id
   const [containerType, setContainerType] = useState<ContainerType>('BOX')
   const [quantity, setQuantity] = useState(1)
   const [weight, setWeight] = useState<string>('10')
@@ -55,20 +59,28 @@ export default function PickupRequestPage() {
   }
 
   const handleSubmit = async () => {
+    if (!cafeId) return
     setIsSubmitting(true)
 
-    console.log('수거 신청 데이터:', {
-      containerType,
-      quantity,
-      estimatedWeight: weight,
-      timeRange: `${formatHour(startHour)} ~ ${formatHour(endHour)}`,
-      storagePhoto,
-      memo,
-      requestedAt: new Date().toISOString(),
+    const db = supabase as any
+    const { error } = await db.from('pickups').insert({
+      cafe_id: cafeId,
+      status: 'REQUESTED',
+      container_type: containerType,
+      quantity: quantity,
+      estimated_weight: parseFloat(weight) || 0,
+      pickup_time_start: formatHour(startHour),
+      pickup_time_end: formatHour(endHour),
+      notes: memo || null,
     })
 
-    await new Promise(resolve => setTimeout(resolve, 800))
     setIsSubmitting(false)
+
+    if (error) {
+      alert('수거 신청에 실패했습니다.\n' + error.message)
+      return
+    }
+
     setShowSuccess(true)
   }
 
