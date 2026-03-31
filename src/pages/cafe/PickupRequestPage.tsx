@@ -17,7 +17,7 @@ export default function PickupRequestPage() {
   const navigate = useNavigate()
   const [containerType, setContainerType] = useState<ContainerType>('BOX')
   const [quantity, setQuantity] = useState(1)
-  const [weight, setWeight] = useState(10)
+  const [weight, setWeight] = useState<string>('10')
   const [startHour, setStartHour] = useState(9)
   const [endHour, setEndHour] = useState(12)
   const [memo, setMemo] = useState('')
@@ -204,7 +204,10 @@ export default function PickupRequestPage() {
               min={1}
               max={999}
               value={weight}
-              onChange={(e) => setWeight(Math.max(1, parseInt(e.target.value) || 1))}
+              onChange={(e) => {
+                const val = e.target.value
+                if (val === '' || /^\d+$/.test(val)) setWeight(val)
+              }}
               className="flex-1 px-4 py-3 bg-gray-50 rounded-xl border border-gray-200 text-sm font-semibold text-gray-900 outline-none focus:border-eco-green transition-colors"
             />
             <span className="text-sm font-bold text-gray-500">kg</span>
@@ -215,9 +218,9 @@ export default function PickupRequestPage() {
               <motion.button
                 key={w}
                 whileTap={{ scale: 0.9 }}
-                onClick={() => setWeight(w)}
+                onClick={() => setWeight(String(w))}
                 className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-colors ${
-                  weight === w
+                  weight === String(w)
                     ? 'bg-eco-green text-white shadow-sm'
                     : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
                 }`}
