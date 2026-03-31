@@ -43,9 +43,24 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     setDisplayCalls(calls)
   }, [calls])
 
-  const handleSortByDistance = () => {
+  // 카카오 REST API로 주소 → 좌표 변환
+  const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
+    try {
+      const res = await fetch(
+        `https://dapi.kakao.com/v2/local/search/address.json?query=${encodeURIComponent(address)}`,
+        { headers: { Authorization: 'KakaoAK 9d98432e37b0e1da2a7f5ad84ec07649' } }
+      )
+      const json = await res.json()
+      const doc = json?.documents?.[0]
+      if (doc) return { lat: parseFloat(doc.y), lng: parseFloat(doc.x) }
+    } catch (e) {
+      console.error('geocode error:', e)
+    }
+    return null
+  }
+
+  const handleSortByDistance = async () => {
     if (sortedByDist) {
-      // 정렬 해제 → 원래 순서(요청시각순)로
       setSortedByDist(false)
       setDisplayCalls(calls)
       return
@@ -56,17 +71,26 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     }
     setSortingLoading(true)
     navigator.geolocation.getCurrentPosition(
-      (pos) => {
+      async (pos) => {
         const { latitude: myLat, longitude: myLng } = pos.coords
-        const withDist = calls.map(c => {
-          if (c.lat != null && c.lng != null) {
-            const km = haversine(myLat, myLng, c.lat, c.lng)
-            return { ...c, distance: formatDist(km), _km: km }
-          }
-          return { ...c, _km: Infinity }
-        })
-        withDist.sort((a, b) => (a as any)._km - (b as any)._km)
-        setDisplayCalls(withDist)
+        // 각 콜의 주소 → 좌표 변환 (병렬)
+        const withCoords = await Promise.all(
+          calls.map(async (c) => {
+            if (c.lat != null && c.lng != null) {
+              const km = haversine(myLat, myLng, c.lat, c.lng)
+              return { ...c, distance: formatDist(km), _km: km }
+            }
+            // 주소로 좌표 조회
+            const coords = await geocodeAddress(c.address)
+            if (coords) {
+              const km = haversine(myLat, myLng, coords.lat, coords.lng)
+              return { ...c, distance: formatDist(km), _km: km, lat: coords.lat, lng: coords.lng }
+            }
+            return { ...c, _km: Infinity }
+          })
+        )
+        withCoords.sort((a, b) => (a as any)._km - (b as any)._km)
+        setDisplayCalls(withCoords)
         setSortedByDist(true)
         setSortingLoading(false)
       },
