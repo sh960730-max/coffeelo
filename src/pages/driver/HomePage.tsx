@@ -30,6 +30,10 @@ export interface PickupCall {
   estimatedWeight?: number
   requestedTime: string
   isUrgent: boolean
+  note?: string | null
+  storagePhotoUrl?: string | null
+  pickupTimeStart?: string | null
+  pickupTimeEnd?: string | null
 }
 
 const mapStoreType = (type: string): 'starbucks' | 'franchise' | 'individual' => {
@@ -111,6 +115,10 @@ export default function HomePage() {
           ? new Date(p.requested_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
           : '-',
         isUrgent: false,
+        note: p.note ?? null,
+        storagePhotoUrl: p.storage_photo_url ?? null,
+        pickupTimeStart: p.pickup_time_start ?? null,
+        pickupTimeEnd: p.pickup_time_end ?? null,
       })))
     }
   }, [driverId])
