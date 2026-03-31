@@ -25,9 +25,16 @@ export default function Header() {
   const cafeId  = (user as any)?.id
   const cafeName = (user as any)?.name ?? '사장님'
 
+  const storageKey = `notif_read_${cafeId ?? 'default'}`
+
   const [showPanel, setShowPanel]   = useState(false)
   const [notifs, setNotifs]         = useState<NotifItem[]>([])
-  const [readIds, setReadIds]       = useState<Set<string>>(new Set())
+  const [readIds, setReadIds]       = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`notif_read_${cafeId ?? 'default'}`)
+      return saved ? new Set(JSON.parse(saved)) : new Set()
+    } catch { return new Set() }
+  })
 
   useEffect(() => {
     if (!cafeId) return
@@ -102,11 +109,17 @@ export default function Header() {
   }
 
   const handleReadNotif = (id: string) => {
-    setReadIds(prev => new Set([...prev, id]))
+    setReadIds(prev => {
+      const next = new Set([...prev, id])
+      localStorage.setItem(storageKey, JSON.stringify([...next]))
+      return next
+    })
   }
 
   const handleReadAll = () => {
-    setReadIds(new Set(notifs.map(n => n.id)))
+    const all = new Set(notifs.map(n => n.id))
+    setReadIds(all)
+    localStorage.setItem(storageKey, JSON.stringify([...all]))
   }
 
   return (
