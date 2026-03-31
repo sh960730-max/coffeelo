@@ -140,7 +140,7 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedCall(null)}
-              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
+              className="fixed inset-0 z-[60] bg-black/40 backdrop-blur-sm"
             />
 
             {/* 바텀시트 */}
@@ -149,7 +149,7 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="fixed bottom-0 left-0 right-0 z-50 bg-white rounded-t-3xl shadow-xl max-w-md mx-auto flex flex-col"
+              className="fixed bottom-0 left-0 right-0 z-[70] bg-white rounded-t-3xl shadow-xl max-w-md mx-auto flex flex-col"
               style={{ maxHeight: '88vh' }}
             >
               {/* 핸들 */}
