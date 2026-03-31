@@ -95,15 +95,41 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
         setSortedByDist(true)
         setSortingLoading(false)
       },
-      (err) => {
+      async (err) => {
         console.error('geolocation error:', err)
-        setSortingLoading(false)
         if (err.code === 1) {
-          // PERMISSION_DENIED
-          setSortError('위치 권한이 거부됐습니다. 브라우저 설정 → 사이트 권한에서 위치를 허용해주세요.')
+          // PERMISSION_DENIED → IP 기반 폴백 시도
+          try {
+            const res = await fetch('https://ipapi.co/json/')
+            const json = await res.json()
+            if (json?.latitude && json?.longitude) {
+              const myLat = json.latitude as number
+              const myLng = json.longitude as number
+              const withCoords = await Promise.all(
+                calls.map(async (c) => {
+                  const coords = await geocodeAddress(c.address)
+                  if (coords) {
+                    const km = haversine(myLat, myLng, coords.lat, coords.lng)
+                    return { ...c, distance: formatDist(km), _km: km }
+                  }
+                  return { ...c, _km: Infinity }
+                })
+              )
+              withCoords.sort((a, b) => (a as any)._km - (b as any)._km)
+              setDisplayCalls(withCoords)
+              setSortedByDist(true)
+              setSortError('⚠️ 정확한 위치 사용 불가 — 대략적 위치(IP)로 정렬했습니다.\niPhone: 설정 → 개인정보 보호 → 위치 서비스 → Safari → 앱 사용 중 허용')
+              setSortingLoading(false)
+              return
+            }
+          } catch (e) {
+            console.error('ip geolocation error:', e)
+          }
+          setSortError('위치 권한 필요\niPhone: 설정 → 개인정보 보호 → 위치 서비스 → Safari → 앱 사용 중 허용\nAndroid: 브라우저 주소창 자물쇠 → 위치 허용')
         } else {
           setSortError('위치를 가져올 수 없습니다. 잠시 후 다시 시도해주세요.')
         }
+        setSortingLoading(false)
       },
       { timeout: 12000, maximumAge: 60000 }
     )
@@ -164,7 +190,7 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
               className="flex items-start gap-2 bg-red-50 border border-red-100 rounded-xl px-3 py-2.5 mb-2"
             >
               <MapPin className="w-3.5 h-3.5 text-red-400 mt-0.5 flex-shrink-0" />
-              <p className="text-[11px] text-red-600 leading-snug">{sortError}</p>
+              <p className="text-[11px] text-red-600 leading-snug whitespace-pre-line">{sortError}</p>
               <button onClick={() => setSortError(null)} className="ml-auto text-red-300">
                 <X className="w-3.5 h-3.5" />
               </button>
