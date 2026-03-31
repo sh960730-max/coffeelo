@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Calendar, ChevronDown, ChevronUp, Package, MapPin, Coffee, Image as ImageIcon } from 'lucide-react'
-import { dummyPickups } from '../../lib/dummyData'
+import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
+import type { Pickup } from '../../lib/database.types'
 
 const statusFilters = [
   { key: 'all', label: '전체' },
@@ -22,16 +24,41 @@ const storeTypeStyle: Record<string, { label: string; bg: string }> = {
 }
 
 export default function PickupListPage() {
+  const { user } = useAuth()
+  const driverId = (user as any)?.id
   const [statusFilter, setStatusFilter] = useState('all')
   const [dateFilter, setDateFilter] = useState('month')
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
+  const [allPickups, setAllPickups] = useState<Pickup[]>([])
 
-  const completedPickups = dummyPickups.filter(p =>
-    p.status === 'COMPLETED' || p.status === 'CANCELLED'
-  )
+  useEffect(() => {
+    if (!driverId) return
+    const db = supabase as any
+    const now = new Date()
+    let fromDate: string
+    if (dateFilter === 'today') {
+      fromDate = now.toISOString().split('T')[0] + 'T00:00:00'
+    } else if (dateFilter === 'week') {
+      const monday = new Date(now)
+      const dow = now.getDay()
+      monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
+      monday.setHours(0, 0, 0, 0)
+      fromDate = monday.toISOString()
+    } else {
+      const first = new Date(now.getFullYear(), now.getMonth(), 1)
+      fromDate = first.toISOString()
+    }
+    db.from('pickups')
+      .select('*, cafe:cafes(name, address, store_type), containers(*)')
+      .eq('driver_id', driverId)
+      .in('status', ['COMPLETED', 'CANCELLED'])
+      .gte('created_at', fromDate)
+      .order('created_at', { ascending: false })
+      .then(({ data }: any) => { if (data) setAllPickups(data) })
+  }, [driverId, dateFilter])
 
-  const filtered = completedPickups.filter(p => {
+  const filtered = allPickups.filter(p => {
     if (statusFilter !== 'all' && p.status !== statusFilter) return false
     if (searchQuery && !p.cafe?.name.includes(searchQuery)) return false
     return true

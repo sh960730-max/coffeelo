@@ -23,7 +23,7 @@ function StopCard({
 }: {
   stop: PickupStop
   index: number
-  onPickupConfirm?: (id: number) => void
+  onPickupConfirm?: (id: string) => void
 }) {
   const typeInfo = storeTypeLabel[stop.storeType]
   const currentIdx = statusFlow.indexOf(stop.status as typeof statusFlow[number])
@@ -119,7 +119,7 @@ function StopCard({
 
 interface ActivePickupCardProps {
   pickups: PickupStop[]
-  onPickupConfirm?: (id: number) => void
+  onPickupConfirm?: (id: string) => void
 }
 
 export default function ActivePickupCard({ pickups, onPickupConfirm }: ActivePickupCardProps) {

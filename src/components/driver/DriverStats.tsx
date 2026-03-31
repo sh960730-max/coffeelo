@@ -1,13 +1,68 @@
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp, Package, MapPin, Banknote } from 'lucide-react'
-
-const todayStats = [
-  { icon: MapPin, label: '수거 매장', value: '8', unit: '곳', color: 'text-blue-600', bg: 'bg-blue-50' },
-  { icon: Package, label: '총 수거량', value: '1,250', unit: 'kg', color: 'text-eco-green', bg: 'bg-eco-green-100' },
-  { icon: Banknote, label: '예상 수입', value: '187,500', unit: '원', color: 'text-amber-600', bg: 'bg-amber-50' },
-]
+import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 
 export default function DriverStats() {
+  const { user } = useAuth()
+  const driverId = (user as any)?.id
+
+  const [todayStores, setTodayStores] = useState(0)
+  const [todayWeight, setTodayWeight] = useState(0)
+  const [todayIncome, setTodayIncome] = useState(0)
+  const [weeklyData, setWeeklyData] = useState([
+    { day: '월', kg: 0 }, { day: '화', kg: 0 }, { day: '수', kg: 0 },
+    { day: '목', kg: 0 }, { day: '금', kg: 0 }, { day: '토', kg: 0 }, { day: '일', kg: 0 },
+  ])
+  const weekTotal = weeklyData.reduce((s, d) => s + d.kg, 0)
+
+  useEffect(() => {
+    if (!driverId) return
+    const db = supabase as any
+    const load = async () => {
+      const today = new Date().toISOString().split('T')[0]
+      const { data: todayPickups } = await db
+        .from('pickups').select('total_weight, settlement_amount')
+        .eq('driver_id', driverId).eq('status', 'COMPLETED')
+        .gte('completed_at', today + 'T00:00:00')
+      if (todayPickups) {
+        setTodayStores(todayPickups.length)
+        setTodayWeight(todayPickups.reduce((s: number, p: any) => s + (p.total_weight || 0), 0))
+        setTodayIncome(todayPickups.reduce((s: number, p: any) => s + (p.settlement_amount || 0), 0))
+      }
+
+      const now = new Date()
+      const dow = now.getDay()
+      const monday = new Date(now)
+      monday.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
+      monday.setHours(0, 0, 0, 0)
+      const { data: weekPickups } = await db
+        .from('pickups').select('completed_at, total_weight')
+        .eq('driver_id', driverId).eq('status', 'COMPLETED')
+        .gte('completed_at', monday.toISOString())
+      if (weekPickups) {
+        const days = ['월', '화', '수', '목', '금', '토', '일']
+        const acc: Record<string, number> = {}
+        weekPickups.forEach((p: any) => {
+          const d = new Date(p.completed_at)
+          const idx = d.getDay() === 0 ? 6 : d.getDay() - 1
+          acc[days[idx]] = (acc[days[idx]] || 0) + (p.total_weight || 0)
+        })
+        setWeeklyData(days.map(d => ({ day: d, kg: acc[d] || 0 })))
+      }
+    }
+    load()
+  }, [driverId])
+
+  const todayIdx = (() => { const d = new Date().getDay(); return d === 0 ? 6 : d - 1 })()
+  const stats = [
+    { icon: MapPin, label: '수거 매장', value: todayStores.toString(), unit: '곳', color: 'text-blue-600', bg: 'bg-blue-50' },
+    { icon: Package, label: '총 수거량', value: todayWeight.toLocaleString(), unit: 'kg', color: 'text-eco-green', bg: 'bg-eco-green-100' },
+    { icon: Banknote, label: '예상 수입', value: todayIncome.toLocaleString(), unit: '원', color: 'text-amber-600', bg: 'bg-amber-50' },
+  ]
+  const maxKg = Math.max(...weeklyData.map(d => d.kg), 1)
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -24,7 +79,7 @@ export default function DriverStats() {
       </div>
 
       <div className="grid grid-cols-3 gap-2.5">
-        {todayStats.map((stat, index) => {
+        {stats.map((stat, index) => {
           const Icon = stat.icon
           return (
             <motion.div
@@ -45,26 +100,14 @@ export default function DriverStats() {
         })}
       </div>
 
-      {/* 이번 주 수거 요약 */}
       <div className="bg-white rounded-2xl p-4 shadow-card mt-3">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-gray-800">이번 주 수거 기록</h3>
-          <span className="text-[11px] text-gray-400">3/18 ~ 3/24</span>
         </div>
-
-        {/* 간단한 주간 바 차트 */}
         <div className="flex items-end gap-1.5 h-24">
-          {[
-            { day: '월', kg: 1100, active: false },
-            { day: '화', kg: 980, active: false },
-            { day: '수', kg: 1350, active: false },
-            { day: '목', kg: 1200, active: false },
-            { day: '금', kg: 850, active: false },
-            { day: '토', kg: 1250, active: true },
-            { day: '일', kg: 0, active: false },
-          ].map((d, i) => {
-            const maxKg = 1350
+          {weeklyData.map((d, i) => {
             const height = d.kg > 0 ? Math.max((d.kg / maxKg) * 100, 8) : 4
+            const isToday = i === todayIdx
             return (
               <div key={d.day} className="flex-1 flex flex-col items-center gap-1">
                 {d.kg > 0 && (
@@ -76,25 +119,16 @@ export default function DriverStats() {
                   initial={{ height: 0 }}
                   animate={{ height: `${height}%` }}
                   transition={{ duration: 0.6, delay: 0.7 + i * 0.05, ease: 'easeOut' }}
-                  className={`w-full rounded-t-md ${
-                    d.active
-                      ? 'bg-gradient-to-t from-eco-green to-eco-green-300'
-                      : d.kg > 0
-                      ? 'bg-gray-200'
-                      : 'bg-gray-100'
-                  }`}
+                  className={`w-full rounded-t-md ${isToday ? 'bg-gradient-to-t from-eco-green to-eco-green-300' : d.kg > 0 ? 'bg-gray-200' : 'bg-gray-100'}`}
                 />
-                <span className={`text-[10px] font-medium ${d.active ? 'text-eco-green' : 'text-gray-400'}`}>
-                  {d.day}
-                </span>
+                <span className={`text-[10px] font-medium ${isToday ? 'text-eco-green' : 'text-gray-400'}`}>{d.day}</span>
               </div>
             )
           })}
         </div>
-
         <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
           <span className="text-xs text-gray-500">이번 주 누적</span>
-          <span className="text-sm font-bold text-eco-green">6,730 kg</span>
+          <span className="text-sm font-bold text-eco-green">{weekTotal.toLocaleString()} kg</span>
         </div>
       </div>
     </motion.section>

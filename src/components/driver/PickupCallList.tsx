@@ -10,8 +10,8 @@ const storeTypeStyle = {
 
 interface PickupCallListProps {
   calls: PickupCall[]
-  onAccept: (id: number) => void
-  onDecline: (id: number) => void
+  onAccept: (id: string) => void
+  onDecline: (id: string) => void
 }
 
 export default function PickupCallList({ calls, onAccept, onDecline }: PickupCallListProps) {
