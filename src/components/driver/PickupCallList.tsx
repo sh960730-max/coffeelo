@@ -95,41 +95,16 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
         setSortedByDist(true)
         setSortingLoading(false)
       },
-      async (err) => {
+      (err) => {
         console.error('geolocation error:', err)
+        setSortingLoading(false)
         if (err.code === 1) {
-          // PERMISSION_DENIED → IP 기반 폴백 시도
-          try {
-            const res = await fetch('https://ipapi.co/json/')
-            const json = await res.json()
-            if (json?.latitude && json?.longitude) {
-              const myLat = json.latitude as number
-              const myLng = json.longitude as number
-              const withCoords = await Promise.all(
-                calls.map(async (c) => {
-                  const coords = await geocodeAddress(c.address)
-                  if (coords) {
-                    const km = haversine(myLat, myLng, coords.lat, coords.lng)
-                    return { ...c, distance: formatDist(km), _km: km }
-                  }
-                  return { ...c, _km: Infinity }
-                })
-              )
-              withCoords.sort((a, b) => (a as any)._km - (b as any)._km)
-              setDisplayCalls(withCoords)
-              setSortedByDist(true)
-              setSortError('⚠️ 정확한 위치 사용 불가 — 대략적 위치(IP)로 정렬했습니다.\niPhone: 설정 → 개인정보 보호 → 위치 서비스 → Safari → 앱 사용 중 허용')
-              setSortingLoading(false)
-              return
-            }
-          } catch (e) {
-            console.error('ip geolocation error:', e)
-          }
-          setSortError('위치 권한 필요\niPhone: 설정 → 개인정보 보호 → 위치 서비스 → Safari → 앱 사용 중 허용\nAndroid: 브라우저 주소창 자물쇠 → 위치 허용')
+          setSortError('📍 iPhone 위치 권한 허용 방법:\n① 설정 → 개인정보 보호 및 보안\n② 위치 서비스 → Safari 웹사이트\n③ "앱 사용 중 허용" 선택 후 재시도')
+        } else if (err.code === 3) {
+          setSortError('위치 조회 시간 초과. 실외로 이동 후 다시 시도해주세요.')
         } else {
           setSortError('위치를 가져올 수 없습니다. 잠시 후 다시 시도해주세요.')
         }
-        setSortingLoading(false)
       },
       { timeout: 12000, maximumAge: 60000 }
     )
