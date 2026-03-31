@@ -271,7 +271,18 @@ export default function PickupHistoryPage() {
 
     const { data } = await query
 
-    // 기사 이름 별도 조회
+    // 카페 담당 기사 조회 (pickups.driver_id 없을 때 폴백)
+    let cafeDedicatedDriverName: string | null = null
+    const { data: cafeInfo } = await db
+      .from('cafes')
+      .select('driver_id, dedicated_driver:drivers(name)')
+      .eq('id', cafeId)
+      .single()
+    if (cafeInfo?.dedicated_driver?.name) {
+      cafeDedicatedDriverName = cafeInfo.dedicated_driver.name
+    }
+
+    // 수락한 기사 이름 별도 조회
     const driverIds = [...new Set((data || []).map((p: any) => p.driver_id).filter(Boolean))]
     let driverMap: Record<string, string> = {}
     if (driverIds.length > 0) {
@@ -287,7 +298,10 @@ export default function PickupHistoryPage() {
         status: p.status,
         estimatedWeight: p.estimated_weight ?? 0,
         actualWeight: p.total_weight ?? null,
-        driverName: p.driver_id ? (driverMap[p.driver_id] ?? null) : null,
+        // 수락한 기사 우선, 없으면 카페 담당 기사 표시
+        driverName: p.driver_id
+          ? (driverMap[p.driver_id] ?? null)
+          : cafeDedicatedDriverName,
         note: p.note ?? null,
         settlementAmount: p.settlement_amount ?? (p.total_weight ? Math.round(p.total_weight * 80) : null),
       })))
