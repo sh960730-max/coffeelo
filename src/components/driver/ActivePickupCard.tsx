@@ -1,6 +1,7 @@
 import { motion } from 'framer-motion'
 import { Navigation, Phone, Camera, Package, MapPin, Clock, ChevronRight, Coffee } from 'lucide-react'
 import type { PickupStop } from '../../pages/driver/HomePage'
+import { useAuth } from '../../contexts/AuthContext'
 
 const storeTypeLabel = {
   starbucks: { label: '스벅', color: 'bg-green-600 text-white', icon: '★' },
@@ -123,6 +124,8 @@ interface ActivePickupCardProps {
 }
 
 export default function ActivePickupCard({ pickups, onPickupConfirm }: ActivePickupCardProps) {
+  const { user } = useAuth()
+  const driverCompany = (user as any)?.company ?? ''
   const totalBoxes = pickups.reduce((sum, s) => s.containerType === 'box' ? sum + s.estimatedCount : sum, 0)
   const totalBags = pickups.reduce((sum, s) => s.containerType === 'bag' ? sum + s.estimatedCount : sum, 0)
 
@@ -166,7 +169,7 @@ export default function ActivePickupCard({ pickups, onPickupConfirm }: ActivePic
           </div>
           <div className="text-left">
             <p className="text-xs text-gray-500">수거 완료 후</p>
-            <p className="text-sm font-semibold text-gray-800">그린물류 집하장으로 이동</p>
+            <p className="text-sm font-semibold text-gray-800">{driverCompany} 집하장으로 이동</p>
           </div>
         </div>
         <ChevronRight className="w-4 h-4 text-gray-400" />
