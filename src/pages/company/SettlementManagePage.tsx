@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Wallet, Scale, ChevronDown, ChevronUp, CheckCircle, CreditCard,
-  Calendar, TrendingUp, Truck, Loader2
+  Wallet, Scale, ChevronDown, ChevronUp, CheckCircle,
+  Calendar, TrendingUp, Truck, Loader2, CreditCard
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -257,35 +257,15 @@ export default function SettlementManagePage() {
                                 </p>
                               )}
 
-                              {/* 액션 버튼 */}
+                              {/* 액션 버튼: 대기 상태일 때만 정산완료 버튼 표시 */}
                               {(statusUpper === 'PENDING' || ds.id.startsWith('synth_')) && (
-                                <div className="flex gap-2 mt-3">
-                                  <motion.button whileTap={{ scale: 0.97 }}
-                                    disabled={isUpdating}
-                                    onClick={() => updateStatus(ds.id, 'CONFIRMED')}
-                                    className="flex-1 bg-blue-500 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                  >
-                                    {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                                    정산완료
-                                  </motion.button>
-                                  <motion.button whileTap={{ scale: 0.97 }}
-                                    disabled={isUpdating}
-                                    onClick={() => updateStatus(ds.id, 'PAID')}
-                                    className="flex-1 bg-eco-green text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                  >
-                                    {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
-                                    지급완료
-                                  </motion.button>
-                                </div>
-                              )}
-                              {!ds.id.startsWith('synth_') && (statusUpper === 'CONFIRMED') && (
                                 <motion.button whileTap={{ scale: 0.97 }}
                                   disabled={isUpdating}
-                                  onClick={() => updateStatus(ds.id, 'PAID')}
-                                  className="w-full mt-3 bg-eco-green text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                  onClick={() => updateStatus(ds.id, 'CONFIRMED')}
+                                  className="w-full mt-3 bg-blue-500 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
                                 >
-                                  {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
-                                  지급완료 처리
+                                  {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                  정산완료
                                 </motion.button>
                               )}
                             </div>
