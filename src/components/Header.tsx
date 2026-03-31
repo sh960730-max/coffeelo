@@ -1,7 +1,11 @@
 import { motion } from 'framer-motion'
 import { Bell, Leaf } from 'lucide-react'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function Header() {
+  const { user } = useAuth()
+  const cafeName = (user as any)?.name ?? '사장님'
+
   return (
     <motion.header
       initial={{ opacity: 0, y: -20 }}
@@ -31,7 +35,7 @@ export default function Header() {
 
       {/* 인사말 */}
       <div className="px-5 pb-4">
-        <p className="text-gray-500 text-sm">안녕하세요, 김사장님</p>
+        <p className="text-gray-500 text-sm">안녕하세요, <span className="font-semibold text-gray-700">{cafeName}</span></p>
         <p className="text-gray-900 text-base font-semibold mt-0.5">
           오늘도 환경을 위한 한 걸음 함께해요
         </p>
