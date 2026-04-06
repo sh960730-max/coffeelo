@@ -227,13 +227,23 @@ export default function SettlementManagePage() {
     })
     setDriverStats(statsMap)
 
-    // settlements 테이블 조회
+    // settlements 테이블 조회 — 기간이 조금이라도 겹치는 항목 포함
+    // (period_start <= toDate AND period_end >= fromDate)
     let settQuery = db.from('settlements')
       .select('*')
       .in('driver_id', driverIds)
-      .gte('period_start', fromDate)
       .order('period_start', { ascending: false })
-    if (toDate) settQuery = settQuery.lte('period_start', toDate)
+
+    if (toDate) {
+      // 기간 겹침: period_start가 toDate 이전 AND period_end가 fromDate 이후
+      settQuery = settQuery
+        .lte('period_start', toDate)
+        .gte('period_end', fromDate)
+    } else {
+      // toDate 없으면 period_end가 fromDate 이후인 것 + period_start가 fromDate 이후인 것
+      settQuery = settQuery.or(`period_end.gte.${fromDate},period_start.gte.${fromDate}`)
+    }
+
     const { data: settlementsData } = await settQuery
 
     // 기사별 마지막 확정 정산의 period_end 추적
