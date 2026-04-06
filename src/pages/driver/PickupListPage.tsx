@@ -243,12 +243,17 @@ export default function PickupListPage() {
       .select('*, cafe:cafes(name, address, store_type), containers(*)')
       .eq('driver_id', driverId)
       .in('status', ['COMPLETED', 'CANCELLED'])
-      .gte('created_at', fromDate)
-      .order('created_at', { ascending: false })
 
-    if (toDate) query = query.lte('created_at', toDate)
+    if (toDate) {
+      query = query.or(
+        `and(created_at.gte.${fromDate},created_at.lte.${toDate}),and(completed_at.gte.${fromDate},completed_at.lte.${toDate}),and(updated_at.gte.${fromDate},updated_at.lte.${toDate})`
+      )
+    } else {
+      query = query.or(`created_at.gte.${fromDate},completed_at.gte.${fromDate},updated_at.gte.${fromDate}`)
+    }
 
-    query.then(({ data }: any) => { if (data) setAllPickups(data) })
+    query.order('created_at', { ascending: false })
+      .then(({ data }: any) => { if (data) setAllPickups(data) })
   }, [driverId, dateFilter, customRange])
 
   // 담당 매장 조회
