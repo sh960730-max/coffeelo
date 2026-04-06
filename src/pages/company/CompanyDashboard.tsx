@@ -995,7 +995,6 @@ export default function CompanyDashboard() {
 
               {/* 수거내역 리스트 */}
               <div className="overflow-y-auto max-h-[55vh] px-5 py-3">
-                <h3 className="text-xs font-bold text-gray-500 mb-2">오늘 수거 내역</h3>
                 {loadingDriverDetail ? (
                   <div className="flex justify-center py-10">
                     <div className="w-6 h-6 border-2 border-eco-green/30 border-t-eco-green rounded-full animate-spin" />
@@ -1005,75 +1004,113 @@ export default function CompanyDashboard() {
                     <Truck className="w-8 h-8 text-gray-200 mx-auto mb-2" />
                     <p className="text-sm text-gray-400">오늘 수거 내역이 없습니다</p>
                   </div>
-                ) : (
-                  <div className="space-y-2">
-                    {selectedDriverPickups.map((pickup: any, idx: number) => {
-                      const stType = pickup.cafe?.store_type || 'INDIVIDUAL'
-                      const badge = storeTypeBadge[
-                        stType === 'STARBUCKS' ? 'starbucks' :
-                        stType === 'FRANCHISE' ? 'franchise' : 'individual'
-                      ]
-                      const isCompleted = pickup.status === 'COMPLETED'
-                      const timeStr = (() => {
-                        const ts = pickup.completed_at || pickup.updated_at
-                        if (!ts) return '-'
-                        const d = new Date(ts)
-                        return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
-                      })()
-                      const statusLabel: Record<string, string> = {
-                        ASSIGNED: '배정됨', EN_ROUTE: '이동 중', ARRIVED: '도착', LOADED: '상차 완료',
-                      }
-                      return (
-                        <motion.div
-                          key={pickup.id}
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.03 }}
-                          className={`bg-white rounded-xl p-3.5 border ${isCompleted ? 'border-gray-100' : 'border-eco-green/30 bg-eco-green/5'}`}
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded text-white ${badge.bg}`}>
-                                  {badge.label}
-                                </span>
-                                {isCompleted ? (
-                                  <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
-                                    <Clock className="w-2.5 h-2.5" />
-                                    {timeStr}
-                                  </span>
-                                ) : (
-                                  <span className="text-[10px] font-semibold text-eco-green">
-                                    {statusLabel[pickup.status] ?? pickup.status}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-sm font-semibold text-gray-800">{pickup.cafe?.name ?? '-'}</p>
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <MapPin className="w-2.5 h-2.5 text-gray-400" />
-                                <span className="text-[11px] text-gray-400">{pickup.cafe?.address ?? '-'}</span>
-                              </div>
-                            </div>
-                            <div className="text-right ml-3">
+                ) : (() => {
+                  const statusLabel: Record<string, string> = {
+                    ASSIGNED: '배정됨', EN_ROUTE: '이동 중', ARRIVED: '도착', LOADED: '상차 완료',
+                  }
+                  const statusDotColor: Record<string, string> = {
+                    ASSIGNED: 'bg-amber-400', EN_ROUTE: 'bg-blue-400', ARRIVED: 'bg-purple-400', LOADED: 'bg-orange-400',
+                  }
+                  const inProgress = selectedDriverPickups.filter(p => p.status !== 'COMPLETED')
+                  const completed = selectedDriverPickups.filter(p => p.status === 'COMPLETED')
+
+                  const renderCard = (pickup: any, idx: number, isCompleted: boolean) => {
+                    const stType = pickup.cafe?.store_type || 'INDIVIDUAL'
+                    const badge = storeTypeBadge[
+                      stType === 'STARBUCKS' ? 'starbucks' :
+                      stType === 'FRANCHISE' ? 'franchise' : 'individual'
+                    ]
+                    const timeStr = (() => {
+                      const ts = pickup.completed_at || pickup.updated_at
+                      if (!ts) return '-'
+                      const d = new Date(ts)
+                      return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+                    })()
+                    return (
+                      <motion.div
+                        key={pickup.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.03 }}
+                        className={`rounded-xl p-3.5 border ${
+                          isCompleted
+                            ? 'bg-white border-gray-100'
+                            : 'bg-amber-50 border-amber-200'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded text-white ${badge.bg}`}>
+                                {badge.label}
+                              </span>
                               {isCompleted ? (
-                                <>
-                                  <p className="text-sm font-bold text-gray-900">{pickup.total_weight ?? 0}kg</p>
-                                  <p className="text-[10px] text-gray-400">
-                                    {pickup.container_type === 'BAG' ? '봉지' : '박스'} {pickup.quantity ?? 0}개
-                                  </p>
-                                </>
+                                <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                                  <Clock className="w-2.5 h-2.5" />{timeStr}
+                                </span>
                               ) : (
-                                <div className="w-8 h-8 bg-eco-green-100 rounded-lg flex items-center justify-center">
-                                  <Truck className="w-4 h-4 text-eco-green" />
-                                </div>
+                                <span className={`flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700`}>
+                                  <span className={`w-1.5 h-1.5 rounded-full ${statusDotColor[pickup.status] ?? 'bg-gray-400'}`} />
+                                  {statusLabel[pickup.status] ?? pickup.status}
+                                </span>
                               )}
                             </div>
+                            <p className="text-sm font-semibold text-gray-800">{pickup.cafe?.name ?? '-'}</p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <MapPin className="w-2.5 h-2.5 text-gray-400" />
+                              <span className="text-[11px] text-gray-400">{pickup.cafe?.address ?? '-'}</span>
+                            </div>
                           </div>
-                        </motion.div>
-                      )
-                    })}
-                  </div>
-                )}
+                          <div className="text-right ml-3">
+                            {isCompleted ? (
+                              <>
+                                <p className="text-sm font-bold text-gray-900">{pickup.total_weight ?? 0}kg</p>
+                                <p className="text-[10px] text-gray-400">
+                                  {pickup.container_type === 'BAG' ? '봉지' : '박스'} {pickup.quantity ?? 0}개
+                                </p>
+                              </>
+                            ) : (
+                              <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                                <Truck className="w-4 h-4 text-amber-500" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    )
+                  }
+
+                  return (
+                    <div className="space-y-4">
+                      {/* 진행 중 섹션 */}
+                      {inProgress.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+                            <h3 className="text-xs font-bold text-amber-600">진행 중 {inProgress.length}건</h3>
+                          </div>
+                          <div className="space-y-2">
+                            {inProgress.map((p, i) => renderCard(p, i, false))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 완료 섹션 */}
+                      {completed.length > 0 && (
+                        <div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="w-2 h-2 rounded-full bg-eco-green" />
+                            <h3 className="text-xs font-bold text-eco-green">수거 완료 {completed.length}건</h3>
+                          </div>
+                          <div className="space-y-2">
+                            {completed.map((p, i) => renderCard(p, i, true))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
               </div>
             </motion.div>
           </motion.div>
