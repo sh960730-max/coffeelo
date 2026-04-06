@@ -5,15 +5,28 @@ import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
 const STORAGE_KEY = 'driver_notification_settings'
+const READ_KEY = 'driver_notif_read'
 const defaultSettings = { call: true, assign: true, complete: true, notice: true, marketing: false }
 
 function getNotifSettings(driverId: string) {
   try {
     const saved = localStorage.getItem(`${STORAGE_KEY}_${driverId}`)
     return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings
-  } catch {
-    return defaultSettings
-  }
+  } catch { return defaultSettings }
+}
+
+function getReadIds(driverId: string): Set<string> {
+  try {
+    const saved = localStorage.getItem(`${READ_KEY}_${driverId}`)
+    return saved ? new Set(JSON.parse(saved)) : new Set()
+  } catch { return new Set() }
+}
+
+interface NotifItem {
+  id: string
+  type: 'assign' | 'complete' | 'notice'
+  title: string
+  time: string
 }
 
 export default function DriverHeader() {
@@ -27,33 +40,44 @@ export default function DriverHeader() {
   const [isOnline, setIsOnline] = useState<boolean>(false)
   const [updating, setUpdating] = useState(false)
   const [showNotif, setShowNotif] = useState(false)
-  const [announcements, setAnnouncements] = useState<any[]>([])
-  const [assignedCalls, setAssignedCalls] = useState<any[]>([])
-  const [completedCalls, setCompletedCalls] = useState<any[]>([])
+  const [notifs, setNotifs] = useState<NotifItem[]>([])
+  const [readIds, setReadIds] = useState<Set<string>>(new Set())
 
   const settings = driverId ? getNotifSettings(driverId) : defaultSettings
+
+  // readIds 초기화
+  useEffect(() => {
+    if (driverId) setReadIds(getReadIds(driverId))
+  }, [driverId])
 
   const fetchNotifications = useCallback(async () => {
     if (!driverId) return
     const db = supabase as any
     const todayStart = new Date()
     todayStart.setHours(0, 0, 0, 0)
+    const items: NotifItem[] = []
 
-    // 배정 알림 (assign)
+    // 배정 알림
     if (settings.assign || settings.call) {
       const { data } = await db.from('pickups')
-        .select('id, cafe:cafes(name), requested_at, created_at')
+        .select('id, cafe:cafes(name), created_at, requested_at')
         .eq('driver_id', driverId)
         .eq('status', 'ASSIGNED')
         .gte('created_at', todayStart.toISOString())
         .order('created_at', { ascending: false })
-        .limit(5)
-      if (data) setAssignedCalls(data)
-    } else {
-      setAssignedCalls([])
+        .limit(10)
+      data?.forEach((c: any) => {
+        const t = new Date(c.requested_at ?? c.created_at)
+        items.push({
+          id: `assign_${c.id}`,
+          type: 'assign',
+          title: `${c.cafe?.name ?? '매장'} 수거 배정`,
+          time: t.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        })
+      })
     }
 
-    // 완료 알림 (complete)
+    // 완료 알림
     if (settings.complete) {
       const { data } = await db.from('pickups')
         .select('id, cafe:cafes(name), completed_at, updated_at')
@@ -61,13 +85,19 @@ export default function DriverHeader() {
         .eq('status', 'COMPLETED')
         .gte('updated_at', todayStart.toISOString())
         .order('updated_at', { ascending: false })
-        .limit(5)
-      if (data) setCompletedCalls(data)
-    } else {
-      setCompletedCalls([])
+        .limit(10)
+      data?.forEach((c: any) => {
+        const t = new Date(c.completed_at ?? c.updated_at)
+        items.push({
+          id: `complete_${c.id}`,
+          type: 'complete',
+          title: `${c.cafe?.name ?? '매장'} 수거 완료`,
+          time: t.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+        })
+      })
     }
 
-    // 공지사항 알림 (notice)
+    // 공지사항 알림
     if (settings.notice) {
       const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
       const { data } = await db.from('announcements')
@@ -75,61 +105,71 @@ export default function DriverHeader() {
         .gte('created_at', threeDaysAgo)
         .order('created_at', { ascending: false })
         .limit(5)
-      if (data) setAnnouncements(data)
-    } else {
-      setAnnouncements([])
+      data?.forEach((a: any) => {
+        const t = new Date(a.created_at)
+        items.push({
+          id: `ann_${a.id}`,
+          type: 'notice',
+          title: a.title,
+          time: t.toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' }),
+        })
+      })
     }
+
+    setNotifs(items)
   }, [driverId, settings.assign, settings.call, settings.complete, settings.notice])
 
   useEffect(() => {
     if (!driverId) return
     const db = supabase as any
 
-    // 온라인 상태 조회
     db.from('drivers').select('is_online').eq('id', driverId).single()
       .then(({ data }: any) => { if (data) setIsOnline(data.is_online ?? false) })
 
     fetchNotifications()
 
-    // Realtime: 내 픽업 상태 변경 구독
+    // Realtime 구독
     const pickupSub = (supabase as any)
       .channel(`driver-pickups-${driverId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'pickups',
-        filter: `driver_id=eq.${driverId}`,
-      }, () => {
-        fetchNotifications()
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups', filter: `driver_id=eq.${driverId}` },
+        () => fetchNotifications())
       .subscribe()
 
-    // Realtime: 공지사항 구독
     const announceSub = (supabase as any)
       .channel('announcements-changes')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'announcements',
-      }, () => {
-        fetchNotifications()
-      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'announcements' },
+        () => fetchNotifications())
       .subscribe()
 
     return () => {
-      (supabase as any).removeChannel(pickupSub)
+      ;(supabase as any).removeChannel(pickupSub)
       ;(supabase as any).removeChannel(announceSub)
     }
   }, [driverId, fetchNotifications])
 
-  // 알림 설정 변경 감지 (다른 탭/페이지에서 변경 시 동기화)
+  // 알림 설정 변경 감지
   useEffect(() => {
     const handleStorage = () => fetchNotifications()
     window.addEventListener('storage', handleStorage)
     return () => window.removeEventListener('storage', handleStorage)
   }, [fetchNotifications])
 
-  const totalCount = assignedCalls.length + completedCalls.length + announcements.length
+  const visibleNotifs = notifs.filter(n => !readIds.has(n.id))
+  const unreadCount = visibleNotifs.length
+
+  const handleReadNotif = (id: string) => {
+    setReadIds(prev => {
+      const next = new Set([...prev, id])
+      localStorage.setItem(`${READ_KEY}_${driverId}`, JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  const handleReadAll = () => {
+    const all = new Set(notifs.map(n => n.id))
+    setReadIds(all)
+    localStorage.setItem(`${READ_KEY}_${driverId}`, JSON.stringify([...all]))
+  }
 
   const handleToggle = async () => {
     if (updating || !driverId) return
@@ -140,8 +180,11 @@ export default function DriverHeader() {
     setUpdating(false)
   }
 
-  const formatTime = (dateStr: string) =>
-    new Date(dateStr).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+  const iconConfig = {
+    assign: { bg: 'bg-eco-green/10', color: 'text-eco-green', Icon: Package },
+    complete: { bg: 'bg-blue-50', color: 'text-blue-500', Icon: CheckCircle2 },
+    notice: { bg: 'bg-amber-50', color: 'text-amber-500', Icon: Megaphone },
+  }
 
   return (
     <>
@@ -152,7 +195,6 @@ export default function DriverHeader() {
         className="sticky top-0 z-50 bg-white/90 backdrop-blur-lg border-b border-gray-100"
       >
         <div className="flex items-center justify-between px-5 py-4">
-          {/* 프로필 */}
           <div className="flex items-center gap-3">
             <div className="relative">
               <div className="w-11 h-11 bg-gradient-to-br from-eco-green to-eco-green-600 rounded-full flex items-center justify-center shadow-sm">
@@ -169,22 +211,20 @@ export default function DriverHeader() {
             </div>
           </div>
 
-          {/* 알림 버튼 */}
           <motion.button
             whileTap={{ scale: 0.9 }}
             onClick={() => setShowNotif(true)}
             className="relative w-10 h-10 flex items-center justify-center rounded-full bg-gray-50"
           >
             <Bell className="w-5 h-5 text-gray-600" />
-            {totalCount > 0 && (
+            {unreadCount > 0 && (
               <span className="absolute top-1 right-1 min-w-[16px] h-4 bg-red-500 rounded-full border-2 border-white flex items-center justify-center">
-                <span className="text-[9px] text-white font-bold px-0.5">{totalCount}</span>
+                <span className="text-[9px] text-white font-bold px-0.5">{unreadCount}</span>
               </span>
             )}
           </motion.button>
         </div>
 
-        {/* 온/오프라인 토글 */}
         <div className="px-5 pb-3">
           <motion.button
             whileTap={{ scale: 0.98 }}
@@ -230,82 +270,67 @@ export default function DriverHeader() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+
+              {/* 헤더 */}
               <div className="flex items-center justify-between mb-5">
-                <h2 className="text-base font-bold text-gray-900">알림</h2>
-                <button onClick={() => setShowNotif(false)}>
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base font-bold text-gray-900">알림</h2>
+                  {unreadCount > 0 && (
+                    <span className="text-xs font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full">
+                      {unreadCount}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  {unreadCount > 0 && (
+                    <button onClick={handleReadAll} className="text-xs text-eco-green font-semibold">
+                      모두 읽음
+                    </button>
+                  )}
+                  <button onClick={() => setShowNotif(false)}>
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
               </div>
 
-              {/* 배정 알림 */}
-              {assignedCalls.length > 0 && (
-                <div className="mb-5">
-                  <p className="text-xs font-semibold text-gray-400 mb-2">오늘 배정된 수거</p>
-                  <div className="space-y-2">
-                    {assignedCalls.map((c) => (
-                      <div key={c.id} className="flex items-center gap-3 bg-eco-green-100/60 rounded-2xl px-4 py-3">
-                        <div className="w-9 h-9 bg-eco-green/20 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <Package className="w-4 h-4 text-eco-green" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">{c.cafe?.name ?? '매장'} 수거 배정</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">{formatTime(c.requested_at ?? c.created_at)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 완료 알림 */}
-              {completedCalls.length > 0 && (
-                <div className="mb-5">
-                  <p className="text-xs font-semibold text-gray-400 mb-2">오늘 완료된 수거</p>
-                  <div className="space-y-2">
-                    {completedCalls.map((c) => (
-                      <div key={c.id} className="flex items-center gap-3 bg-blue-50 rounded-2xl px-4 py-3">
-                        <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <CheckCircle2 className="w-4 h-4 text-blue-500" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">{c.cafe?.name ?? '매장'} 수거 완료</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">{formatTime(c.completed_at ?? c.updated_at)}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* 공지사항 */}
-              {announcements.length > 0 && (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 mb-2">최근 공지사항</p>
-                  <div className="space-y-2">
-                    {announcements.map((a) => (
-                      <div key={a.id} className="flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3">
-                        <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <Megaphone className="w-4 h-4 text-blue-500" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">{a.title}</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">
-                            {new Date(a.created_at).toLocaleDateString('ko-KR', { month: 'numeric', day: 'numeric' })}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {totalCount === 0 && (
+              {/* 알림 목록 */}
+              {visibleNotifs.length === 0 ? (
                 <div className="text-center py-12">
                   <Bell className="w-10 h-10 text-gray-200 mx-auto mb-2" />
                   <p className="text-sm text-gray-400">새로운 알림이 없습니다</p>
-                  {(!settings.assign && !settings.call && !settings.complete && !settings.notice) && (
-                    <p className="text-xs text-gray-300 mt-1">알림 설정에서 알림을 켜보세요</p>
-                  )}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <AnimatePresence>
+                    {visibleNotifs.map((n) => {
+                      const cfg = iconConfig[n.type]
+                      return (
+                        <motion.div
+                          key={n.id}
+                          initial={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0, marginBottom: 0, overflow: 'hidden' }}
+                          transition={{ duration: 0.25 }}
+                        >
+                          <motion.button
+                            whileTap={{ scale: 0.98 }}
+                            onClick={() => handleReadNotif(n.id)}
+                            className="w-full flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3 text-left"
+                          >
+                            <div className={`w-9 h-9 ${cfg.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+                              <cfg.Icon className={`w-4 h-4 ${cfg.color}`} />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center justify-between gap-2">
+                                <p className="text-sm font-semibold text-gray-800 truncate">{n.title}</p>
+                                <div className="w-2 h-2 bg-eco-green rounded-full flex-shrink-0" />
+                              </div>
+                              <p className="text-[11px] text-gray-400 mt-0.5">{n.time}</p>
+                            </div>
+                          </motion.button>
+                        </motion.div>
+                      )
+                    })}
+                  </AnimatePresence>
                 </div>
               )}
             </motion.div>
