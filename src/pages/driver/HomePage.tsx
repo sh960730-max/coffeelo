@@ -13,6 +13,7 @@ export interface PickupStop {
   storeName: string
   storeType: 'starbucks' | 'franchise' | 'individual'
   address: string
+  phone?: string | null
   containerType: 'box' | 'bag'
   estimatedCount: number
   status: 'waiting' | 'arrived' | 'loaded' | 'completed'
@@ -77,6 +78,7 @@ export default function HomePage() {
         storeName: p.cafe?.name ?? '알 수 없음',
         storeType: mapStoreType(p.cafe?.store_type || 'INDIVIDUAL'),
         address: p.cafe?.address ?? '-',
+        phone: p.cafe?.phone ?? null,
         containerType: (p.container_type === 'BAG' ? 'bag' : 'box') as 'box' | 'bag',
         estimatedCount: p.quantity ?? 0,
         status: mapStatus(p.status),

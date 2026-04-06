@@ -1,5 +1,6 @@
-import { motion } from 'framer-motion'
-import { Navigation, Phone, Camera, Package, MapPin, Clock, ChevronRight, Coffee } from 'lucide-react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Navigation, Phone, Camera, Package, MapPin, Clock, ChevronRight, Coffee, X } from 'lucide-react'
 import type { PickupStop } from '../../pages/driver/HomePage'
 import { useAuth } from '../../contexts/AuthContext'
 
@@ -17,6 +18,53 @@ const statusLabel: Record<string, string> = {
   completed: '수거 완료',
 }
 
+// 네비게이션 앱 목록 (API 키 불필요 - 주소 텍스트 기반)
+const navApps = [
+  {
+    id: 'kakao',
+    name: '카카오맵',
+    color: 'bg-yellow-400',
+    textColor: 'text-gray-900',
+    emoji: '🗺',
+    getUrl: (address: string) => {
+      const encoded = encodeURIComponent(address)
+      const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent)
+      return isMobile
+        ? `kakaomap://search?q=${encoded}`
+        : `https://map.kakao.com/link/search/${encoded}`
+    },
+    fallbackUrl: (address: string) =>
+      `https://map.kakao.com/link/search/${encodeURIComponent(address)}`,
+  },
+  {
+    id: 'naver',
+    name: '네이버 지도',
+    color: 'bg-green-500',
+    textColor: 'text-white',
+    emoji: '🧭',
+    getUrl: (address: string) => {
+      const encoded = encodeURIComponent(address)
+      const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent)
+      return isMobile
+        ? `nmap://search?query=${encoded}&appname=kr.co.smartecosys`
+        : `https://map.naver.com/v5/search/${encoded}`
+    },
+    fallbackUrl: (address: string) =>
+      `https://map.naver.com/v5/search/${encodeURIComponent(address)}`,
+  },
+  {
+    id: 'google',
+    name: '구글 지도',
+    color: 'bg-blue-500',
+    textColor: 'text-white',
+    emoji: '📍',
+    getUrl: (address: string) =>
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+    fallbackUrl: (address: string) =>
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`,
+  },
+]
+
 function StopCard({
   stop,
   index,
@@ -29,92 +77,178 @@ function StopCard({
   const typeInfo = storeTypeLabel[stop.storeType]
   const currentIdx = statusFlow.indexOf(stop.status as typeof statusFlow[number])
   const isActive = stop.status === 'arrived'
+  const [showNavSheet, setShowNavSheet] = useState(false)
+
+  const handleNavSelect = (app: typeof navApps[0]) => {
+    const url = app.getUrl(stop.address)
+    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent)
+
+    if (isMobile && (app.id === 'kakao' || app.id === 'naver')) {
+      // 앱 딥링크 시도 → 앱 없으면 웹으로 폴백
+      const fallback = app.fallbackUrl(stop.address)
+      const timer = setTimeout(() => {
+        window.open(fallback, '_blank')
+      }, 1500)
+      window.location.href = url
+      // 페이지가 앱으로 전환되면 타이머 취소
+      window.addEventListener('blur', () => clearTimeout(timer), { once: true })
+    } else {
+      window.open(url, '_blank')
+    }
+    setShowNavSheet(false)
+  }
+
+  const handleCall = () => {
+    if (stop.phone) {
+      window.location.href = `tel:${stop.phone.replace(/[^0-9]/g, '')}`
+    }
+  }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.4, delay: 0.1 + index * 0.08 }}
-      className={`bg-white rounded-2xl p-4 shadow-card border-l-4 transition-all duration-300 ${
-        isActive ? 'border-l-eco-green shadow-card-hover' : 'border-l-gray-200'
-      }`}
-    >
-      <div className="flex items-start justify-between">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-xs text-gray-400 font-semibold">#{index + 1}</span>
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${typeInfo.color}`}>
-              {typeInfo.label}
-            </span>
-            <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
-              isActive ? 'bg-eco-green-100 text-eco-green' : 'bg-gray-100 text-gray-500'
-            }`}>
-              {statusLabel[stop.status]}
-            </span>
-          </div>
-          <h3 className="text-sm font-bold text-gray-900">{stop.storeName}</h3>
-          <div className="flex items-center gap-1 mt-1">
-            <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
-            <p className="text-xs text-gray-500 truncate">{stop.address}</p>
-          </div>
-        </div>
-
-        <div className="text-right ml-3">
-          <div className="flex items-center gap-1">
-            <Coffee className="w-3.5 h-3.5 text-coffee-brown/60" />
-            <span className="text-sm font-bold text-coffee-brown">
-              {stop.containerType === 'box' ? `${stop.estimatedCount}박스` : `${stop.estimatedCount}봉지`}
-            </span>
-          </div>
-          {stop.estimatedWeight && (
-            <p className="text-[10px] text-gray-400 mt-0.5">~{stop.estimatedWeight}kg 예상</p>
-          )}
-        </div>
-      </div>
-
-      {/* 상태 미니 스텝퍼 */}
-      <div className="flex items-center gap-0.5 mt-3">
-        {statusFlow.map((step, idx) => (
-          <div key={step} className="flex-1">
-            <div
-              className={`h-1 rounded-full transition-all duration-500 ${
-                idx <= currentIdx ? 'bg-eco-green' : 'bg-gray-200'
-              }`}
-            />
-          </div>
-        ))}
-      </div>
-
-      {/* 액션 버튼들 - 모든 매장에 표시 */}
+    <>
       <motion.div
-        initial={{ opacity: 0, height: 0 }}
-        animate={{ opacity: 1, height: 'auto' }}
-        className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100"
+        initial={{ opacity: 0, x: -20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.4, delay: 0.1 + index * 0.08 }}
+        className={`bg-white rounded-2xl p-4 shadow-card border-l-4 transition-all duration-300 ${
+          isActive ? 'border-l-eco-green shadow-card-hover' : 'border-l-gray-200'
+        }`}
       >
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-eco-green text-white rounded-xl text-xs font-semibold"
+        <div className="flex items-start justify-between">
+          <div className="flex-1">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-xs text-gray-400 font-semibold">#{index + 1}</span>
+              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${typeInfo.color}`}>
+                {typeInfo.label}
+              </span>
+              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${
+                isActive ? 'bg-eco-green-100 text-eco-green' : 'bg-gray-100 text-gray-500'
+              }`}>
+                {statusLabel[stop.status]}
+              </span>
+            </div>
+            <h3 className="text-sm font-bold text-gray-900">{stop.storeName}</h3>
+            <div className="flex items-center gap-1 mt-1">
+              <MapPin className="w-3 h-3 text-gray-400 flex-shrink-0" />
+              <p className="text-xs text-gray-500 truncate">{stop.address}</p>
+            </div>
+          </div>
+
+          <div className="text-right ml-3">
+            <div className="flex items-center gap-1">
+              <Coffee className="w-3.5 h-3.5 text-coffee-brown/60" />
+              <span className="text-sm font-bold text-coffee-brown">
+                {stop.containerType === 'box' ? `${stop.estimatedCount}박스` : `${stop.estimatedCount}봉지`}
+              </span>
+            </div>
+            {stop.estimatedWeight && (
+              <p className="text-[10px] text-gray-400 mt-0.5">~{stop.estimatedWeight}kg 예상</p>
+            )}
+          </div>
+        </div>
+
+        {/* 상태 미니 스텝퍼 */}
+        <div className="flex items-center gap-0.5 mt-3">
+          {statusFlow.map((step, idx) => (
+            <div key={step} className="flex-1">
+              <div className={`h-1 rounded-full transition-all duration-500 ${
+                idx <= currentIdx ? 'bg-eco-green' : 'bg-gray-200'
+              }`} />
+            </div>
+          ))}
+        </div>
+
+        {/* 액션 버튼들 */}
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100"
         >
-          <Navigation className="w-3.5 h-3.5" />
-          길안내
-        </motion.button>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-blue-500 text-white rounded-xl text-xs font-semibold"
-        >
-          <Phone className="w-3.5 h-3.5" />
-          전화
-        </motion.button>
-        <motion.button
-          whileTap={{ scale: 0.95 }}
-          onClick={() => onPickupConfirm?.(stop.id)}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-coffee-brown text-white rounded-xl text-xs font-semibold"
-        >
-          <Camera className="w-3.5 h-3.5" />
-          수거확인
-        </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowNavSheet(true)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-eco-green text-white rounded-xl text-xs font-semibold"
+          >
+            <Navigation className="w-3.5 h-3.5" />
+            길안내
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={handleCall}
+            disabled={!stop.phone}
+            className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold ${
+              stop.phone ? 'bg-blue-500 text-white' : 'bg-gray-100 text-gray-400'
+            }`}
+          >
+            <Phone className="w-3.5 h-3.5" />
+            전화
+          </motion.button>
+          <motion.button
+            whileTap={{ scale: 0.95 }}
+            onClick={() => onPickupConfirm?.(stop.id)}
+            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-coffee-brown text-white rounded-xl text-xs font-semibold"
+          >
+            <Camera className="w-3.5 h-3.5" />
+            수거확인
+          </motion.button>
+        </motion.div>
       </motion.div>
-    </motion.div>
+
+      {/* 네비게이션 앱 선택 바텀시트 */}
+      <AnimatePresence>
+        {showNavSheet && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowNavSheet(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl px-5 pt-4 pb-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+
+              {/* 목적지 */}
+              <div className="flex items-start gap-2 mb-5 bg-gray-50 rounded-2xl px-4 py-3">
+                <Navigation className="w-4 h-4 text-eco-green mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-[10px] text-gray-400">목적지</p>
+                  <p className="text-sm font-bold text-gray-900">{stop.storeName}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{stop.address}</p>
+                </div>
+                <button onClick={() => setShowNavSheet(false)} className="ml-auto">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+
+              <p className="text-xs font-semibold text-gray-500 mb-3">앱 선택</p>
+              <div className="space-y-2.5">
+                {navApps.map((app) => (
+                  <motion.button
+                    key={app.id}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleNavSelect(app)}
+                    className="w-full flex items-center gap-4 bg-gray-50 rounded-2xl px-4 py-3.5"
+                  >
+                    <div className={`w-11 h-11 ${app.color} rounded-2xl flex items-center justify-center text-xl`}>
+                      {app.emoji}
+                    </div>
+                    <span className="text-sm font-semibold text-gray-800">{app.name}</span>
+                    <ChevronRight className="w-4 h-4 text-gray-300 ml-auto" />
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   )
 }
 
