@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Scale, Truck, ArrowRight, Camera } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
 export default function DriverWeighStation() {
   const { user } = useAuth()
   const driverId = (user as any)?.id
+  const navigate = useNavigate()
 
   const [lastWeigh, setLastWeigh] = useState<{
     loadedWeight: number
@@ -52,6 +54,7 @@ export default function DriverWeighStation() {
           <p className="text-sm text-gray-400">오늘 집하장 계량 내역이 없습니다</p>
           <motion.button
             whileTap={{ scale: 0.97 }}
+            onClick={() => navigate('/driver/weigh')}
             className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-eco-green/10 text-eco-green rounded-xl text-sm font-semibold border border-eco-green/20"
           >
             <Camera className="w-4 h-4" />
