@@ -196,12 +196,18 @@ export default function SettlementManagePage() {
       fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
     }
 
-    // 기간 내 전체 픽업 (배정+완료) → 방문완료율 계산
+    // 기간 내 전체 픽업 (배정+완료) → created_at/completed_at/updated_at OR 조건
     let pickupQuery = db.from('pickups')
-      .select('driver_id, status, total_weight, settlement_amount, completed_at, created_at')
+      .select('driver_id, status, total_weight, settlement_amount, completed_at, created_at, updated_at')
       .in('driver_id', driverIds)
-      .gte('created_at', fromDate)
-    if (toDate) pickupQuery = pickupQuery.lte('created_at', toDate)
+
+    if (toDate) {
+      pickupQuery = pickupQuery.or(
+        `and(created_at.gte.${fromDate},created_at.lte.${toDate}),and(completed_at.gte.${fromDate},completed_at.lte.${toDate}),and(updated_at.gte.${fromDate},updated_at.lte.${toDate})`
+      )
+    } else {
+      pickupQuery = pickupQuery.or(`created_at.gte.${fromDate},completed_at.gte.${fromDate},updated_at.gte.${fromDate}`)
+    }
     const { data: allPickups } = await pickupQuery
 
     const statsMap: Record<string, { visitCount: number; totalAssigned: number; isOnline: boolean }> = {}
