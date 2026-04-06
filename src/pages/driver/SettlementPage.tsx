@@ -72,6 +72,8 @@ export default function SettlementPage() {
       const { data: settlementsData } = await db.from('settlements')
         .select('*')
         .eq('driver_id', driverId)
+        .gte('period_start', from)
+        .lt('period_start', to)
         .order('period_start', { ascending: false })
       if (settlementsData) setSettlements(settlementsData)
     }
