@@ -284,10 +284,9 @@ export default function SettlementManagePage() {
         status: 'PENDING',
       }
     }).filter(s => {
-      // 날짜 필터 범위와 겹치는 synth만 표시
+      // period_start 기준 strict 필터 (DB settlements와 동일 방식)
       const sStart = new Date(s.period_start)
-      const sEnd = new Date(s.period_end)
-      return sStart <= toD && sEnd >= fromD
+      return sStart >= fromD && sStart <= toD
     })
 
     const realList = (settlementsData || []).map((s: any) => ({
