@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Scale, ChevronDown, ChevronUp, CheckCircle,
   Calendar, TrendingUp, Truck, Loader2, CreditCard,
-  Trees, Target, MapPin, BarChart3, Circle, Download
+  Trees, Target, MapPin, BarChart3, Circle, Download,
+  ChevronLeft, ChevronRight, X
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useAuth } from '../../contexts/AuthContext'
@@ -28,6 +29,115 @@ const driverStatusBadge = (isOnline: boolean | null) =>
     ? { label: '운행중', cls: 'bg-green-100 text-green-600' }
     : { label: '퇴근',   cls: 'bg-gray-100 text-gray-400' }
 
+/* ── 달력 컴포넌트 ── */
+function DateRangePicker({ onClose, onApply }: { onClose: () => void; onApply: (from: string, to: string) => void }) {
+  const today = new Date()
+  const [viewYear, setViewYear] = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
+  const [startDate, setStartDate] = useState<string | null>(null)
+  const [endDate, setEndDate] = useState<string | null>(null)
+
+  const toKey = (y: number, m: number, d: number) =>
+    `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  const todayKey = toKey(today.getFullYear(), today.getMonth(), today.getDate())
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+
+  const prevMonth = () => { if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) } else setViewMonth(m => m - 1) }
+  const nextMonth = () => { if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) } else setViewMonth(m => m + 1) }
+
+  const handleDayClick = (key: string) => {
+    if (!startDate || (startDate && endDate)) { setStartDate(key); setEndDate(null) }
+    else { if (key < startDate) { setEndDate(startDate); setStartDate(key) } else setEndDate(key) }
+  }
+
+  const isInRange = (key: string) => startDate && endDate && key > startDate && key < endDate
+  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
+  const days = ['일','월','화','수','목','금','토']
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-black/40 flex items-end justify-center" onClick={onClose}
+    >
+      <motion.div initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-md bg-white rounded-t-3xl p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-gray-900">기간 선택</h2>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+        <div className="flex items-center gap-2 mb-4 bg-gray-50 rounded-xl p-3">
+          <div className="flex-1 text-center">
+            <p className="text-[10px] text-gray-400 mb-0.5">시작일</p>
+            <p className={`text-sm font-bold ${startDate ? 'text-eco-green' : 'text-gray-300'}`}>{startDate ?? '날짜 선택'}</p>
+          </div>
+          <div className="w-6 h-px bg-gray-300" />
+          <div className="flex-1 text-center">
+            <p className="text-[10px] text-gray-400 mb-0.5">종료일</p>
+            <p className={`text-sm font-bold ${endDate ? 'text-eco-green' : 'text-gray-300'}`}>{endDate ?? '날짜 선택'}</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100"><ChevronLeft className="w-4 h-4 text-gray-600" /></button>
+          <span className="text-sm font-bold text-gray-800">{viewYear}년 {months[viewMonth]}</span>
+          <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100"><ChevronRight className="w-4 h-4 text-gray-600" /></button>
+        </div>
+        <div className="grid grid-cols-7 mb-1">
+          {days.map((d, i) => (
+            <div key={d} className={`text-center text-[11px] font-semibold py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'}`}>{d}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 gap-y-1">
+          {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const d = i + 1
+            const key = toKey(viewYear, viewMonth, d)
+            const isStart = key === startDate
+            const isEnd = key === endDate
+            const inRange = isInRange(key)
+            const isToday = key === todayKey
+            const dow = (firstDay + i) % 7
+            return (
+              <button key={key} onClick={() => handleDayClick(key)}
+                className={`relative h-9 text-xs font-semibold transition-all
+                  ${isStart || isEnd ? 'bg-eco-green text-white rounded-xl shadow-sm' : ''}
+                  ${inRange ? 'bg-eco-green-100 text-eco-green rounded-none' : ''}
+                  ${!isStart && !isEnd && !inRange ? (isToday ? 'text-eco-green' : dow === 0 ? 'text-red-400' : dow === 6 ? 'text-blue-400' : 'text-gray-700') : ''}
+                `}
+              >
+                {d}
+                {isToday && !isStart && !isEnd && <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-eco-green" />}
+              </button>
+            )
+          })}
+        </div>
+        <div className="flex gap-2 mt-4">
+          {[
+            { label: '오늘', fn: () => { setStartDate(todayKey); setEndDate(todayKey) }},
+            { label: '이번 주', fn: () => {
+              const mon = new Date(today); mon.setDate(today.getDate() + (today.getDay() === 0 ? -6 : 1 - today.getDay()))
+              setStartDate(toKey(mon.getFullYear(), mon.getMonth(), mon.getDate())); setEndDate(todayKey)
+            }},
+            { label: '이번 달', fn: () => {
+              setStartDate(toKey(today.getFullYear(), today.getMonth(), 1)); setEndDate(todayKey)
+            }},
+          ].map(q => (
+            <button key={q.label} onClick={q.fn} className="flex-1 py-2 bg-gray-100 rounded-xl text-xs font-semibold text-gray-600">{q.label}</button>
+          ))}
+        </div>
+        <motion.button whileTap={{ scale: 0.97 }} disabled={!startDate || !endDate}
+          onClick={() => startDate && endDate && onApply(startDate, endDate)}
+          className={`w-full mt-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${startDate && endDate ? 'bg-eco-green text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'}`}
+        >
+          {startDate && endDate ? `${startDate} ~ ${endDate} 조회` : '날짜를 선택해주세요'}
+        </motion.button>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 export default function SettlementManagePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -39,6 +149,11 @@ export default function SettlementManagePage() {
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null)
+
+  // 날짜 필터
+  const [dateFilter, setDateFilter] = useState('month')
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null)
+  const [showDatePicker, setShowDatePicker] = useState(false)
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type })
@@ -63,13 +178,31 @@ export default function SettlementManagePage() {
     const driverIds = drivers.map((d: any) => d.id)
 
     const now = new Date()
-    const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    let fromDate: string
+    let toDate: string | null = null
 
-    // 이번달 전체 픽업 (배정+완료) → 방문완료율 계산
-    const { data: allPickups } = await db.from('pickups')
-      .select('driver_id, status, total_weight, settlement_amount, completed_at')
+    if (customRange) {
+      fromDate = customRange.from + 'T00:00:00'
+      toDate = customRange.to + 'T23:59:59'
+    } else if (dateFilter === 'today') {
+      fromDate = now.toISOString().split('T')[0] + 'T00:00:00'
+    } else if (dateFilter === 'week') {
+      const dow = now.getDay()
+      const mon = new Date(now)
+      mon.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
+      mon.setHours(0, 0, 0, 0)
+      fromDate = mon.toISOString()
+    } else {
+      fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    }
+
+    // 기간 내 전체 픽업 (배정+완료) → 방문완료율 계산
+    let pickupQuery = db.from('pickups')
+      .select('driver_id, status, total_weight, settlement_amount, completed_at, created_at')
       .in('driver_id', driverIds)
-      .gte('created_at', firstOfMonth)
+      .gte('created_at', fromDate)
+    if (toDate) pickupQuery = pickupQuery.lte('created_at', toDate)
+    const { data: allPickups } = await pickupQuery
 
     const statsMap: Record<string, { visitCount: number; totalAssigned: number; isOnline: boolean }> = {}
     driverIds.forEach((id: string) => {
@@ -83,11 +216,13 @@ export default function SettlementManagePage() {
     setDriverStats(statsMap)
 
     // settlements 테이블 조회
-    const { data: settlementsData } = await db.from('settlements')
+    let settQuery = db.from('settlements')
       .select('*')
       .in('driver_id', driverIds)
-      .gte('period_start', firstOfMonth)
+      .gte('period_start', fromDate)
       .order('period_start', { ascending: false })
+    if (toDate) settQuery = settQuery.lte('period_start', toDate)
+    const { data: settlementsData } = await settQuery
 
     const settledDriverIds = new Set((settlementsData || []).map((s: any) => s.driver_id))
 
@@ -101,13 +236,14 @@ export default function SettlementManagePage() {
       agg[p.driver_id].amount += p.settlement_amount || 0
     })
 
-    const firstDay = new Date(now.getFullYear(), now.getMonth(), 1)
-    const periodStr = `${firstDay.getMonth() + 1}/1 ~ ${now.getMonth() + 1}/${now.getDate()}`
+    const fromD = new Date(fromDate)
+    const toD = toDate ? new Date(toDate) : now
+    const periodStr = `${fromD.getMonth()+1}/${fromD.getDate()} ~ ${toD.getMonth()+1}/${toD.getDate()}`
     const synthList = Object.entries(agg).map(([driverId, v]) => ({
       id: `synth_${driverId}`,
       driver_id: driverId,
       driverName: driverMap[driverId] || '알 수 없음',
-      period_start: firstDay.toISOString(),
+      period_start: fromD.toISOString(),
       period_end: now.toISOString(),
       periodStr,
       total_weight: v.kg,
@@ -124,7 +260,7 @@ export default function SettlementManagePage() {
     setLoading(false)
   }
 
-  useEffect(() => { fetchSettlements() }, [companyName])
+  useEffect(() => { fetchSettlements() }, [companyName, dateFilter, customRange])
 
   const updateStatus = async (settlementId: string, newStatus: string) => {
     setUpdating(settlementId)
@@ -253,7 +389,7 @@ export default function SettlementManagePage() {
       </AnimatePresence>
 
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between mb-3">
           <h1 className="text-lg font-bold text-gray-900">정산 관리</h1>
           {!loading && settlements.length > 0 && (
             <motion.button
@@ -265,6 +401,28 @@ export default function SettlementManagePage() {
               엑셀 다운로드
             </motion.button>
           )}
+        </div>
+        <div className="flex items-center gap-2">
+          <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          {(['today', 'week', 'month'] as const).map(f => (
+            <motion.button key={f} whileTap={{ scale: 0.95 }}
+              onClick={() => { setDateFilter(f); setCustomRange(null) }}
+              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                dateFilter === f && !customRange ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
+              }`}
+            >
+              {f === 'today' ? '오늘' : f === 'week' ? '이번 주' : '이번 달'}
+            </motion.button>
+          ))}
+          <motion.button whileTap={{ scale: 0.95 }}
+            onClick={() => setShowDatePicker(true)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+              customRange ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
+            }`}
+          >
+            <Calendar className="w-3 h-3" />
+            {customRange ? `${customRange.from.slice(5)} ~ ${customRange.to.slice(5)}` : '기간선택'}
+          </motion.button>
         </div>
       </header>
 
@@ -540,6 +698,19 @@ export default function SettlementManagePage() {
           </>
         )}
       </div>
+
+      {/* 달력 기간 선택 모달 */}
+      <AnimatePresence>
+        {showDatePicker && (
+          <DateRangePicker
+            onClose={() => setShowDatePicker(false)}
+            onApply={(from, to) => {
+              setCustomRange({ from, to })
+              setShowDatePicker(false)
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }
