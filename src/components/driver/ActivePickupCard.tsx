@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Navigation, Phone, Camera, Package, MapPin, Clock, ChevronRight, Coffee, X } from 'lucide-react'
 import type { PickupStop } from '../../pages/driver/HomePage'
 import { useAuth } from '../../contexts/AuthContext'
+import { supabase } from '../../lib/supabase'
 
 const storeTypeLabel = {
   starbucks: { label: '스벅', color: 'bg-green-600 text-white', icon: '★' },
@@ -263,6 +264,36 @@ export default function ActivePickupCard({ pickups, onPickupConfirm }: ActivePic
   const totalBoxes = pickups.reduce((sum, s) => s.containerType === 'box' ? sum + s.estimatedCount : sum, 0)
   const totalBags = pickups.reduce((sum, s) => s.containerType === 'bag' ? sum + s.estimatedCount : sum, 0)
 
+  const [depotAddress, setDepotAddress] = useState<string | null>(null)
+  const [showDepotNav, setShowDepotNav] = useState(false)
+
+  useEffect(() => {
+    if (!driverCompany) return
+    ;(supabase as any)
+      .from('companies')
+      .select('address')
+      .eq('name', driverCompany)
+      .single()
+      .then(({ data }: any) => {
+        if (data?.address) setDepotAddress(data.address)
+      })
+  }, [driverCompany])
+
+  const handleDepotNavSelect = (app: typeof navApps[0]) => {
+    const address = depotAddress || driverCompany
+    const url = app.getUrl(address)
+    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent)
+    if (isMobile && (app.id === 'kakao' || app.id === 'naver')) {
+      const fallback = app.fallbackUrl(address)
+      const timer = setTimeout(() => { window.open(fallback, '_blank') }, 1500)
+      window.location.href = url
+      window.addEventListener('blur', () => clearTimeout(timer), { once: true })
+    } else {
+      window.open(url, '_blank')
+    }
+    setShowDepotNav(false)
+  }
+
   return (
     <motion.section
       initial={{ opacity: 0, y: 20 }}
@@ -295,6 +326,7 @@ export default function ActivePickupCard({ pickups, onPickupConfirm }: ActivePic
       <motion.button
         whileHover={{ scale: 1.01 }}
         whileTap={{ scale: 0.98 }}
+        onClick={() => setShowDepotNav(true)}
         className="w-full mt-3 flex items-center justify-between p-3.5 bg-gray-50 rounded-xl border border-dashed border-gray-300"
       >
         <div className="flex items-center gap-2.5">
@@ -306,8 +338,60 @@ export default function ActivePickupCard({ pickups, onPickupConfirm }: ActivePic
             <p className="text-sm font-semibold text-gray-800">{driverCompany} 집하장으로 이동</p>
           </div>
         </div>
-        <ChevronRight className="w-4 h-4 text-gray-400" />
+        <Navigation className="w-4 h-4 text-eco-green" />
       </motion.button>
+
+      {/* 집하장 네비게이션 바텀시트 */}
+      <AnimatePresence>
+        {showDepotNav && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+            onClick={() => setShowDepotNav(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl px-5 pt-4 pb-8"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+              <div className="flex items-start gap-2 mb-5 bg-gray-50 rounded-2xl px-4 py-3">
+                <MapPin className="w-4 h-4 text-coffee-brown mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-[10px] text-gray-400">목적지 (집하장)</p>
+                  <p className="text-sm font-bold text-gray-900">{driverCompany} 집하장</p>
+                  {depotAddress && <p className="text-xs text-gray-500 mt-0.5">{depotAddress}</p>}
+                </div>
+                <button onClick={() => setShowDepotNav(false)} className="ml-auto">
+                  <X className="w-4 h-4 text-gray-400" />
+                </button>
+              </div>
+              <p className="text-xs font-semibold text-gray-500 mb-3">앱 선택</p>
+              <div className="space-y-2.5">
+                {navApps.map((app) => (
+                  <motion.button
+                    key={app.id}
+                    whileTap={{ scale: 0.97 }}
+                    onClick={() => handleDepotNavSelect(app)}
+                    className="w-full flex items-center gap-4 bg-gray-50 rounded-2xl px-4 py-3.5"
+                  >
+                    <div className={`w-11 h-11 ${app.color} rounded-2xl flex items-center justify-center text-xl`}>
+                      {app.emoji}
+                    </div>
+                    <span className="text-sm font-semibold text-gray-800">{app.name}</span>
+                    <ChevronRight className="w-4 h-4 text-gray-300 ml-auto" />
+                  </motion.button>
+                ))}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </motion.section>
   )
 }
