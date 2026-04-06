@@ -155,6 +155,10 @@ export default function SettlementManagePage() {
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
 
+  // 목록 필터
+  const [filterDriver, setFilterDriver] = useState('전체')
+  const [filterStatus, setFilterStatus] = useState('전체')
+
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), 2500)
@@ -393,6 +397,21 @@ export default function SettlementManagePage() {
   const pendingCount   = settlements.filter(d => ['PENDING','pending'].includes(d.status)).length
   const confirmedCount = settlements.filter(d => ['CONFIRMED','confirmed'].includes(d.status)).length
 
+  // 기사 목록 (드롭다운용)
+  const driverNames = ['전체', ...Array.from(new Set(settlements.map(s => s.driverName)))]
+
+  // 필터 적용
+  const filteredSettlements = settlements.filter(s => {
+    if (filterDriver !== '전체' && s.driverName !== filterDriver) return false
+    if (filterStatus !== '전체') {
+      const statusUp = (s.status || '').toUpperCase()
+      if (filterStatus === '대기' && statusUp !== 'PENDING') return false
+      if (filterStatus === '확정' && statusUp !== 'CONFIRMED') return false
+      if (filterStatus === '지급완료' && statusUp !== 'PAID') return false
+    }
+    return true
+  })
+
   const displayKg   = monthlyKg >= 1000 ? `${(monthlyKg / 1000).toFixed(2)}ton` : `${monthlyKg.toLocaleString()}kg`
   const co2Saved    = monthlyKg * CO2_PER_KG
   const treesEquiv  = Math.round(co2Saved / TREE_CO2_MONTHLY)
@@ -428,7 +447,7 @@ export default function SettlementManagePage() {
             </motion.button>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 mb-2">
           <Calendar className="w-4 h-4 text-gray-400 flex-shrink-0" />
           {(['today', 'week', 'month'] as const).map(f => (
             <motion.button key={f} whileTap={{ scale: 0.95 }}
@@ -449,6 +468,25 @@ export default function SettlementManagePage() {
             <Calendar className="w-3 h-3" />
             {customRange ? `${customRange.from.slice(5)} ~ ${customRange.to.slice(5)}` : '기간선택'}
           </motion.button>
+        </div>
+        {/* 기사/상태 필터 */}
+        <div className="flex items-center gap-2 pt-1">
+          <select value={filterDriver} onChange={e => setFilterDriver(e.target.value)}
+            className="flex-1 text-[11px] font-medium px-2.5 py-1.5 bg-gray-50 rounded-lg border border-gray-200 text-gray-600 outline-none">
+            {driverNames.map(n => <option key={n}>{n}</option>)}
+          </select>
+          <div className="flex items-center gap-1">
+            {['전체','대기','확정','지급완료'].map(s => (
+              <button key={s}
+                onClick={() => setFilterStatus(s)}
+                className={`text-[10px] font-semibold px-2.5 py-1.5 rounded-lg transition-colors ${
+                  filterStatus === s ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
+                }`}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
@@ -491,15 +529,23 @@ export default function SettlementManagePage() {
             </motion.div>
 
             {/* ── 기사별 정산 ── */}
-            <h2 className="text-sm font-bold text-gray-800 mb-3">기사별 정산</h2>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold text-gray-800">기사별 정산</h2>
+              <span className="text-[11px] text-gray-400">{filteredSettlements.length}건</span>
+            </div>
             {settlements.length === 0 ? (
               <div className="text-center py-12">
                 <Scale className="w-10 h-10 text-gray-200 mx-auto mb-2" />
                 <p className="text-sm text-gray-400">정산 내역이 없습니다</p>
               </div>
+            ) : filteredSettlements.length === 0 ? (
+              <div className="text-center py-12">
+                <Scale className="w-10 h-10 text-gray-200 mx-auto mb-2" />
+                <p className="text-sm text-gray-400">필터 조건에 맞는 내역이 없습니다</p>
+              </div>
             ) : (
               <div className="space-y-2.5">
-                {settlements.map((ds, idx) => {
+                {filteredSettlements.map((ds, idx) => {
                   const cfg = statusConfig[ds.status] || statusConfig.PENDING
                   const StatusIcon = cfg.icon
                   const isExpanded = expandedId === ds.id
