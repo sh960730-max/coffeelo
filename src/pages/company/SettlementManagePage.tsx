@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Scale, ChevronDown, ChevronUp, CheckCircle,
   Calendar, TrendingUp, Truck, Loader2, CreditCard,
-  Trees, Target, MapPin, BarChart3, Circle
+  Trees, Target, MapPin, BarChart3, Circle, Download
 } from 'lucide-react'
+import * as XLSX from 'xlsx'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -161,6 +162,70 @@ export default function SettlementManagePage() {
     setUpdating(null)
   }
 
+  const handleExcelDownload = () => {
+    const now = new Date()
+    const monthLabel = `${now.getFullYear()}년 ${now.getMonth() + 1}월`
+
+    const rows = settlements.map((ds) => {
+      const stat = driverStats[ds.driver_id]
+      const goalPct = MONTHLY_TARGET_KG > 0
+        ? Math.min(100, Math.round(((ds.total_weight || 0) / MONTHLY_TARGET_KG) * 100))
+        : 0
+      const visitRate = stat && stat.totalAssigned > 0
+        ? Math.round((stat.visitCount / stat.totalAssigned) * 100)
+        : 0
+      const startDate = new Date(ds.period_start)
+      const endDate = new Date(ds.period_end)
+      const period = ds.periodStr || `${startDate.getMonth()+1}/${startDate.getDate()} ~ ${endDate.getMonth()+1}/${endDate.getDate()}`
+      const statusMap: Record<string, string> = { PENDING: '대기', CONFIRMED: '확정', PAID: '지급완료', pending: '대기', confirmed: '확정', paid: '지급완료' }
+      const statusLabel = statusMap[ds.status] || '대기'
+
+      return {
+        '기사명': ds.driverName,
+        '정산 기간': period,
+        '운행 상태': stat?.isOnline ? '운행중' : '퇴근',
+        '총 수거량(kg)': ds.total_weight || 0,
+        '정산 단가(원/kg)': ds.rate_per_kg || 80,
+        '정산 금액(원)': ds.gross_amount || 0,
+        '목표 달성률(%)': goalPct,
+        '방문 완료율(%)': visitRate,
+        '완료 건수': stat?.visitCount ?? 0,
+        '배정 건수': stat?.totalAssigned ?? 0,
+        '정산 상태': statusLabel,
+        'CO₂ 절감량(kg)': ((ds.total_weight || 0) * CO2_PER_KG).toFixed(1),
+      }
+    })
+
+    const ws = XLSX.utils.json_to_sheet(rows)
+
+    // 열 너비 자동 조정
+    const colWidths = Object.keys(rows[0] || {}).map(k => ({ wch: Math.max(k.length + 2, 12) }))
+    ws['!cols'] = colWidths
+
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, '기사별 정산')
+
+    // 합계 행 추가
+    const totalRow = {
+      '기사명': '합계',
+      '정산 기간': '',
+      '운행 상태': '',
+      '총 수거량(kg)': settlements.reduce((s, d) => s + (d.total_weight || 0), 0),
+      '정산 단가(원/kg)': '',
+      '정산 금액(원)': settlements.reduce((s, d) => s + (d.gross_amount || 0), 0),
+      '목표 달성률(%)': '',
+      '방문 완료율(%)': '',
+      '완료 건수': Object.values(driverStats).reduce((s, v) => s + v.visitCount, 0),
+      '배정 건수': Object.values(driverStats).reduce((s, v) => s + v.totalAssigned, 0),
+      '정산 상태': '',
+      'CO₂ 절감량(kg)': (settlements.reduce((s, d) => s + (d.total_weight || 0), 0) * CO2_PER_KG).toFixed(1),
+    }
+    XLSX.utils.sheet_add_json(ws, [totalRow], { skipHeader: true, origin: -1 })
+
+    const fileName = `커피로_정산내역_${monthLabel}.xlsx`
+    XLSX.writeFile(wb, fileName)
+  }
+
   const monthlyKg    = settlements.reduce((s, d) => s + (d.total_weight || 0), 0)
   const monthlyTotal = settlements.reduce((s, d) => s + (d.gross_amount || 0), 0)
   const pendingCount   = settlements.filter(d => ['PENDING','pending'].includes(d.status)).length
@@ -188,7 +253,19 @@ export default function SettlementManagePage() {
       </AnimatePresence>
 
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
-        <h1 className="text-lg font-bold text-gray-900">정산 관리</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-bold text-gray-900">정산 관리</h1>
+          {!loading && settlements.length > 0 && (
+            <motion.button
+              whileTap={{ scale: 0.95 }}
+              onClick={handleExcelDownload}
+              className="flex items-center gap-1.5 bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-xl shadow-sm"
+            >
+              <Download className="w-3.5 h-3.5" />
+              엑셀 다운로드
+            </motion.button>
+          )}
+        </div>
       </header>
 
       <div className="px-5 py-4">
