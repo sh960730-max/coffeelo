@@ -145,6 +145,7 @@ export default function SettlementManagePage() {
 
   const [settlements, setSettlements] = useState<any[]>([])
   const [driverStats, setDriverStats] = useState<Record<string, { visitCount: number; totalAssigned: number; isOnline: boolean }>>({})
+  const [allDriverNames, setAllDriverNames] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
   const [updating, setUpdating] = useState<string | null>(null)
@@ -179,6 +180,7 @@ export default function SettlementManagePage() {
       driverMap[d.id] = d.name
       onlineMap[d.id] = d.is_online ?? false
     })
+    setAllDriverNames(drivers.map((d: any) => d.name))
     const driverIds = drivers.map((d: any) => d.id)
 
     const now = new Date()
@@ -397,8 +399,8 @@ export default function SettlementManagePage() {
   const pendingCount   = settlements.filter(d => ['PENDING','pending'].includes(d.status)).length
   const confirmedCount = settlements.filter(d => ['CONFIRMED','confirmed'].includes(d.status)).length
 
-  // 기사 목록 (드롭다운용)
-  const driverNames = ['전체', ...Array.from(new Set(settlements.map(s => s.driverName)))]
+  // 기사 목록 (드롭다운용) - 소속 기사 전체
+  const driverNames = ['전체', ...allDriverNames]
 
   // 필터 적용
   const filteredSettlements = settlements.filter(s => {
