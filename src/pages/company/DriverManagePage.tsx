@@ -29,7 +29,6 @@ const db = supabase as any
 
 const statusConfig = {
   online: { label: '온라인', textColor: 'text-emerald-600', bgColor: 'bg-emerald-50', dotColor: 'bg-emerald-400' },
-  collecting: { label: '수거중', textColor: 'text-amber-600', bgColor: 'bg-amber-50', dotColor: 'bg-amber-400' },
   offline: { label: '오프라인', textColor: 'text-gray-500', bgColor: 'bg-gray-100', dotColor: 'bg-gray-300' },
 }
 

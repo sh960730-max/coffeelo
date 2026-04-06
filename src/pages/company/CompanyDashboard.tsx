@@ -12,14 +12,13 @@ interface DriverStatus {
   id: string
   name: string
   truckType: string
-  status: 'online' | 'collecting' | 'offline'
+  status: 'online' | 'offline'
   todayKg: number
   pickups: number
 }
 
 const statusConfig = {
   online: { label: '온라인', color: 'bg-emerald-400', textColor: 'text-emerald-600', bgColor: 'bg-emerald-50' },
-  collecting: { label: '수거중', color: 'bg-amber-400', textColor: 'text-amber-600', bgColor: 'bg-amber-50' },
   offline: { label: '오프라인', color: 'bg-gray-300', textColor: 'text-gray-500', bgColor: 'bg-gray-100' },
 }
 
