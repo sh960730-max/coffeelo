@@ -265,6 +265,7 @@ export default function SettlementManagePage() {
 
     const fromD = new Date(fromDate)
     const toD = toDate ? new Date(toDate) : now
+
     const synthList = Object.entries(agg).map(([driverId, v]) => {
       const start = lastSettledEnd[driverId]
         ? new Date(lastSettledEnd[driverId].getTime() + 1000)
@@ -283,9 +284,12 @@ export default function SettlementManagePage() {
         gross_amount: v.amount || Math.round(v.kg * 80),
         status: 'PENDING',
       }
+    }).filter(s => {
+      // 날짜 필터 범위와 겹치는 synth만 표시
+      const sStart = new Date(s.period_start)
+      const sEnd = new Date(s.period_end)
+      return sStart <= toD && sEnd >= fromD
     })
-    // fromD/toD는 ESG 표기 등에 사용
-    void fromD; void toD
 
     const realList = (settlementsData || []).map((s: any) => ({
       ...s,
