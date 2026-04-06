@@ -271,6 +271,13 @@ export default function WeighPage() {
               다음: 하차 후 공차 무게
               <ArrowRight className="w-5 h-5" />
             </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={handleReset}
+              className="w-full py-3.5 rounded-2xl text-sm font-semibold text-red-400 bg-red-50 border border-red-100"
+            >
+              계량 취소
+            </motion.button>
           </motion.div>
         )}
 
@@ -326,6 +333,14 @@ export default function WeighPage() {
               }`}
             >
               {saving ? <><Loader2 className="w-5 h-5 animate-spin" /> 저장 중...</> : '계량 완료'}
+            </motion.button>
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={handleReset}
+              disabled={saving}
+              className="w-full py-3.5 rounded-2xl text-sm font-semibold text-red-400 bg-red-50 border border-red-100"
+            >
+              계량 취소
             </motion.button>
           </motion.div>
         )}
