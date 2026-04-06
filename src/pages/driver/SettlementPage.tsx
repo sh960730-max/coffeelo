@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Scale, Wallet, X, MapPin, Coffee } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Scale, Wallet, X, MapPin, Coffee } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -273,29 +273,48 @@ export default function SettlementPage() {
                       <div className="flex items-center gap-2">
                         <p className="text-base font-bold text-gray-900">{s.gross_amount?.toLocaleString()}원</p>
                         {isExpanded
-                          ? <ChevronLeft className="w-4 h-4 text-gray-300 rotate-90" />
-                          : <ChevronRight className="w-4 h-4 text-gray-300 -rotate-90" />}
+                          ? <ChevronDown className="w-4 h-4 text-gray-400" />
+                          : <ChevronUp className="w-4 h-4 text-gray-400" />}
                       </div>
                     </button>
+                    <AnimatePresence>
                     {isExpanded && (
                       <motion.div
-                        initial={{ height: 0 }} animate={{ height: 'auto' }}
-                        className="border-t border-gray-100 px-4 py-3 space-y-2"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="overflow-hidden"
                       >
-                        {s.net_amount && (
+                        <div className="border-t border-gray-100 px-4 py-3 space-y-2">
                           <div className="flex justify-between">
-                            <span className="text-xs text-gray-500">실지급액</span>
-                            <span className="text-xs font-bold text-eco-green">{s.net_amount?.toLocaleString()}원</span>
+                            <span className="text-xs text-gray-500">총 수거량</span>
+                            <span className="text-xs text-gray-700 font-medium">{s.total_weight?.toLocaleString()}kg</span>
                           </div>
-                        )}
-                        {s.paid_at && (
                           <div className="flex justify-between">
-                            <span className="text-xs text-gray-500">지급일</span>
-                            <span className="text-xs text-gray-600">{new Date(s.paid_at).toLocaleDateString('ko-KR')}</span>
+                            <span className="text-xs text-gray-500">단가</span>
+                            <span className="text-xs text-gray-700 font-medium">{s.rate_per_kg?.toLocaleString()}원/kg</span>
                           </div>
-                        )}
+                          <div className="flex justify-between">
+                            <span className="text-xs text-gray-500">정산금액</span>
+                            <span className="text-xs font-bold text-gray-900">{s.gross_amount?.toLocaleString()}원</span>
+                          </div>
+                          {s.net_amount != null && (
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-500">실지급액</span>
+                              <span className="text-xs font-bold text-eco-green">{s.net_amount?.toLocaleString()}원</span>
+                            </div>
+                          )}
+                          {s.paid_at && (
+                            <div className="flex justify-between">
+                              <span className="text-xs text-gray-500">지급일</span>
+                              <span className="text-xs text-gray-600">{new Date(s.paid_at).toLocaleDateString('ko-KR')}</span>
+                            </div>
+                          )}
+                        </div>
                       </motion.div>
                     )}
+                    </AnimatePresence>
                   </motion.div>
                 )
               })}
