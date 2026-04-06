@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 
@@ -10,14 +10,13 @@ export default function ProfileEditPage() {
   const { user } = useAuth();
 
   const [name, setName] = useState((user as any)?.name ?? '');
-  const [phone, setPhone] = useState((user as any)?.phone ?? '');
+  const [phone] = useState((user as any)?.phone ?? '');
   const [saving, setSaving] = useState(false);
   const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     if (user) {
       setName((user as any).name ?? '');
-      setPhone((user as any).phone ?? '');
     }
   }, [user]);
 
@@ -26,7 +25,7 @@ export default function ProfileEditPage() {
     setSaving(true);
     await (supabase as any)
       .from('drivers')
-      .update({ name, phone })
+      .update({ name })
       .eq('id', (user as any)?.id);
     setSaving(false);
     setShowToast(true);
@@ -48,6 +47,7 @@ export default function ProfileEditPage() {
 
       <div className="px-5 py-4 space-y-4">
         <div className="bg-white rounded-2xl shadow-sm p-4 space-y-4">
+          {/* 이름 - 수정 가능 */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-500">이름</label>
             <input
@@ -58,15 +58,15 @@ export default function ProfileEditPage() {
               className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-eco-green/30"
             />
           </div>
+
+          {/* 연락처 - 읽기 전용 */}
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-500">연락처</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="연락처를 입력하세요"
-              className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-eco-green/30"
-            />
+            <div className="w-full px-4 py-2.5 bg-gray-100 rounded-xl text-sm text-gray-700 flex items-center justify-between">
+              <span>{phone || '미등록'}</span>
+              <Lock className="w-3.5 h-3.5 text-gray-400" />
+            </div>
+            <p className="text-[11px] text-gray-400 px-1">연락처 변경은 관리자에게 문의해 주세요</p>
           </div>
         </div>
 

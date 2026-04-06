@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search, UserPlus, Truck, Phone, ChevronDown, ChevronUp,
   Scale, ClipboardList, Wallet, X, Circle, Loader2, CheckCircle2, AlertCircle,
-  Clock, UserCheck, UserX, ArrowLeft
+  Clock, UserCheck, UserX, ArrowLeft, Pencil
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
@@ -56,6 +56,13 @@ export default function DriverManagePage() {
   const [errorMsg, setErrorMsg] = useState('')
   const [approving, setApproving] = useState<string | null>(null)
   const [weeklyStats, setWeeklyStats] = useState<Record<string, { kg: number; count: number; amount: number }>>({})
+
+  // 연락처 변경 모달
+  const [phoneModal, setPhoneModal] = useState<{ open: boolean; driver: DriverDisplay | null }>({ open: false, driver: null })
+  const [newPhone, setNewPhone] = useState('')
+  const [phoneChanging, setPhoneChanging] = useState(false)
+  const [phoneResult, setPhoneResult] = useState<'success' | 'error' | null>(null)
+  const [phoneErrMsg, setPhoneErrMsg] = useState('')
 
   /* ── 기사 카드 펼칠 때 이번 주 실적 조회 ── */
   const fetchWeeklyStat = async (driverId: string) => {
@@ -170,6 +177,36 @@ export default function DriverManagePage() {
       setTimeout(() => {
         setShowModal(false)
         setSubmitResult(null)
+      }, 1200)
+    }
+  }
+
+  /* ── 연락처 변경 ── */
+  const handlePhoneChange = async () => {
+    if (!phoneModal.driver) return
+    const trimmed = newPhone.trim()
+    if (!trimmed) {
+      setPhoneErrMsg('새 전화번호를 입력해주세요.')
+      setPhoneResult('error')
+      return
+    }
+    setPhoneChanging(true)
+    setPhoneResult(null)
+    // phone 업데이트 + auth_id null 초기화 (기사 재로그인 시 새 번호로 자동 연결)
+    const { error } = await db.from('drivers')
+      .update({ phone: trimmed, auth_id: null })
+      .eq('id', phoneModal.driver.id)
+    setPhoneChanging(false)
+    if (error) {
+      setPhoneErrMsg(error.message.includes('duplicate') ? '이미 사용 중인 전화번호입니다.' : '변경에 실패했습니다.')
+      setPhoneResult('error')
+    } else {
+      setPhoneResult('success')
+      await fetchDrivers()
+      setTimeout(() => {
+        setPhoneModal({ open: false, driver: null })
+        setNewPhone('')
+        setPhoneResult(null)
       }, 1200)
     }
   }
@@ -402,9 +439,19 @@ export default function DriverManagePage() {
                       >
                         <div className="p-4 pt-3">
                           {/* 연락처 */}
-                          <div className="flex items-center gap-2 mb-3">
-                            <Phone className="w-3.5 h-3.5 text-gray-400" />
-                            <span className="text-xs text-gray-500">{driver.phone}</span>
+                          <div className="flex items-center justify-between mb-3">
+                            <div className="flex items-center gap-2">
+                              <Phone className="w-3.5 h-3.5 text-gray-400" />
+                              <span className="text-xs text-gray-500">{driver.phone}</span>
+                            </div>
+                            <motion.button
+                              whileTap={{ scale: 0.93 }}
+                              onClick={() => { setPhoneModal({ open: true, driver }); setNewPhone(''); setPhoneResult(null) }}
+                              className="flex items-center gap-1 text-[11px] font-semibold text-eco-green bg-eco-green-100 px-2.5 py-1 rounded-lg"
+                            >
+                              <Pencil className="w-3 h-3" />
+                              연락처 변경
+                            </motion.button>
                           </div>
 
                           {/* 주간 통계 */}
@@ -459,6 +506,85 @@ export default function DriverManagePage() {
           </div>
         )}
       </div>
+
+      {/* 연락처 변경 모달 */}
+      <AnimatePresence>
+        {phoneModal.open && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-end justify-center"
+            onClick={() => !phoneChanging && setPhoneModal({ open: false, driver: null })}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-md bg-white rounded-t-3xl p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+            >
+              <div className="flex items-center justify-between mb-1">
+                <h2 className="text-base font-bold text-gray-900">연락처 변경</h2>
+                <button onClick={() => !phoneChanging && setPhoneModal({ open: false, driver: null })}>
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">
+                변경 후 기사는 <span className="font-semibold text-gray-600">새 번호로 재로그인</span>이 필요합니다
+              </p>
+
+              <div className="space-y-3">
+                {/* 현재 번호 */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-400 mb-1 block">현재 번호</label>
+                  <div className="w-full px-4 py-2.5 bg-gray-100 rounded-xl text-sm text-gray-500">
+                    {phoneModal.driver?.phone}
+                  </div>
+                </div>
+                {/* 새 번호 */}
+                <div>
+                  <label className="text-xs font-semibold text-gray-500 mb-1 block">새 번호</label>
+                  <input
+                    type="tel"
+                    placeholder="010-0000-0000"
+                    value={newPhone}
+                    onChange={e => setNewPhone(e.target.value)}
+                    className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-eco-green/30"
+                  />
+                </div>
+              </div>
+
+              <AnimatePresence>
+                {phoneResult === 'success' && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    className="mt-3 flex items-center gap-2 bg-eco-green-100 text-eco-green rounded-xl px-3 py-2.5">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span className="text-xs font-medium">연락처가 변경되었습니다</span>
+                  </motion.div>
+                )}
+                {phoneResult === 'error' && (
+                  <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    className="mt-3 flex items-center gap-2 bg-red-50 text-red-500 rounded-xl px-3 py-2.5">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span className="text-xs font-medium">{phoneErrMsg}</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                disabled={phoneChanging}
+                className="w-full mt-4 bg-eco-green text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-70"
+                onClick={handlePhoneChange}
+              >
+                {phoneChanging ? <><Loader2 className="w-4 h-4 animate-spin" />변경 중...</> : '변경하기'}
+              </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 기사 등록 모달 */}
       <AnimatePresence>
