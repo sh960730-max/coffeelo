@@ -68,12 +68,12 @@ export default function AllPickupsPage() {
       drivers.forEach((d: any) => { driverMap[d.id] = d.name })
       const driverIds = drivers.map((d: any) => d.id)
 
-      // 소속 기사가 담당한 수거 전체 조회
+      // 소속 기사가 담당한 수거 전체 조회 (생성/수정/완료 중 하나라도 기간 내이면 포함)
       const { data } = await db.from('pickups')
         .select('*, cafe:cafes(name, address, store_type)')
         .in('driver_id', driverIds)
-        .gte('created_at', fromDate)
-        .order('created_at', { ascending: false })
+        .or(`created_at.gte.${fromDate},updated_at.gte.${fromDate},completed_at.gte.${fromDate}`)
+        .order('updated_at', { ascending: false })
 
       if (data) {
         const enriched = data.map((p: any) => ({
