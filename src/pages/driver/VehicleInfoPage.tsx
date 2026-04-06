@@ -1,11 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Lock } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-
-const TRUCK_TYPES = ['1톤 트럭', '2.5톤 트럭', '5톤 트럭', '11톤 트럭'];
 
 export default function VehicleInfoPage() {
   const navigate = useNavigate();
@@ -13,8 +11,6 @@ export default function VehicleInfoPage() {
 
   const [truckType, setTruckType] = useState((user as any)?.truck_type ?? '');
   const [licensePlate, setLicensePlate] = useState((user as any)?.license_plate ?? '');
-  const [saving, setSaving] = useState(false);
-  const [showToast, setShowToast] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -22,18 +18,6 @@ export default function VehicleInfoPage() {
       setLicensePlate((user as any).license_plate ?? '');
     }
   }, [user]);
-
-  const handleSave = async () => {
-    if (saving) return;
-    setSaving(true);
-    await (supabase as any)
-      .from('drivers')
-      .update({ truck_type: truckType, license_plate: licensePlate })
-      .eq('id', (user as any)?.id);
-    setSaving(false);
-    setShowToast(true);
-    setTimeout(() => setShowToast(false), 2500);
-  };
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -52,52 +36,22 @@ export default function VehicleInfoPage() {
         <div className="bg-white rounded-2xl shadow-sm p-4 space-y-4">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-500">차량 종류</label>
-            <select
-              value={truckType}
-              onChange={(e) => setTruckType(e.target.value)}
-              className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-eco-green/30 appearance-none"
-            >
-              <option value="">선택하세요</option>
-              {TRUCK_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <div className="w-full px-4 py-2.5 bg-gray-100 rounded-xl text-sm text-gray-700 flex items-center justify-between">
+              <span>{truckType || '미등록'}</span>
+              <Lock className="w-3.5 h-3.5 text-gray-400" />
+            </div>
           </div>
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-gray-500">번호판</label>
-            <input
-              type="text"
-              value={licensePlate}
-              onChange={(e) => setLicensePlate(e.target.value)}
-              placeholder="예: 12가 3456"
-              className="w-full px-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-eco-green/30"
-            />
+            <div className="w-full px-4 py-2.5 bg-gray-100 rounded-xl text-sm text-gray-700 flex items-center justify-between">
+              <span>{licensePlate || '미등록'}</span>
+              <Lock className="w-3.5 h-3.5 text-gray-400" />
+            </div>
           </div>
         </div>
 
-        <motion.button
-          whileTap={{ scale: 0.97 }}
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full bg-eco-green text-white font-semibold py-3 rounded-xl text-sm disabled:opacity-60"
-        >
-          {saving ? '저장 중...' : '저장하기'}
-        </motion.button>
+        <p className="text-xs text-center text-gray-400">차량 정보 변경은 관리자에게 문의해 주세요</p>
       </div>
-
-      <AnimatePresence>
-        {showToast && (
-          <motion.div
-            initial={{ opacity: 0, y: 40 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 40 }}
-            className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-gray-900 text-white text-sm font-medium px-5 py-3 rounded-2xl shadow-lg z-50"
-          >
-            <CheckCircle className="w-4 h-4 text-eco-green" />
-            저장됐습니다
-          </motion.div>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
