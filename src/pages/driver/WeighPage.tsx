@@ -6,47 +6,48 @@ import { supabase } from '../../lib/supabase'
 
 type WeighStep = 'idle' | 'loaded' | 'empty' | 'complete'
 
-const STORAGE_KEY = 'weigh_in_progress'
+const DRAFT_KEY = 'weigh_draft'
 
-interface SavedState {
-  step: WeighStep
-  loadedWeight: string
-  emptyWeight: string
-  loadedPhotoUrl: string | null
-  emptyPhotoUrl: string | null
+function saveDraft(data: Record<string, string>) {
+  try { sessionStorage.setItem(DRAFT_KEY, JSON.stringify(data)) } catch {}
 }
-
-function loadSaved(): SavedState | null {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
-    return raw ? JSON.parse(raw) : null
-  } catch { return null }
+function getDraft(): Record<string, string> {
+  try { return JSON.parse(sessionStorage.getItem(DRAFT_KEY) || '{}') } catch { return {} }
 }
-
-function saveToDraft(state: SavedState) {
-  try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state))
-  } catch {}
-}
-
 function clearDraft() {
-  try { sessionStorage.removeItem(STORAGE_KEY) } catch {}
+  try { sessionStorage.removeItem(DRAFT_KEY) } catch {}
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve) => {
+    const reader = new FileReader()
+    reader.onload = (e) => resolve(e.target?.result as string)
+    reader.readAsDataURL(file)
+  })
+}
+
+function base64ToFile(base64: string, filename: string): File {
+  const arr = base64.split(',')
+  const mime = arr[0].match(/:(.*?);/)?.[1] || 'image/jpeg'
+  const bstr = atob(arr[1])
+  let n = bstr.length
+  const u8arr = new Uint8Array(n)
+  while (n--) u8arr[n] = bstr.charCodeAt(n)
+  return new File([u8arr], filename, { type: mime })
 }
 
 export default function WeighPage() {
   const { user } = useAuth()
   const driverId = (user as any)?.id
 
-  const saved = loadSaved()
+  const draft = getDraft()
 
-  const [step, setStep] = useState<WeighStep>(saved?.step ?? 'idle')
-  const [loadedWeight, setLoadedWeight] = useState(saved?.loadedWeight ?? '')
-  const [emptyWeight, setEmptyWeight] = useState(saved?.emptyWeight ?? '')
-  const [loadedPhotoUrl, setLoadedPhotoUrl] = useState<string | null>(saved?.loadedPhotoUrl ?? null)
-  const [emptyPhotoUrl, setEmptyPhotoUrl] = useState<string | null>(saved?.emptyPhotoUrl ?? null)
+  const [step, setStep] = useState<WeighStep>((draft.step as WeighStep) || 'idle')
+  const [loadedWeight, setLoadedWeight] = useState(draft.loadedWeight || '')
+  const [emptyWeight, setEmptyWeight] = useState(draft.emptyWeight || '')
+  const [loadedPhotoPreview, setLoadedPhotoPreview] = useState<string | null>(draft.loadedPhoto || null)
+  const [emptyPhotoPreview, setEmptyPhotoPreview] = useState<string | null>(draft.emptyPhoto || null)
 
-  const [loadedUploading, setLoadedUploading] = useState(false)
-  const [emptyUploading, setEmptyUploading] = useState(false)
   const [history, setHistory] = useState<any[]>([])
   const [saving, setSaving] = useState(false)
   const [photoViewUrl, setPhotoViewUrl] = useState<string | null>(null)
@@ -58,11 +59,17 @@ export default function WeighPage() {
     ? Math.max(0, parseFloat(loadedWeight) - parseFloat(emptyWeight))
     : 0
 
-  // sessionStorage 동기화
+  // 진행 중인 상태를 sessionStorage에 저장
   useEffect(() => {
-    if (step === 'idle') return
-    saveToDraft({ step, loadedWeight, emptyWeight, loadedPhotoUrl, emptyPhotoUrl })
-  }, [step, loadedWeight, emptyWeight, loadedPhotoUrl, emptyPhotoUrl])
+    if (step === 'idle' || step === 'complete') return
+    saveDraft({
+      step,
+      loadedWeight,
+      emptyWeight,
+      ...(loadedPhotoPreview ? { loadedPhoto: loadedPhotoPreview } : {}),
+      ...(emptyPhotoPreview ? { emptyPhoto: emptyPhotoPreview } : {}),
+    })
+  }, [step, loadedWeight, emptyWeight, loadedPhotoPreview, emptyPhotoPreview])
 
   const fetchHistory = async () => {
     if (!driverId) return
@@ -77,6 +84,12 @@ export default function WeighPage() {
   }
 
   useEffect(() => { fetchHistory() }, [driverId])
+
+  const handlePhotoSelect = async (type: 'loaded' | 'empty', file: File) => {
+    const base64 = await fileToBase64(file)
+    if (type === 'loaded') setLoadedPhotoPreview(base64)
+    else setEmptyPhotoPreview(base64)
+  }
 
   const uploadPhoto = async (file: File, label: string): Promise<string | null> => {
     try {
@@ -96,26 +109,16 @@ export default function WeighPage() {
     }
   }
 
-  const handlePhotoSelect = async (type: 'loaded' | 'empty', file: File) => {
-    if (type === 'loaded') {
-      setLoadedUploading(true)
-      const url = await uploadPhoto(file, 'loaded')
-      setLoadedPhotoUrl(url)
-      setLoadedUploading(false)
-    } else {
-      setEmptyUploading(true)
-      const url = await uploadPhoto(file, 'empty')
-      setEmptyPhotoUrl(url)
-      setEmptyUploading(false)
-    }
-  }
-
   const handleStart = () => setStep('loaded')
   const handleLoadedDone = () => setStep('empty')
 
   const handleComplete = async () => {
     if (!driverId) return
     setSaving(true)
+    const loadedFile = loadedPhotoPreview ? base64ToFile(loadedPhotoPreview, 'loaded.jpg') : null
+    const emptyFile = emptyPhotoPreview ? base64ToFile(emptyPhotoPreview, 'empty.jpg') : null
+    const loadedPhotoUrl = loadedFile ? await uploadPhoto(loadedFile, 'loaded') : null
+    const emptyPhotoUrl = emptyFile ? await uploadPhoto(emptyFile, 'empty') : null
     const db = supabase as any
     await db.from('weigh_ins').insert({
       driver_id: driverId,
@@ -137,17 +140,17 @@ export default function WeighPage() {
     setStep('idle')
     setLoadedWeight('')
     setEmptyWeight('')
-    setLoadedPhotoUrl(null)
-    setEmptyPhotoUrl(null)
+    setLoadedPhotoPreview(null)
+    setEmptyPhotoPreview(null)
   }
 
   const PhotoCapture = ({
-    type, photoUrl, uploading, inputRef,
+    label, preview, inputRef, onSelect,
   }: {
-    type: 'loaded' | 'empty'
-    photoUrl: string | null
-    uploading: boolean
+    label: string
+    preview: string | null
     inputRef: React.RefObject<HTMLInputElement>
+    onSelect: (f: File) => void
   }) => (
     <div className="mt-4">
       <input
@@ -158,20 +161,18 @@ export default function WeighPage() {
         className="hidden"
         onChange={(e) => {
           const f = e.target.files?.[0]
-          if (f) handlePhotoSelect(type, f)
+          if (f) onSelect(f)
           e.target.value = ''
         }}
       />
-      {uploading ? (
-        <div className="w-full h-24 border-2 border-dashed border-eco-green/30 rounded-xl flex flex-col items-center justify-center gap-1.5 bg-eco-green-100/30">
-          <Loader2 className="w-5 h-5 text-eco-green animate-spin" />
-          <span className="text-xs text-eco-green font-medium">업로드 중...</span>
-        </div>
-      ) : photoUrl ? (
+      {preview ? (
         <div className="relative rounded-xl overflow-hidden">
-          <img src={photoUrl} alt="계량판" className="w-full max-h-48 object-cover rounded-xl" />
+          <img src={preview} alt="계량판" className="w-full max-h-48 object-cover rounded-xl" />
           <button
-            onClick={() => type === 'loaded' ? setLoadedPhotoUrl(null) : setEmptyPhotoUrl(null)}
+            onClick={() => {
+              if (label === 'loaded') setLoadedPhotoPreview(null)
+              else setEmptyPhotoPreview(null)
+            }}
             className="absolute top-2 right-2 w-7 h-7 bg-black/50 rounded-full flex items-center justify-center"
           >
             <X className="w-3.5 h-3.5 text-white" />
@@ -253,18 +254,18 @@ export default function WeighPage() {
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">kg</span>
               </div>
               <PhotoCapture
-                type="loaded"
-                photoUrl={loadedPhotoUrl}
-                uploading={loadedUploading}
+                label="loaded"
+                preview={loadedPhotoPreview}
                 inputRef={loadedInputRef}
+                onSelect={(f) => handlePhotoSelect('loaded', f)}
               />
             </div>
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleLoadedDone}
-              disabled={!loadedWeight || !loadedPhotoUrl || loadedUploading}
+              disabled={!loadedWeight || !loadedPhotoPreview}
               className={`w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 ${
-                loadedWeight && loadedPhotoUrl && !loadedUploading ? 'bg-eco-green text-white shadow-button' : 'bg-gray-200 text-gray-400'
+                loadedWeight && loadedPhotoPreview ? 'bg-eco-green text-white shadow-button' : 'bg-gray-200 text-gray-400'
               }`}
             >
               다음: 하차 후 공차 무게
@@ -298,10 +299,10 @@ export default function WeighPage() {
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-400">kg</span>
               </div>
               <PhotoCapture
-                type="empty"
-                photoUrl={emptyPhotoUrl}
-                uploading={emptyUploading}
+                label="empty"
+                preview={emptyPhotoPreview}
                 inputRef={emptyInputRef}
+                onSelect={(f) => handlePhotoSelect('empty', f)}
               />
             </div>
             {emptyWeight && (
@@ -317,9 +318,9 @@ export default function WeighPage() {
             <motion.button
               whileTap={{ scale: 0.97 }}
               onClick={handleComplete}
-              disabled={!emptyWeight || !emptyPhotoUrl || emptyUploading || saving}
+              disabled={!emptyWeight || !emptyPhotoPreview || saving}
               className={`w-full py-4 rounded-2xl text-base font-bold flex items-center justify-center gap-2 ${
-                emptyWeight && emptyPhotoUrl && !emptyUploading && !saving
+                emptyWeight && emptyPhotoPreview && !saving
                   ? 'bg-gradient-to-r from-eco-green to-eco-green-600 text-white shadow-button'
                   : 'bg-gray-200 text-gray-400'
               }`}
@@ -358,20 +359,20 @@ export default function WeighPage() {
                   <span className="text-base font-bold text-amber-600">{(netWeight * 80).toLocaleString()}원</span>
                 </div>
               </div>
-              {(loadedPhotoUrl || emptyPhotoUrl) && (
+              {(loadedPhotoPreview || emptyPhotoPreview) && (
                 <div className="mt-4 pt-4 border-t border-gray-100">
                   <p className="text-xs font-semibold text-gray-500 mb-2">계량판 사진</p>
                   <div className="flex gap-2">
-                    {loadedPhotoUrl && (
+                    {loadedPhotoPreview && (
                       <div className="flex-1">
                         <p className="text-[10px] text-gray-400 mb-1">적재</p>
-                        <img src={loadedPhotoUrl} className="w-full h-20 object-cover rounded-lg" />
+                        <img src={loadedPhotoPreview} className="w-full h-20 object-cover rounded-lg" />
                       </div>
                     )}
-                    {emptyPhotoUrl && (
+                    {emptyPhotoPreview && (
                       <div className="flex-1">
                         <p className="text-[10px] text-gray-400 mb-1">공차</p>
-                        <img src={emptyPhotoUrl} className="w-full h-20 object-cover rounded-lg" />
+                        <img src={emptyPhotoPreview} className="w-full h-20 object-cover rounded-lg" />
                       </div>
                     )}
                   </div>
