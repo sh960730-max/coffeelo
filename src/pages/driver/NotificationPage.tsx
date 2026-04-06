@@ -44,6 +44,8 @@ export default function NotificationPage() {
   const handleSave = async () => {
     setSaving(true);
     localStorage.setItem(storageKey, JSON.stringify(settings));
+    // DriverHeader가 설정 변경을 즉시 감지하도록 이벤트 발생
+    window.dispatchEvent(new Event('storage'));
     await new Promise(r => setTimeout(r, 300));
     setSaving(false);
     setShowToast(true);

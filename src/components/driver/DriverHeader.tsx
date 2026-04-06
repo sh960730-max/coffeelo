@@ -1,8 +1,20 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, Truck, ChevronDown, X, Megaphone, Package } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { Bell, Truck, ChevronDown, X, Megaphone, Package, CheckCircle2 } from 'lucide-react'
+import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+
+const STORAGE_KEY = 'driver_notification_settings'
+const defaultSettings = { call: true, assign: true, complete: true, notice: true, marketing: false }
+
+function getNotifSettings(driverId: string) {
+  try {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_${driverId}`)
+    return saved ? { ...defaultSettings, ...JSON.parse(saved) } : defaultSettings
+  } catch {
+    return defaultSettings
+  }
+}
 
 export default function DriverHeader() {
   const { user } = useAuth()
@@ -16,40 +28,108 @@ export default function DriverHeader() {
   const [updating, setUpdating] = useState(false)
   const [showNotif, setShowNotif] = useState(false)
   const [announcements, setAnnouncements] = useState<any[]>([])
-  const [newCalls, setNewCalls] = useState<any[]>([])
+  const [assignedCalls, setAssignedCalls] = useState<any[]>([])
+  const [completedCalls, setCompletedCalls] = useState<any[]>([])
+
+  const settings = driverId ? getNotifSettings(driverId) : defaultSettings
+
+  const fetchNotifications = useCallback(async () => {
+    if (!driverId) return
+    const db = supabase as any
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+
+    // 배정 알림 (assign)
+    if (settings.assign || settings.call) {
+      const { data } = await db.from('pickups')
+        .select('id, cafe:cafes(name), requested_at, created_at')
+        .eq('driver_id', driverId)
+        .eq('status', 'ASSIGNED')
+        .gte('created_at', todayStart.toISOString())
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (data) setAssignedCalls(data)
+    } else {
+      setAssignedCalls([])
+    }
+
+    // 완료 알림 (complete)
+    if (settings.complete) {
+      const { data } = await db.from('pickups')
+        .select('id, cafe:cafes(name), completed_at, updated_at')
+        .eq('driver_id', driverId)
+        .eq('status', 'COMPLETED')
+        .gte('updated_at', todayStart.toISOString())
+        .order('updated_at', { ascending: false })
+        .limit(5)
+      if (data) setCompletedCalls(data)
+    } else {
+      setCompletedCalls([])
+    }
+
+    // 공지사항 알림 (notice)
+    if (settings.notice) {
+      const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
+      const { data } = await db.from('announcements')
+        .select('id, title, created_at')
+        .gte('created_at', threeDaysAgo)
+        .order('created_at', { ascending: false })
+        .limit(5)
+      if (data) setAnnouncements(data)
+    } else {
+      setAnnouncements([])
+    }
+  }, [driverId, settings.assign, settings.call, settings.complete, settings.notice])
 
   useEffect(() => {
     if (!driverId) return
     const db = supabase as any
 
+    // 온라인 상태 조회
     db.from('drivers').select('is_online').eq('id', driverId).single()
-      .then(({ data }: any) => {
-        if (data) setIsOnline(data.is_online ?? false)
+      .then(({ data }: any) => { if (data) setIsOnline(data.is_online ?? false) })
+
+    fetchNotifications()
+
+    // Realtime: 내 픽업 상태 변경 구독
+    const pickupSub = (supabase as any)
+      .channel(`driver-pickups-${driverId}`)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'pickups',
+        filter: `driver_id=eq.${driverId}`,
+      }, () => {
+        fetchNotifications()
       })
+      .subscribe()
 
-    // 최근 공지사항 (3일 이내)
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-    db.from('announcements')
-      .select('id, title, created_at')
-      .gte('created_at', threeDaysAgo)
-      .order('created_at', { ascending: false })
-      .limit(5)
-      .then(({ data }: any) => { if (data) setAnnouncements(data) })
+    // Realtime: 공지사항 구독
+    const announceSub = (supabase as any)
+      .channel('announcements-changes')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'announcements',
+      }, () => {
+        fetchNotifications()
+      })
+      .subscribe()
 
-    // 이 기사에게 배정된 신규 콜 (오늘)
-    const todayStart = new Date()
-    todayStart.setHours(0, 0, 0, 0)
-    db.from('pickups')
-      .select('id, cafe:cafes(name), requested_at')
-      .eq('driver_id', driverId)
-      .eq('status', 'ASSIGNED')
-      .gte('created_at', todayStart.toISOString())
-      .order('created_at', { ascending: false })
-      .limit(5)
-      .then(({ data }: any) => { if (data) setNewCalls(data) })
-  }, [driverId])
+    return () => {
+      (supabase as any).removeChannel(pickupSub)
+      ;(supabase as any).removeChannel(announceSub)
+    }
+  }, [driverId, fetchNotifications])
 
-  const totalCount = announcements.length + newCalls.length
+  // 알림 설정 변경 감지 (다른 탭/페이지에서 변경 시 동기화)
+  useEffect(() => {
+    const handleStorage = () => fetchNotifications()
+    window.addEventListener('storage', handleStorage)
+    return () => window.removeEventListener('storage', handleStorage)
+  }, [fetchNotifications])
+
+  const totalCount = assignedCalls.length + completedCalls.length + announcements.length
 
   const handleToggle = async () => {
     if (updating || !driverId) return
@@ -59,6 +139,9 @@ export default function DriverHeader() {
     await (supabase as any).from('drivers').update({ is_online: next }).eq('id', driverId)
     setUpdating(false)
   }
+
+  const formatTime = (dateStr: string) =>
+    new Date(dateStr).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
 
   return (
     <>
@@ -154,21 +237,39 @@ export default function DriverHeader() {
                 </button>
               </div>
 
-              {/* 신규 배정 콜 */}
-              {newCalls.length > 0 && (
+              {/* 배정 알림 */}
+              {assignedCalls.length > 0 && (
                 <div className="mb-5">
                   <p className="text-xs font-semibold text-gray-400 mb-2">오늘 배정된 수거</p>
                   <div className="space-y-2">
-                    {newCalls.map((c) => (
+                    {assignedCalls.map((c) => (
                       <div key={c.id} className="flex items-center gap-3 bg-eco-green-100/60 rounded-2xl px-4 py-3">
                         <div className="w-9 h-9 bg-eco-green/20 rounded-xl flex items-center justify-center flex-shrink-0">
                           <Package className="w-4 h-4 text-eco-green" />
                         </div>
                         <div>
                           <p className="text-sm font-semibold text-gray-800">{c.cafe?.name ?? '매장'} 수거 배정</p>
-                          <p className="text-[11px] text-gray-400 mt-0.5">
-                            {new Date(c.requested_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                          </p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">{formatTime(c.requested_at ?? c.created_at)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* 완료 알림 */}
+              {completedCalls.length > 0 && (
+                <div className="mb-5">
+                  <p className="text-xs font-semibold text-gray-400 mb-2">오늘 완료된 수거</p>
+                  <div className="space-y-2">
+                    {completedCalls.map((c) => (
+                      <div key={c.id} className="flex items-center gap-3 bg-blue-50 rounded-2xl px-4 py-3">
+                        <div className="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <CheckCircle2 className="w-4 h-4 text-blue-500" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">{c.cafe?.name ?? '매장'} 수거 완료</p>
+                          <p className="text-[11px] text-gray-400 mt-0.5">{formatTime(c.completed_at ?? c.updated_at)}</p>
                         </div>
                       </div>
                     ))}
@@ -202,6 +303,9 @@ export default function DriverHeader() {
                 <div className="text-center py-12">
                   <Bell className="w-10 h-10 text-gray-200 mx-auto mb-2" />
                   <p className="text-sm text-gray-400">새로운 알림이 없습니다</p>
+                  {(!settings.assign && !settings.call && !settings.complete && !settings.notice) && (
+                    <p className="text-xs text-gray-300 mt-1">알림 설정에서 알림을 켜보세요</p>
+                  )}
                 </div>
               )}
             </motion.div>
