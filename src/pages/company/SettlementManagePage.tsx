@@ -202,19 +202,12 @@ export default function SettlementManagePage() {
       fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
     }
 
-    // 기간 내 전체 픽업 (배정+완료) → created_at/completed_at/updated_at OR 조건
-    let pickupQuery = db.from('pickups')
+    // 이번 달 전체 픽업 (방문완료율은 항상 이번 달 기준으로 계산)
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+    const { data: allPickups } = await db.from('pickups')
       .select('driver_id, status, total_weight, settlement_amount, completed_at, created_at, updated_at')
       .in('driver_id', driverIds)
-
-    if (toDate) {
-      pickupQuery = pickupQuery.or(
-        `and(created_at.gte.${fromDate},created_at.lte.${toDate}),and(completed_at.gte.${fromDate},completed_at.lte.${toDate}),and(updated_at.gte.${fromDate},updated_at.lte.${toDate})`
-      )
-    } else {
-      pickupQuery = pickupQuery.or(`created_at.gte.${fromDate},completed_at.gte.${fromDate},updated_at.gte.${fromDate}`)
-    }
-    const { data: allPickups } = await pickupQuery
+      .or(`created_at.gte.${monthStart},completed_at.gte.${monthStart},updated_at.gte.${monthStart}`)
 
     const statsMap: Record<string, { visitCount: number; totalAssigned: number; isOnline: boolean }> = {}
     driverIds.forEach((id: string) => {
