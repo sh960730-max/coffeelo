@@ -224,33 +224,53 @@ export default function SettlementManagePage() {
     if (toDate) settQuery = settQuery.lte('period_start', toDate)
     const { data: settlementsData } = await settQuery
 
-    const settledDriverIds = new Set((settlementsData || []).map((s: any) => s.driver_id))
+    // 기사별 마지막 확정 정산의 period_end 추적
+    const lastSettledEnd: Record<string, Date> = {}
+    ;(settlementsData || []).forEach((s: any) => {
+      const endDate = new Date(s.period_end || s.period_start)
+      if (!lastSettledEnd[s.driver_id] || endDate > lastSettledEnd[s.driver_id]) {
+        lastSettledEnd[s.driver_id] = endDate
+      }
+    })
 
-    // 미정산 기사 → pickups 집계
+    // 미정산 픽업: 기사별 마지막 확정 정산 이후 수거분만 집계
     const completedPickups = (allPickups || []).filter((p: any) => p.status === 'COMPLETED')
-    const agg: Record<string, { kg: number; amount: number }> = {}
+    const agg: Record<string, { kg: number; amount: number; minDate: Date; maxDate: Date }> = {}
     completedPickups.forEach((p: any) => {
-      if (!p.driver_id || settledDriverIds.has(p.driver_id)) return
-      if (!agg[p.driver_id]) agg[p.driver_id] = { kg: 0, amount: 0 }
+      if (!p.driver_id) return
+      const pickupDate = new Date(p.completed_at || p.created_at)
+      // 이미 확정된 정산에 포함된 수거는 제외
+      if (lastSettledEnd[p.driver_id] && pickupDate <= lastSettledEnd[p.driver_id]) return
+      if (!agg[p.driver_id]) agg[p.driver_id] = { kg: 0, amount: 0, minDate: pickupDate, maxDate: pickupDate }
       agg[p.driver_id].kg += p.total_weight || 0
       agg[p.driver_id].amount += p.settlement_amount || 0
+      if (pickupDate < agg[p.driver_id].minDate) agg[p.driver_id].minDate = pickupDate
+      if (pickupDate > agg[p.driver_id].maxDate) agg[p.driver_id].maxDate = pickupDate
     })
 
     const fromD = new Date(fromDate)
     const toD = toDate ? new Date(toDate) : now
-    const periodStr = `${fromD.getMonth()+1}/${fromD.getDate()} ~ ${toD.getMonth()+1}/${toD.getDate()}`
-    const synthList = Object.entries(agg).map(([driverId, v]) => ({
-      id: `synth_${driverId}`,
-      driver_id: driverId,
-      driverName: driverMap[driverId] || '알 수 없음',
-      period_start: fromD.toISOString(),
-      period_end: now.toISOString(),
-      periodStr,
-      total_weight: v.kg,
-      rate_per_kg: 80,
-      gross_amount: v.amount || Math.round(v.kg * 80),
-      status: 'PENDING',
-    }))
+    const synthList = Object.entries(agg).map(([driverId, v]) => {
+      const start = lastSettledEnd[driverId]
+        ? new Date(lastSettledEnd[driverId].getTime() + 1000)
+        : v.minDate
+      const end = v.maxDate
+      const periodStr = `${start.getMonth()+1}/${start.getDate()} ~ ${end.getMonth()+1}/${end.getDate()}`
+      return {
+        id: `synth_${driverId}`,
+        driver_id: driverId,
+        driverName: driverMap[driverId] || '알 수 없음',
+        period_start: start.toISOString(),
+        period_end: end.toISOString(),
+        periodStr,
+        total_weight: v.kg,
+        rate_per_kg: 80,
+        gross_amount: v.amount || Math.round(v.kg * 80),
+        status: 'PENDING',
+      }
+    })
+    // fromD/toD는 ESG 표기 등에 사용
+    void fromD; void toD
 
     const realList = (settlementsData || []).map((s: any) => ({
       ...s,
