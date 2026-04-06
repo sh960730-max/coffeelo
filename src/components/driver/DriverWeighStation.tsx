@@ -111,6 +111,7 @@ export default function DriverWeighStation() {
 
         <motion.button
           whileTap={{ scale: 0.97 }}
+          onClick={() => navigate('/driver/weigh')}
           className="w-full mt-4 flex items-center justify-center gap-2 py-3 bg-eco-green/10 text-eco-green rounded-xl text-sm font-semibold border border-eco-green/20"
         >
           <Camera className="w-4 h-4" />
