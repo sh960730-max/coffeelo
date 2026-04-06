@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { TrendingUp, Package, MapPin, Banknote } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
 export default function DriverStats() {
   const { user } = useAuth()
   const driverId = (user as any)?.id
+  const navigate = useNavigate()
 
   const [todayStores, setTodayStores] = useState(0)
   const [todayWeight, setTodayWeight] = useState(0)
@@ -72,7 +74,10 @@ export default function DriverStats() {
     >
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold text-gray-900">오늘 실적</h2>
-        <button className="text-xs text-eco-green font-medium flex items-center gap-0.5">
+        <button
+          onClick={() => navigate('/driver/pickups?date=today')}
+          className="text-xs text-eco-green font-medium flex items-center gap-0.5"
+        >
           전체 보기
           <TrendingUp className="w-3.5 h-3.5" />
         </button>

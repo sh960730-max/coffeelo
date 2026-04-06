@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Search, Calendar, ChevronDown, ChevronUp, Package, MapPin, Coffee, Image as ImageIcon, Store, Phone, ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
@@ -201,10 +202,11 @@ const storeTypeStyle: Record<string, { label: string; bg: string; soft: string }
 export default function PickupListPage() {
   const { user } = useAuth()
   const driverId = (user as any)?.id
+  const [searchParams] = useSearchParams()
 
   const [mainTab, setMainTab] = useState<'history' | 'assigned'>('history')
   const [statusFilter, setStatusFilter] = useState('all')
-  const [dateFilter, setDateFilter] = useState('month')
+  const [dateFilter, setDateFilter] = useState(searchParams.get('date') ?? 'month')
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
