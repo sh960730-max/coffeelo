@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { ChevronLeft, ChevronRight, Scale, Wallet } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { ChevronLeft, ChevronRight, Scale, Wallet, X, MapPin, Coffee } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -25,14 +25,15 @@ export default function SettlementPage() {
 
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
-  const [month, setMonth] = useState(today.getMonth()) // 0-indexed
+  const [month, setMonth] = useState(today.getMonth())
 
-  // 날짜별 수입 { '2026-04-06': { amount, count } }
   const [dailyMap, setDailyMap] = useState<Record<string, { amount: number; count: number }>>({})
+  const [pickupsByDate, setPickupsByDate] = useState<Record<string, any[]>>({})
   const [monthTotal, setMonthTotal] = useState(0)
   const [monthDays, setMonthDays] = useState(0)
   const [settlements, setSettlements] = useState<any[]>([])
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<string | null>(null)
 
   useEffect(() => {
     if (!driverId) return
@@ -42,22 +43,27 @@ export default function SettlementPage() {
       const to = new Date(year, month + 1, 1).toISOString()
 
       const { data: pickups } = await db.from('pickups')
-        .select('completed_at, settlement_amount')
+        .select('id, completed_at, settlement_amount, total_weight, cafe:cafes(name, address)')
         .eq('driver_id', driverId)
         .eq('status', 'COMPLETED')
         .gte('completed_at', from)
         .lt('completed_at', to)
+        .order('completed_at', { ascending: true })
 
       if (pickups) {
         const map: Record<string, { amount: number; count: number }> = {}
+        const byDate: Record<string, any[]> = {}
         pickups.forEach((p: any) => {
           const key = p.completed_at?.split('T')[0]
           if (!key) return
           if (!map[key]) map[key] = { amount: 0, count: 0 }
           map[key].amount += p.settlement_amount || 0
           map[key].count += 1
+          if (!byDate[key]) byDate[key] = []
+          byDate[key].push(p)
         })
         setDailyMap(map)
+        setPickupsByDate(byDate)
         const total = pickups.reduce((s: number, p: any) => s + (p.settlement_amount || 0), 0)
         setMonthTotal(total)
         setMonthDays(Object.keys(map).length)
@@ -73,16 +79,17 @@ export default function SettlementPage() {
   }, [driverId, year, month])
 
   const prevMonth = () => {
+    setSelectedDate(null)
     if (month === 0) { setYear(y => y - 1); setMonth(11) }
     else setMonth(m => m - 1)
   }
   const nextMonth = () => {
+    setSelectedDate(null)
     if (month === 11) { setYear(y => y + 1); setMonth(0) }
     else setMonth(m => m + 1)
   }
 
-  // 달력 셀 계산
-  const firstDay = new Date(year, month, 1).getDay() // 0=일
+  const firstDay = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
@@ -90,8 +97,13 @@ export default function SettlementPage() {
     ...Array(firstDay).fill(null),
     ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
   ]
-  // 6행 맞추기
   while (cells.length % 7 !== 0) cells.push(null)
+
+  const selectedPickups = selectedDate ? (pickupsByDate[selectedDate] ?? []) : []
+  const selectedData = selectedDate ? dailyMap[selectedDate] : null
+  const selectedDateLabel = selectedDate
+    ? `${parseInt(selectedDate.split('-')[1])}월 ${parseInt(selectedDate.split('-')[2])}일`
+    : ''
 
   return (
     <div>
@@ -144,25 +156,28 @@ export default function SettlementPage() {
               const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
               const data = dailyMap[key]
               const isToday = key === todayKey
+              const isSelected = key === selectedDate
               const isSun = col === 0
               const isSat = col === 6
               const isLastRow = idx >= cells.length - 7
+              const hasData = !!data
 
               return (
-                <div
+                <motion.div
                   key={key}
+                  whileTap={hasData ? { scale: 0.92 } : {}}
+                  onClick={() => hasData ? setSelectedDate(isSelected ? null : key) : null}
                   className={`h-16 p-1 flex flex-col items-center border-b border-r border-gray-50
                     ${isLastRow ? 'border-b-0' : ''}
                     ${col === 6 ? 'border-r-0' : ''}
-                    ${isToday ? 'bg-eco-green-100/40' : ''}`}
+                    ${isSelected ? 'bg-eco-green-100/60' : isToday ? 'bg-eco-green-100/30' : ''}
+                    ${hasData ? 'cursor-pointer active:bg-eco-green-100/50' : ''}`}
                 >
-                  {/* 날짜 숫자 */}
                   <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold
-                    ${isToday ? 'bg-eco-green text-white' : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-gray-700'}`}>
+                    ${isSelected ? 'bg-eco-green text-white' : isToday ? 'bg-eco-green text-white' : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-gray-700'}`}>
                     {day}
                   </div>
 
-                  {/* 수입 뱃지 */}
                   {data && (
                     <div className="mt-0.5 flex flex-col items-center gap-0.5 w-full">
                       <div className={`w-full text-center text-[9px] font-bold px-0.5 py-0.5 rounded-md
@@ -174,7 +189,7 @@ export default function SettlementPage() {
                       </span>
                     </div>
                   )}
-                </div>
+                </motion.div>
               )
             })}
           </div>
@@ -255,7 +270,9 @@ export default function SettlementPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <p className="text-base font-bold text-gray-900">{s.gross_amount?.toLocaleString()}원</p>
-                        {isExpanded ? <ChevronLeft className="w-4 h-4 text-gray-300 rotate-90" /> : <ChevronRight className="w-4 h-4 text-gray-300 -rotate-90" />}
+                        {isExpanded
+                          ? <ChevronLeft className="w-4 h-4 text-gray-300 rotate-90" />
+                          : <ChevronRight className="w-4 h-4 text-gray-300 -rotate-90" />}
                       </div>
                     </button>
                     {isExpanded && (
@@ -284,6 +301,91 @@ export default function SettlementPage() {
           )}
         </div>
       </div>
+
+      {/* 날짜 상세 바텀시트 */}
+      <AnimatePresence>
+        {selectedDate && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+            onClick={() => setSelectedDate(null)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl px-5 pt-4 pb-10 max-h-[70vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
+
+              {/* 날짜 헤더 */}
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">{selectedDateLabel} 수거 내역</h3>
+                  {selectedData && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {selectedData.count}건 · 총 {selectedData.amount.toLocaleString()}원
+                    </p>
+                  )}
+                </div>
+                <button onClick={() => setSelectedDate(null)}>
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              {/* 수거 목록 */}
+              <div className="space-y-2.5">
+                {selectedPickups.map((p, idx) => (
+                  <motion.div
+                    key={p.id}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="bg-gray-50 rounded-2xl px-4 py-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-9 h-9 bg-eco-green/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                          <Coffee className="w-4 h-4 text-eco-green" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold text-gray-800">{p.cafe?.name ?? '매장'}</p>
+                          {p.cafe?.address && (
+                            <div className="flex items-center gap-0.5 mt-0.5">
+                              <MapPin className="w-2.5 h-2.5 text-gray-400 flex-shrink-0" />
+                              <p className="text-[10px] text-gray-400 truncate max-w-[160px]">{p.cafe.address}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        {p.total_weight && (
+                          <p className="text-xs text-gray-500">{p.total_weight}kg</p>
+                        )}
+                        <p className="text-sm font-bold text-eco-green">
+                          {(p.settlement_amount || 0).toLocaleString()}원
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+
+              {/* 합계 */}
+              {selectedData && (
+                <div className="mt-4 pt-4 border-t border-gray-100 flex items-center justify-between">
+                  <span className="text-sm font-semibold text-gray-700">합계</span>
+                  <span className="text-base font-bold text-eco-green">{selectedData.amount.toLocaleString()}원</span>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
