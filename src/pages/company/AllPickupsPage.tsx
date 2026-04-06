@@ -8,8 +8,6 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
-type DateFilter = 'today' | 'week' | 'month' | 'custom'
-
 const statusBadge: Record<string, { label: string; color: string }> = {
   COMPLETED: { label: '완료', color: 'bg-eco-green-100 text-eco-green' },
   EN_ROUTE:  { label: '운송중', color: 'bg-amber-50 text-amber-600' },
@@ -28,11 +26,188 @@ function getDiscrepancy(a: number | null, b: number | null) {
   return { pct, color }
 }
 
+/* ── 달력 컴포넌트 (기사 PickupListPage와 동일) ── */
+function DateRangePicker({
+  onClose, onApply,
+}: {
+  onClose: () => void
+  onApply: (from: string, to: string) => void
+}) {
+  const today = new Date()
+  const [viewYear, setViewYear] = useState(today.getFullYear())
+  const [viewMonth, setViewMonth] = useState(today.getMonth())
+  const [startDate, setStartDate] = useState<string | null>(null)
+  const [endDate, setEndDate] = useState<string | null>(null)
+
+  const toKey = (y: number, m: number, d: number) =>
+    `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+
+  const todayKey = toKey(today.getFullYear(), today.getMonth(), today.getDate())
+
+  const firstDay = new Date(viewYear, viewMonth, 1).getDay()
+  const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate()
+
+  const prevMonth = () => {
+    if (viewMonth === 0) { setViewYear(y => y - 1); setViewMonth(11) }
+    else setViewMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (viewMonth === 11) { setViewYear(y => y + 1); setViewMonth(0) }
+    else setViewMonth(m => m + 1)
+  }
+
+  const handleDayClick = (key: string) => {
+    if (!startDate || (startDate && endDate)) {
+      setStartDate(key); setEndDate(null)
+    } else {
+      if (key < startDate) { setEndDate(startDate); setStartDate(key) }
+      else setEndDate(key)
+    }
+  }
+
+  const isInRange = (key: string) =>
+    startDate && endDate && key > startDate && key < endDate
+
+  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월']
+  const days = ['일','월','화','수','목','금','토']
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 z-[100] bg-black/40 flex items-end justify-center"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: '100%' }}
+        animate={{ y: 0 }}
+        exit={{ y: '100%' }}
+        transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+        onClick={e => e.stopPropagation()}
+        className="w-full max-w-md bg-white rounded-t-3xl p-5 pb-[max(1.5rem,env(safe-area-inset-bottom))]"
+      >
+        {/* 헤더 */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-base font-bold text-gray-900">기간 선택</h2>
+          <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
+        </div>
+
+        {/* 선택된 기간 표시 */}
+        <div className="flex items-center gap-2 mb-4 bg-gray-50 rounded-xl p-3">
+          <div className="flex-1 text-center">
+            <p className="text-[10px] text-gray-400 mb-0.5">시작일</p>
+            <p className={`text-sm font-bold ${startDate ? 'text-eco-green' : 'text-gray-300'}`}>
+              {startDate ?? '날짜 선택'}
+            </p>
+          </div>
+          <div className="w-6 h-px bg-gray-300" />
+          <div className="flex-1 text-center">
+            <p className="text-[10px] text-gray-400 mb-0.5">종료일</p>
+            <p className={`text-sm font-bold ${endDate ? 'text-eco-green' : 'text-gray-300'}`}>
+              {endDate ?? '날짜 선택'}
+            </p>
+          </div>
+        </div>
+
+        {/* 월 이동 */}
+        <div className="flex items-center justify-between mb-3">
+          <button onClick={prevMonth} className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100">
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          </button>
+          <span className="text-sm font-bold text-gray-800">{viewYear}년 {months[viewMonth]}</span>
+          <button onClick={nextMonth} className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100">
+            <ChevronRight className="w-4 h-4 text-gray-600" />
+          </button>
+        </div>
+
+        {/* 요일 헤더 */}
+        <div className="grid grid-cols-7 mb-1">
+          {days.map((d, i) => (
+            <div key={d} className={`text-center text-[11px] font-semibold py-1 ${i === 0 ? 'text-red-400' : i === 6 ? 'text-blue-400' : 'text-gray-400'}`}>{d}</div>
+          ))}
+        </div>
+
+        {/* 날짜 그리드 */}
+        <div className="grid grid-cols-7 gap-y-1">
+          {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+          {Array.from({ length: daysInMonth }).map((_, i) => {
+            const d = i + 1
+            const key = toKey(viewYear, viewMonth, d)
+            const isStart = key === startDate
+            const isEnd = key === endDate
+            const inRange = isInRange(key)
+            const isToday = key === todayKey
+            const dow = (firstDay + i) % 7
+
+            return (
+              <button
+                key={key}
+                onClick={() => handleDayClick(key)}
+                className={`relative h-9 text-xs font-semibold transition-all
+                  ${isStart || isEnd ? 'bg-eco-green text-white rounded-xl shadow-sm' : ''}
+                  ${inRange ? 'bg-eco-green-100 text-eco-green rounded-none' : ''}
+                  ${!isStart && !isEnd && !inRange ? (
+                    isToday ? 'text-eco-green' :
+                    dow === 0 ? 'text-red-400' :
+                    dow === 6 ? 'text-blue-400' :
+                    'text-gray-700'
+                  ) : ''}
+                `}
+              >
+                {d}
+                {isToday && !isStart && !isEnd && (
+                  <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-eco-green" />
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {/* 빠른 선택 */}
+        <div className="flex gap-2 mt-4">
+          {[
+            { label: '오늘', fn: () => { const k = todayKey; setStartDate(k); setEndDate(k) }},
+            { label: '이번 주', fn: () => {
+              const mon = new Date(today); mon.setDate(today.getDate() + (today.getDay() === 0 ? -6 : 1 - today.getDay()))
+              setStartDate(toKey(mon.getFullYear(), mon.getMonth(), mon.getDate()))
+              setEndDate(todayKey)
+            }},
+            { label: '이번 달', fn: () => {
+              setStartDate(toKey(today.getFullYear(), today.getMonth(), 1))
+              setEndDate(todayKey)
+            }},
+          ].map(q => (
+            <button key={q.label} onClick={q.fn}
+              className="flex-1 py-2 bg-gray-100 rounded-xl text-xs font-semibold text-gray-600">
+              {q.label}
+            </button>
+          ))}
+        </div>
+
+        {/* 확인 버튼 */}
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          disabled={!startDate || !endDate}
+          onClick={() => startDate && endDate && onApply(startDate, endDate)}
+          className={`w-full mt-4 py-3.5 rounded-2xl text-sm font-bold transition-all ${
+            startDate && endDate ? 'bg-eco-green text-white' : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+          }`}
+        >
+          {startDate && endDate ? `${startDate} ~ ${endDate} 조회` : '날짜를 선택해주세요'}
+        </motion.button>
+      </motion.div>
+    </motion.div>
+  )
+}
+
 export default function AllPickupsPage() {
   const { user } = useAuth()
   const companyName = (user as any)?.name ?? ''
 
-  const [dateFilter, setDateFilter] = useState<DateFilter>('today')
+  const [dateFilter, setDateFilter] = useState('today')
+  const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null)
+  const [showDatePicker, setShowDatePicker] = useState(false)
   const [selectedDriver, setSelectedDriver] = useState('전체')
   const [selectedCafe, setSelectedCafe] = useState('전체')
   const [showCrossCheck, setShowCrossCheck] = useState(true)
@@ -42,19 +217,8 @@ export default function AllPickupsPage() {
   const [driverList, setDriverList] = useState<string[]>(['전체'])
   const [cafeList, setCafeList] = useState<string[]>(['전체'])
 
-  // 달력 상태
-  const [showCalendar, setShowCalendar] = useState(false)
-  const [calStep, setCalStep] = useState<'start' | 'end'>('start')
-  const [calYear, setCalYear] = useState(new Date().getFullYear())
-  const [calMonth, setCalMonth] = useState(new Date().getMonth())
-  const [rangeStart, setRangeStart] = useState<Date | null>(null)
-  const [rangeEnd, setRangeEnd] = useState<Date | null>(null)
-  const [appliedStart, setAppliedStart] = useState<Date | null>(null)
-  const [appliedEnd, setAppliedEnd] = useState<Date | null>(null)
-
   useEffect(() => {
     if (!companyName) return
-    if (dateFilter === 'custom' && (!appliedStart || !appliedEnd)) return
     const db = supabase as any
     const load = async () => {
       setLoading(true)
@@ -62,7 +226,10 @@ export default function AllPickupsPage() {
       let fromDate: string
       let toDate: string | null = null
 
-      if (dateFilter === 'today') {
+      if (customRange) {
+        fromDate = customRange.from + 'T00:00:00'
+        toDate = customRange.to + 'T23:59:59'
+      } else if (dateFilter === 'today') {
         fromDate = now.toISOString().split('T')[0] + 'T00:00:00'
       } else if (dateFilter === 'week') {
         const dow = now.getDay()
@@ -70,11 +237,6 @@ export default function AllPickupsPage() {
         mon.setDate(now.getDate() + (dow === 0 ? -6 : 1 - dow))
         mon.setHours(0, 0, 0, 0)
         fromDate = mon.toISOString()
-      } else if (dateFilter === 'custom' && appliedStart && appliedEnd) {
-        const s = new Date(appliedStart); s.setHours(0, 0, 0, 0)
-        const e = new Date(appliedEnd); e.setHours(23, 59, 59, 999)
-        fromDate = s.toISOString()
-        toDate = e.toISOString()
       } else {
         fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
       }
@@ -86,7 +248,6 @@ export default function AllPickupsPage() {
       drivers.forEach((d: any) => { driverMap[d.id] = d.name })
       const driverIds = drivers.map((d: any) => d.id)
 
-      // 소속 기사가 담당한 수거 전체 조회
       let query = db.from('pickups')
         .select('*, cafe:cafes(name, address, store_type)')
         .in('driver_id', driverIds)
@@ -116,46 +277,7 @@ export default function AllPickupsPage() {
       setLoading(false)
     }
     load()
-  }, [companyName, dateFilter, appliedStart, appliedEnd])
-
-  // 달력 헬퍼
-  const getDaysInMonth = (y: number, m: number) => new Date(y, m + 1, 0).getDate()
-  const getFirstDayOfMonth = (y: number, m: number) => new Date(y, m, 1).getDay()
-  const isSameDay = (a: Date, b: Date) =>
-    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
-  const isInRange = (day: Date) =>
-    rangeStart && rangeEnd && day >= rangeStart && day <= rangeEnd
-
-  const handleDayClick = (day: Date) => {
-    if (calStep === 'start') {
-      setRangeStart(day)
-      setRangeEnd(null)
-      setCalStep('end')
-    } else {
-      if (rangeStart && day < rangeStart) {
-        setRangeStart(day)
-        setRangeEnd(null)
-        setCalStep('end')
-      } else {
-        setRangeEnd(day)
-      }
-    }
-  }
-
-  const handleApplyRange = () => {
-    if (!rangeStart || !rangeEnd) return
-    setAppliedStart(rangeStart)
-    setAppliedEnd(rangeEnd)
-    setDateFilter('custom')
-    setShowCalendar(false)
-  }
-
-  const formatDateLabel = (d: Date) =>
-    `${d.getMonth() + 1}/${d.getDate()}`
-
-  const customLabel = appliedStart && appliedEnd
-    ? `${formatDateLabel(appliedStart)} ~ ${formatDateLabel(appliedEnd)}`
-    : '기간 설정'
+  }, [companyName, dateFilter, customRange])
 
   const filtered = pickups.filter(p => {
     if (selectedDriver !== '전체' && p.driverName !== selectedDriver) return false
@@ -167,41 +289,38 @@ export default function AllPickupsPage() {
   const totalStoreEst = completedWithWeight.reduce((s, p) => s + (p.estimated_weight || 0), 0)
   const totalDriverW = completedWithWeight.reduce((s, p) => s + (p.total_weight || 0), 0)
 
+  const dateFilters = [
+    { key: 'today', label: '오늘' },
+    { key: 'week', label: '이번 주' },
+    { key: 'month', label: '이번 달' },
+  ]
+
   return (
     <div>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
         <h1 className="text-lg font-bold text-gray-900 mb-3">수거 현황</h1>
-        <div className="flex items-center gap-2 mb-3 flex-wrap">
+        <div className="flex items-center gap-2 mb-3">
           <Calendar className="w-4 h-4 text-gray-400" />
-          {(['today', 'week', 'month'] as DateFilter[]).map(f => (
+          {dateFilters.map(f => (
             <motion.button
-              key={f} whileTap={{ scale: 0.95 }}
-              onClick={() => setDateFilter(f)}
+              key={f.key} whileTap={{ scale: 0.95 }}
+              onClick={() => { setDateFilter(f.key); setCustomRange(null) }}
               className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                dateFilter === f ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
+                dateFilter === f.key && !customRange ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
               }`}
             >
-              {f === 'today' ? '오늘' : f === 'week' ? '이번 주' : '이번 달'}
+              {f.label}
             </motion.button>
           ))}
           <motion.button
             whileTap={{ scale: 0.95 }}
-            onClick={() => {
-              setCalStep('start')
-              setRangeStart(appliedStart)
-              setRangeEnd(appliedEnd)
-              setCalYear(new Date().getFullYear())
-              setCalMonth(new Date().getMonth())
-              setShowCalendar(true)
-            }}
-            className={`flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors border ${
-              dateFilter === 'custom'
-                ? 'bg-eco-green text-white border-eco-green'
-                : 'bg-white text-gray-500 border-gray-200'
+            onClick={() => setShowDatePicker(true)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors ${
+              customRange ? 'bg-eco-green text-white' : 'bg-gray-100 text-gray-500'
             }`}
           >
             <Calendar className="w-3 h-3" />
-            {customLabel}
+            {customRange ? `${customRange.from.slice(5)} ~ ${customRange.to.slice(5)}` : '기간선택'}
           </motion.button>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
@@ -420,124 +539,18 @@ export default function AllPickupsPage() {
         )}
         <div className="h-4" />
       </div>
-      {/* 달력 바텀시트 */}
+
+      {/* 달력 기간 선택 모달 */}
       <AnimatePresence>
-        {showCalendar && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
-            onClick={() => setShowCalendar(false)}
-          >
-            <motion.div
-              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl px-5 pt-4 pb-10"
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-4" />
-
-              {/* 헤더 */}
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-gray-900">기간 설정</h2>
-                <button onClick={() => setShowCalendar(false)}>
-                  <X className="w-5 h-5 text-gray-400" />
-                </button>
-              </div>
-
-              {/* 선택 안내 */}
-              <div className="flex items-center gap-2 mb-4">
-                <div className={`flex-1 text-center py-2 rounded-xl text-xs font-semibold border-2 transition-colors ${
-                  calStep === 'start' ? 'border-eco-green bg-eco-green/5 text-eco-green' : 'border-gray-100 bg-gray-50 text-gray-500'
-                }`}>
-                  시작일: {rangeStart ? `${rangeStart.getMonth()+1}/${rangeStart.getDate()}` : '선택'}
-                </div>
-                <span className="text-gray-300 text-sm">→</span>
-                <div className={`flex-1 text-center py-2 rounded-xl text-xs font-semibold border-2 transition-colors ${
-                  calStep === 'end' ? 'border-eco-green bg-eco-green/5 text-eco-green' : 'border-gray-100 bg-gray-50 text-gray-500'
-                }`}>
-                  종료일: {rangeEnd ? `${rangeEnd.getMonth()+1}/${rangeEnd.getDate()}` : '선택'}
-                </div>
-              </div>
-
-              {/* 월 네비게이션 */}
-              <div className="flex items-center justify-between mb-3">
-                <button
-                  onClick={() => {
-                    if (calMonth === 0) { setCalMonth(11); setCalYear(y => y - 1) }
-                    else setCalMonth(m => m - 1)
-                  }}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
-                >
-                  <ChevronLeft className="w-4 h-4 text-gray-500" />
-                </button>
-                <span className="text-sm font-bold text-gray-800">{calYear}년 {calMonth + 1}월</span>
-                <button
-                  onClick={() => {
-                    if (calMonth === 11) { setCalMonth(0); setCalYear(y => y + 1) }
-                    else setCalMonth(m => m + 1)
-                  }}
-                  className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-100"
-                >
-                  <ChevronRight className="w-4 h-4 text-gray-500" />
-                </button>
-              </div>
-
-              {/* 요일 헤더 */}
-              <div className="grid grid-cols-7 mb-1">
-                {['일','월','화','수','목','금','토'].map(d => (
-                  <div key={d} className="text-center text-[10px] font-semibold text-gray-400 py-1">{d}</div>
-                ))}
-              </div>
-
-              {/* 날짜 그리드 */}
-              <div className="grid grid-cols-7 gap-y-1">
-                {Array.from({ length: getFirstDayOfMonth(calYear, calMonth) }).map((_, i) => (
-                  <div key={`empty-${i}`} />
-                ))}
-                {Array.from({ length: getDaysInMonth(calYear, calMonth) }).map((_, i) => {
-                  const day = new Date(calYear, calMonth, i + 1)
-                  const isStart = rangeStart && isSameDay(day, rangeStart)
-                  const isEnd = rangeEnd && isSameDay(day, rangeEnd)
-                  const inRange = isInRange(day)
-                  const isToday = isSameDay(day, new Date())
-
-                  return (
-                    <button
-                      key={i}
-                      onClick={() => handleDayClick(day)}
-                      className={`relative h-9 flex items-center justify-center text-xs font-medium transition-all rounded-full mx-0.5 ${
-                        isStart || isEnd
-                          ? 'bg-eco-green text-white font-bold'
-                          : inRange
-                            ? 'bg-eco-green/15 text-eco-green rounded-none mx-0'
-                            : isToday
-                              ? 'text-eco-green font-bold'
-                              : 'text-gray-700 hover:bg-gray-100'
-                      }`}
-                    >
-                      {i + 1}
-                    </button>
-                  )
-                })}
-              </div>
-
-              {/* 적용 버튼 */}
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={handleApplyRange}
-                disabled={!rangeStart || !rangeEnd}
-                className={`w-full mt-5 py-3 rounded-2xl text-sm font-bold transition-colors ${
-                  rangeStart && rangeEnd
-                    ? 'bg-eco-green text-white'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
-              >
-                {rangeStart && rangeEnd
-                  ? `${rangeStart.getMonth()+1}/${rangeStart.getDate()} ~ ${rangeEnd.getMonth()+1}/${rangeEnd.getDate()} 조회`
-                  : '날짜를 선택해주세요'}
-              </motion.button>
-            </motion.div>
-          </motion.div>
+        {showDatePicker && (
+          <DateRangePicker
+            onClose={() => setShowDatePicker(false)}
+            onApply={(from, to) => {
+              setCustomRange({ from, to })
+              setDateFilter('custom')
+              setShowDatePicker(false)
+            }}
+          />
         )}
       </AnimatePresence>
     </div>
