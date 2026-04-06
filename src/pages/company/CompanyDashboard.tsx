@@ -138,7 +138,38 @@ export default function CompanyDashboard() {
   const [loadingDriverDetail, setLoadingDriverDetail] = useState(false)
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [pendingCafes, setPendingCafes] = useState<PendingCafe[]>([])
-  const totalNotifCount = pendingCafes.length + pendingCount
+
+  // 읽음 처리
+  const companyId = (user as any)?.id ?? 'company'
+  const READ_KEY = `company_notif_read_${companyId}`
+  const [readIds, setReadIds] = useState<Set<string>>(() => {
+    try {
+      const saved = localStorage.getItem(`company_notif_read_${(user as any)?.id ?? 'company'}`)
+      return saved ? new Set(JSON.parse(saved)) : new Set()
+    } catch { return new Set() }
+  })
+
+  const handleReadNotif = (id: string) => {
+    setReadIds(prev => {
+      const next = new Set([...prev, id])
+      localStorage.setItem(READ_KEY, JSON.stringify([...next]))
+      return next
+    })
+  }
+
+  const handleReadAll = () => {
+    const allIds = [
+      ...pendingCafes.map(c => `cafe_${c.id}`),
+      'pickup_unassigned',
+    ]
+    const next = new Set(allIds)
+    setReadIds(next)
+    localStorage.setItem(READ_KEY, JSON.stringify([...next]))
+  }
+
+  const visibleCafes = pendingCafes.filter(c => !readIds.has(`cafe_${c.id}`))
+  const pickupUnread = pendingCount > 0 && !readIds.has('pickup_unassigned')
+  const totalNotifCount = visibleCafes.length + (pickupUnread ? pendingCount : 0)
 
   // 기사 온라인 상태 주기적 갱신 (30초)
   useEffect(() => {
@@ -643,30 +674,39 @@ export default function CompanyDashboard() {
                     </div>
                     <div>
                       <h2 className="text-base font-bold text-gray-900">알림</h2>
-                      <p className="text-xs text-gray-400">총 {totalNotifCount}건의 알림</p>
+                      <p className="text-xs text-gray-400">
+                        {totalNotifCount > 0 ? `${totalNotifCount}건의 알림` : '새 알림 없음'}
+                      </p>
                     </div>
                   </div>
-                  <motion.button
-                    whileTap={{ scale: 0.9 }}
-                    onClick={() => setShowNotifPanel(false)}
-                    className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"
-                  >
-                    <X className="w-4 h-4 text-gray-500" />
-                  </motion.button>
+                  <div className="flex items-center gap-2">
+                    {totalNotifCount > 0 && (
+                      <button onClick={handleReadAll} className="text-xs text-eco-green font-semibold">
+                        모두 읽음
+                      </button>
+                    )}
+                    <motion.button
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setShowNotifPanel(false)}
+                      className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center"
+                    >
+                      <X className="w-4 h-4 text-gray-500" />
+                    </motion.button>
+                  </div>
                 </div>
               </div>
 
               <div className="overflow-y-auto max-h-[70vh] px-5 py-4 space-y-4">
                 {/* 가맹 승인 요청 섹션 */}
-                {pendingCafes.length > 0 && (
+                {visibleCafes.length > 0 && (
                   <div>
                     <div className="flex items-center gap-1.5 mb-2.5">
                       <AlertCircle className="w-4 h-4 text-amber-500" />
                       <h3 className="text-xs font-bold text-gray-700">가맹 승인 대기</h3>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full">{pendingCafes.length}건</span>
+                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full">{visibleCafes.length}건</span>
                     </div>
                     <div className="space-y-2.5">
-                      {pendingCafes.map((cafe, idx) => {
+                      {visibleCafes.map((cafe, idx) => {
                         const typeMap: Record<string, { label: string; bg: string }> = {
                           STARBUCKS: { label: '스벅', bg: 'bg-green-600' },
                           FRANCHISE: { label: '프랜차이즈', bg: 'bg-orange-500' },
@@ -689,7 +729,12 @@ export default function CompanyDashboard() {
                                 <p className="text-sm font-bold text-gray-900">{cafe.name}</p>
                                 <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">승인 대기</span>
                               </div>
-                              <span className="text-[10px] text-gray-400 shrink-0 ml-2">{cafe.createdAt}</span>
+                              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                <span className="text-[10px] text-gray-400">{cafe.createdAt}</span>
+                                <button onClick={() => handleReadNotif(`cafe_${cafe.id}`)}>
+                                  <X className="w-3.5 h-3.5 text-gray-400" />
+                                </button>
+                              </div>
                             </div>
                             <div className="flex items-center gap-1 mb-3">
                               <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
@@ -712,12 +757,17 @@ export default function CompanyDashboard() {
                 )}
 
                 {/* 미배정 수거 요청 섹션 */}
-                {pendingCount > 0 && (
+                {pickupUnread && (
                   <div>
-                    <div className="flex items-center gap-1.5 mb-2.5">
-                      <Package className="w-4 h-4 text-blue-500" />
-                      <h3 className="text-xs font-bold text-gray-700">미배정 수거 요청</h3>
-                      <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">{pendingCount}건</span>
+                    <div className="flex items-center justify-between mb-2.5">
+                      <div className="flex items-center gap-1.5">
+                        <Package className="w-4 h-4 text-blue-500" />
+                        <h3 className="text-xs font-bold text-gray-700">미배정 수거 요청</h3>
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">{pendingCount}건</span>
+                      </div>
+                      <button onClick={() => handleReadNotif('pickup_unassigned')}>
+                        <X className="w-3.5 h-3.5 text-gray-400" />
+                      </button>
                     </div>
                     <motion.button
                       whileTap={{ scale: 0.97 }}
@@ -733,7 +783,7 @@ export default function CompanyDashboard() {
                   </div>
                 )}
 
-                {totalNotifCount === 0 && (
+                {visibleCafes.length === 0 && !pickupUnread && (
                   <div className="text-center py-12">
                     <Bell className="w-10 h-10 text-gray-200 mx-auto mb-3" />
                     <p className="text-sm text-gray-400">새로운 알림이 없습니다</p>
