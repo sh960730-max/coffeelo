@@ -138,6 +138,8 @@ export default function CompanyDashboard() {
   const [loadingDriverDetail, setLoadingDriverDetail] = useState(false)
   const [showNotifPanel, setShowNotifPanel] = useState(false)
   const [pendingCafes, setPendingCafes] = useState<PendingCafe[]>([])
+  const [todayPickupList, setTodayPickupList] = useState<any[]>([])
+  const [todayDetailType, setTodayDetailType] = useState<'weight' | 'count' | 'drivers' | null>(null)
 
   // 읽음 처리
   const companyId = (user as any)?.id ?? 'company'
@@ -257,17 +259,19 @@ export default function CompanyDashboard() {
         const todayStr = now.toISOString().split('T')[0]
         const todayStart = todayStr + 'T00:00:00'
 
-        // completed_at 또는 updated_at 기준 오늘 완료 건
+        // completed_at 또는 updated_at 기준 오늘 완료 건 (cafe+driver join 포함)
         const { data: todayPickups } = await db
           .from('pickups')
-          .select('total_weight, driver_id, completed_at, updated_at')
+          .select('id, total_weight, driver_id, completed_at, updated_at, quantity, container_type, cafe:cafes(name, address, store_type), driver:drivers(name)')
           .in('driver_id', driverIds)
           .eq('status', 'COMPLETED')
           .or(`completed_at.gte.${todayStart},and(completed_at.is.null,updated_at.gte.${todayStart})`)
+          .order('completed_at', { ascending: false })
 
         if (todayPickups) {
           setTodayWeight(todayPickups.reduce((s: number, p: any) => s + (p.total_weight || 0), 0))
           setTodayCount(todayPickups.length)
+          setTodayPickupList(todayPickups)
 
           // 기사별 오늘 통계 집계
           const driverKgMap: Record<string, number> = {}
@@ -405,25 +409,28 @@ export default function CompanyDashboard() {
         </motion.div>
 
         <div className="grid grid-cols-3 gap-2.5">
-          {[...summaryCardsBase(todayWeight, todayCount), { label: '활동 기사', value: `${driverStatuses.length}명`, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50', trend: '' }].map((card, idx) => {
+          {[
+            { label: '총 수거량', value: `${todayWeight.toLocaleString()}kg`, icon: Scale, color: 'text-eco-green', bg: 'bg-eco-green-100', type: 'weight' as const },
+            { label: '수거 건수', value: `${todayCount}건`, icon: ClipboardList, color: 'text-blue-600', bg: 'bg-blue-50', type: 'count' as const },
+            { label: '활동 기사', value: `${driverStatuses.length}명`, icon: Users, color: 'text-amber-600', bg: 'bg-amber-50', type: 'drivers' as const },
+          ].map((card, idx) => {
             const Icon = card.icon
             return (
-              <motion.div
+              <motion.button
                 key={card.label}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: idx * 0.08 }}
-                className="bg-white rounded-xl p-3 shadow-card text-center"
+                whileTap={{ scale: 0.95 }}
+                onClick={() => setTodayDetailType(card.type)}
+                className="bg-white rounded-xl p-3 shadow-card text-center w-full active:bg-gray-50"
               >
                 <div className={`w-9 h-9 ${card.bg} rounded-lg flex items-center justify-center mx-auto`}>
                   <Icon className={`w-4.5 h-4.5 ${card.color}`} />
                 </div>
                 <p className="text-sm font-bold text-gray-900 mt-2">{card.value}</p>
                 <p className="text-[10px] text-gray-400">{card.label}</p>
-                {card.trend && (
-                  <span className="text-[9px] text-eco-green font-semibold">{card.trend}</span>
-                )}
-              </motion.div>
+              </motion.button>
             )
           })}
         </div>
@@ -790,6 +797,172 @@ export default function CompanyDashboard() {
                   </div>
                 )}
                 <div className="h-4" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 오늘의 현황 상세 바텀시트 ── */}
+      <AnimatePresence>
+        {todayDetailType && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm"
+            onClick={() => setTodayDetailType(null)}
+          >
+            <motion.div
+              initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+              className="absolute bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[80vh] overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="sticky top-0 bg-white z-10 px-5 pt-4 pb-3 border-b border-gray-100">
+                <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-base font-bold text-gray-900">
+                      {todayDetailType === 'weight' && '오늘 총 수거량'}
+                      {todayDetailType === 'count' && '오늘 수거 건수'}
+                      {todayDetailType === 'drivers' && '기사 현황'}
+                    </h2>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {new Date().toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'short' })}
+                    </p>
+                  </div>
+                  <button onClick={() => setTodayDetailType(null)}>
+                    <X className="w-5 h-5 text-gray-400" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="overflow-y-auto max-h-[65vh] px-5 py-4">
+                {/* 수거량 / 건수 상세 */}
+                {(todayDetailType === 'weight' || todayDetailType === 'count') && (
+                  <>
+                    {/* 요약 카드 */}
+                    <div className="grid grid-cols-2 gap-3 mb-4">
+                      <div className="bg-eco-green-100 rounded-2xl p-3 text-center">
+                        <p className="text-lg font-bold text-eco-green">{todayWeight.toLocaleString()}kg</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">총 수거량</p>
+                      </div>
+                      <div className="bg-blue-50 rounded-2xl p-3 text-center">
+                        <p className="text-lg font-bold text-blue-600">{todayCount}건</p>
+                        <p className="text-[11px] text-gray-500 mt-0.5">수거 건수</p>
+                      </div>
+                    </div>
+
+                    {todayPickupList.length === 0 ? (
+                      <div className="text-center py-10">
+                        <Scale className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                        <p className="text-sm text-gray-400">오늘 완료된 수거가 없습니다</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2.5">
+                        {todayPickupList.map((p: any, idx: number) => {
+                          const stType = p.cafe?.store_type || 'INDIVIDUAL'
+                          const badge = storeTypeBadge[stType === 'STARBUCKS' ? 'starbucks' : stType === 'FRANCHISE' ? 'franchise' : 'individual']
+                          const timeStr = (() => {
+                            const ts = p.completed_at || p.updated_at
+                            if (!ts) return '-'
+                            const d = new Date(ts)
+                            return `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`
+                          })()
+                          return (
+                            <motion.div
+                              key={p.id}
+                              initial={{ opacity: 0, y: 8 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              transition={{ delay: idx * 0.04 }}
+                              className="bg-gray-50 rounded-2xl p-3.5"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded text-white ${badge.bg}`}>{badge.label}</span>
+                                    <span className="text-[10px] text-gray-400 flex items-center gap-0.5">
+                                      <Clock className="w-2.5 h-2.5" />{timeStr}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm font-semibold text-gray-800">{p.cafe?.name ?? '-'}</p>
+                                  <div className="flex items-center gap-1 mt-0.5">
+                                    <MapPin className="w-2.5 h-2.5 text-gray-400" />
+                                    <span className="text-[11px] text-gray-400">{p.cafe?.address ?? '-'}</span>
+                                  </div>
+                                  {p.driver?.name && (
+                                    <div className="flex items-center gap-1 mt-0.5">
+                                      <Truck className="w-2.5 h-2.5 text-eco-green" />
+                                      <span className="text-[11px] text-eco-green font-medium">{p.driver.name} 기사</span>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="text-right ml-3">
+                                  <p className="text-sm font-bold text-gray-900">{p.total_weight ?? 0}kg</p>
+                                  <p className="text-[10px] text-gray-400">
+                                    {p.container_type === 'BAG' ? '봉지' : '박스'} {p.quantity ?? 0}개
+                                  </p>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {/* 기사 현황 상세 */}
+                {todayDetailType === 'drivers' && (
+                  <div className="space-y-2.5">
+                    {driverStatuses.length === 0 ? (
+                      <div className="text-center py-10">
+                        <Users className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                        <p className="text-sm text-gray-400">등록된 기사가 없습니다</p>
+                      </div>
+                    ) : (
+                      driverStatuses.map((driver, idx) => {
+                        const cfg = statusConfig[driver.status]
+                        return (
+                          <motion.div
+                            key={driver.id}
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className="bg-gray-50 rounded-2xl p-4"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <div className="relative w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm">
+                                  <Truck className="w-5 h-5 text-gray-500" />
+                                  <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 ${cfg.color} rounded-full border-2 border-white`} />
+                                </div>
+                                <div>
+                                  <div className="flex items-center gap-1.5">
+                                    <p className="text-sm font-bold text-gray-800">{driver.name}</p>
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${cfg.bgColor} ${cfg.textColor}`}>{cfg.label}</span>
+                                  </div>
+                                  <p className="text-[11px] text-gray-400 mt-0.5">{driver.truckType}</p>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-sm font-bold text-gray-900">{driver.todayKg.toLocaleString()}kg</p>
+                                <p className="text-[11px] text-gray-400">{driver.pickups}건 완료</p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )
+                      })
+                    )}
+                    {/* 합계 */}
+                    <div className="mt-2 bg-eco-green-100 rounded-2xl p-4 flex items-center justify-between">
+                      <span className="text-sm font-bold text-eco-green">오늘 전체 합계</span>
+                      <div className="text-right">
+                        <p className="text-sm font-bold text-eco-green">{todayWeight.toLocaleString()}kg</p>
+                        <p className="text-[11px] text-eco-green/70">{todayCount}건</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </motion.div>
           </motion.div>
