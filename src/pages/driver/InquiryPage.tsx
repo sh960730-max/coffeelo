@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Phone, Mail } from 'lucide-react';
+import { ArrowLeft, Phone, Mail, MessageCircle } from 'lucide-react';
 
 export default function InquiryPage() {
   const navigate = useNavigate();
@@ -19,6 +19,27 @@ export default function InquiryPage() {
       </header>
 
       <div className="px-5 py-4 space-y-3">
+        {/* 카카오톡 문의 */}
+        <div className="bg-white rounded-2xl shadow-sm p-4">
+          <div className="flex items-start gap-3 mb-4">
+            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-yellow-50 flex-shrink-0">
+              <MessageCircle className="w-5 h-5 text-yellow-500" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-bold text-gray-900">카카오톡 채널</p>
+              <p className="text-xs text-gray-400 mt-0.5">평일 09:00 ~ 18:00</p>
+              <p className="text-sm font-medium text-gray-700 mt-1.5">@커피로 채널로 문의</p>
+            </div>
+          </div>
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => window.open('http://pf.kakao.com/_xeSxdMX', '_blank')}
+            className="w-full bg-yellow-400 text-gray-900 font-semibold py-2.5 rounded-xl text-sm"
+          >
+            채널 바로가기
+          </motion.button>
+        </div>
+
         {/* 전화 문의 */}
         <div className="bg-white rounded-2xl shadow-sm p-4">
           <div className="flex items-start gap-3 mb-4">
