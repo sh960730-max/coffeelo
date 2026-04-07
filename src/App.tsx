@@ -52,6 +52,7 @@ import CompanyInfoPage from './pages/company/CompanyInfoPage'
 import NotificationSettingPage from './pages/company/NotificationSettingPage'
 import TermsPage from './pages/company/TermsPage'
 import PrivacyPage from './pages/company/PrivacyPage'
+import CompanyInquiryPage from './pages/company/CompanyInquiryPage'
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 30_000, retry: 1 } },
@@ -149,6 +150,7 @@ function AppRoutes() {
         <Route path="notifications" element={<NotificationSettingPage />} />
         <Route path="terms" element={<TermsPage />} />
         <Route path="privacy" element={<PrivacyPage />} />
+        <Route path="inquiry" element={<CompanyInquiryPage />} />
       </Route>
 
       <Route path="*" element={<Navigate to={isAuthenticated ? defaultRoute : '/login'} replace />} />

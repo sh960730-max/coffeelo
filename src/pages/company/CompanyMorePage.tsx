@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Building2, Bell, FileText, LogOut, ChevronRight, Coffee,
-  MapPin, Phone, Shield, Store, Megaphone, Users, Scale
+  MapPin, Phone, Shield, Store, Megaphone, Users, Scale, MessageCircle
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
@@ -70,6 +70,7 @@ export default function CompanyMorePage() {
       items: [
         { icon: Building2, label: '회사 정보', desc: '회사 정보 수정', path: '/company/info' },
         { icon: Bell, label: '알림 설정', desc: '푸시 알림, 정산 알림', path: '/company/notifications' },
+        { icon: MessageCircle, label: '문의하기', desc: '카카오톡·전화·이메일 문의', path: '/company/inquiry' },
       ],
     },
     {
