@@ -27,7 +27,7 @@ export default function DriverStats() {
       const { data: todayPickups } = await db
         .from('pickups').select('total_weight, settlement_amount')
         .eq('driver_id', driverId).eq('status', 'COMPLETED')
-        .gte('completed_at', today + 'T00:00:00')
+        .or(`completed_at.gte.${today}T00:00:00,updated_at.gte.${today}T00:00:00`)
       if (todayPickups) {
         setTodayStores(todayPickups.length)
         setTodayWeight(todayPickups.reduce((s: number, p: any) => s + (p.total_weight || 0), 0))

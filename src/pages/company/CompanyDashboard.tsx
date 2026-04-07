@@ -385,7 +385,7 @@ export default function CompanyDashboard() {
             >
               <div className="flex items-center gap-2">
                 <Package className="w-4 h-4 text-amber-300" />
-                <span className="text-sm text-white font-medium">미배정 수거 요청 {pendingCount}건</span>
+                <span className="text-sm text-white font-medium">수거 요청 현황 {pendingCount}건</span>
               </div>
               <ChevronRight className="w-4 h-4 text-white/60" />
             </motion.button>
@@ -762,13 +762,13 @@ export default function CompanyDashboard() {
                   </div>
                 )}
 
-                {/* 미배정 수거 요청 섹션 */}
+                {/* 수거 요청 현황 섹션 */}
                 {pickupUnread && (
                   <div>
                     <div className="flex items-center justify-between mb-2.5">
                       <div className="flex items-center gap-1.5">
                         <Package className="w-4 h-4 text-blue-500" />
-                        <h3 className="text-xs font-bold text-gray-700">미배정 수거 요청</h3>
+                        <h3 className="text-xs font-bold text-gray-700">수거 요청 현황</h3>
                         <span className="text-[10px] font-bold px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded-full">{pendingCount}건</span>
                       </div>
                       <button onClick={() => handleReadNotif('pickup_unassigned')}>
@@ -997,7 +997,7 @@ export default function CompanyDashboard() {
                     <div>
                       <h2 className="text-base font-bold text-gray-900">수거 요청 현황</h2>
                       <p className="text-xs text-gray-400">
-                        미배정 {unassignedList.filter(r => r.status === 'REQUESTED').length}건 · 진행 중 {unassignedList.filter(r => r.status !== 'REQUESTED').length}건
+                        기사 미지정 {unassignedList.filter(r => r.status === 'REQUESTED').length}건 · 진행 중 {unassignedList.filter(r => r.status !== 'REQUESTED').length}건
                       </p>
                     </div>
                   </div>
@@ -1036,7 +1036,7 @@ export default function CompanyDashboard() {
                           <p className="text-sm font-bold text-gray-900">{req.cafeName}</p>
                           {/* 상태 뱃지 */}
                           {req.status === 'REQUESTED' ? (
-                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600">미배정</span>
+                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600">기사 미지정</span>
                           ) : (
                             <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-eco-green-100 text-eco-green">
                               {req.status === 'ASSIGNED' ? '배정완료' : req.status === 'EN_ROUTE' ? '이동중' : req.status === 'ARRIVED' ? '도착' : '상차완료'}
@@ -1066,7 +1066,7 @@ export default function CompanyDashboard() {
                             )}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-gray-400">담당 기사 미배정</span>
+                          <span className="text-[11px] text-amber-500">담당 기사 미지정 — 매장관리에서 지정해 주세요</span>
                         )}
                       </div>
 
