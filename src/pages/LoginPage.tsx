@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
-import { Coffee, Phone, Lock, ArrowRight, Leaf, Truck, Store, Building2 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Coffee, Phone, Lock, ArrowRight, Leaf, Truck, Store, Building2, X, MessageCircle, ExternalLink } from 'lucide-react'
 import { useAuth, type UserRole } from '../contexts/AuthContext'
 
 const roles: { key: UserRole; label: string; icon: typeof Truck; desc: string }[] = [
@@ -18,6 +18,8 @@ export default function LoginPage() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [showHelpModal, setShowHelpModal] = useState(false)
+  const [helpTab, setHelpTab] = useState<'id' | 'pw'>('id')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -150,14 +152,153 @@ export default function LoginPage() {
           )}
         </motion.button>
 
-        <button
-          type="button"
-          onClick={() => navigate('/signup')}
-          className="w-full mt-4 py-3 text-white/60 text-sm font-medium"
-        >
-          계정이 없으신가요? <span className="text-white underline">회원가입</span>
-        </button>
+        <div className="flex items-center justify-between mt-4 px-1">
+          <button
+            type="button"
+            onClick={() => navigate('/signup')}
+            className="text-white/60 text-sm font-medium"
+          >
+            계정이 없으신가요? <span className="text-white underline">회원가입</span>
+          </button>
+          <div className="flex items-center gap-2 text-white/40 text-sm">
+            <button
+              type="button"
+              onClick={() => { setHelpTab('id'); setShowHelpModal(true) }}
+              className="hover:text-white/70 transition-colors underline"
+            >
+              아이디 찾기
+            </button>
+            <span>·</span>
+            <button
+              type="button"
+              onClick={() => { setHelpTab('pw'); setShowHelpModal(true) }}
+              className="hover:text-white/70 transition-colors underline"
+            >
+              비밀번호 찾기
+            </button>
+          </div>
+        </div>
       </motion.form>
+
+      {/* 아이디/비밀번호 찾기 모달 */}
+      <AnimatePresence>
+        {showHelpModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end justify-center"
+            onClick={() => setShowHelpModal(false)}
+          >
+            <motion.div
+              initial={{ y: '100%' }}
+              animate={{ y: 0 }}
+              exit={{ y: '100%' }}
+              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+              onClick={e => e.stopPropagation()}
+              className="w-full max-w-md bg-white rounded-t-3xl p-5 pb-10"
+            >
+              {/* 헤더 */}
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-gray-900">계정 찾기</h2>
+                <button onClick={() => setShowHelpModal(false)}>
+                  <X className="w-5 h-5 text-gray-400" />
+                </button>
+              </div>
+
+              {/* 탭 */}
+              <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-5">
+                <button
+                  onClick={() => setHelpTab('id')}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${helpTab === 'id' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}
+                >
+                  아이디 찾기
+                </button>
+                <button
+                  onClick={() => setHelpTab('pw')}
+                  className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${helpTab === 'pw' ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-400'}`}
+                >
+                  비밀번호 찾기
+                </button>
+              </div>
+
+              {helpTab === 'id' ? (
+                <div className="space-y-4">
+                  <div className="bg-blue-50 rounded-2xl p-4">
+                    <p className="text-sm font-semibold text-blue-700 mb-1">💡 아이디 안내</p>
+                    <p className="text-xs text-blue-600 leading-relaxed">
+                      커피로의 아이디는 <span className="font-bold">가입 시 등록한 전화번호</span>입니다.<br />
+                      전화번호가 기억나지 않으시면 아래 채널로 문의해 주세요.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => window.open('http://pf.kakao.com/_xeSxdMX', '_blank')}
+                      className="w-full flex items-center gap-3 p-3.5 bg-yellow-50 rounded-2xl"
+                    >
+                      <MessageCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                      <div className="text-left flex-1">
+                        <p className="text-sm font-semibold text-gray-800">카카오톡 문의</p>
+                        <p className="text-xs text-gray-400">@커피로 채널 · 평일 09:00~18:00</p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-300" />
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => { window.location.href = 'tel:0269252927' }}
+                      className="w-full flex items-center gap-3 p-3.5 bg-blue-50 rounded-2xl"
+                    >
+                      <Phone className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                      <div className="text-left flex-1">
+                        <p className="text-sm font-semibold text-gray-800">전화 문의</p>
+                        <p className="text-xs text-gray-400">02-6925-2927 · 평일 09:00~18:00</p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-300" />
+                    </motion.button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="bg-amber-50 rounded-2xl p-4">
+                    <p className="text-sm font-semibold text-amber-700 mb-1">🔑 비밀번호 초기화</p>
+                    <p className="text-xs text-amber-600 leading-relaxed">
+                      비밀번호를 잊으셨나요? 아래 채널로 문의하시면<br />
+                      <span className="font-bold">관리자가 비밀번호를 초기화</span>해 드립니다.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => window.open('http://pf.kakao.com/_xeSxdMX', '_blank')}
+                      className="w-full flex items-center gap-3 p-3.5 bg-yellow-50 rounded-2xl"
+                    >
+                      <MessageCircle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+                      <div className="text-left flex-1">
+                        <p className="text-sm font-semibold text-gray-800">카카오톡 문의</p>
+                        <p className="text-xs text-gray-400">@커피로 채널 · 평일 09:00~18:00</p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-300" />
+                    </motion.button>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={() => { window.location.href = 'tel:0269252927' }}
+                      className="w-full flex items-center gap-3 p-3.5 bg-blue-50 rounded-2xl"
+                    >
+                      <Phone className="w-5 h-5 text-blue-500 flex-shrink-0" />
+                      <div className="text-left flex-1">
+                        <p className="text-sm font-semibold text-gray-800">전화 문의</p>
+                        <p className="text-xs text-gray-400">02-6925-2927 · 평일 09:00~18:00</p>
+                      </div>
+                      <ExternalLink className="w-4 h-4 text-gray-300" />
+                    </motion.button>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 사업자 정보 푸터 */}
       <motion.footer
