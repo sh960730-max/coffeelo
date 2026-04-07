@@ -243,12 +243,19 @@ export default function AllPickupsPage() {
         fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).toISOString()
       }
 
-      // 소속 기사 ID 목록
+      // 소속 기사 전체 목록 (드롭다운용)
       const { data: drivers } = await db.from('drivers').select('id, name').eq('company', companyName)
       if (!drivers || drivers.length === 0) { setPickups([]); setLoading(false); return }
       const driverMap: Record<string, string> = {}
       drivers.forEach((d: any) => { driverMap[d.id] = d.name })
       const driverIds = drivers.map((d: any) => d.id)
+
+      // 소속 매장 전체 목록 (드롭다운용)
+      const { data: allCafes } = await db.from('cafes').select('name').eq('company', companyName).eq('status', 'APPROVED')
+      const allCafeNames = (allCafes || []).map((c: any) => c.name).filter(Boolean).sort()
+
+      setDriverList(['전체', ...drivers.map((d: any) => d.name)])
+      setCafeList(['전체', ...allCafeNames])
 
       let query = db.from('pickups')
         .select('*, cafe:cafes(name, address, store_type)')
@@ -270,11 +277,6 @@ export default function AllPickupsPage() {
           driverName: p.driver_id ? (driverMap[p.driver_id] || '미배정') : '미배정',
         }))
         setPickups(enriched)
-
-        const dNames = Array.from(new Set(enriched.map((p: any) => p.driverName))) as string[]
-        const cNames = Array.from(new Set(enriched.filter((p: any) => p.cafe?.name).map((p: any) => p.cafe.name))) as string[]
-        setDriverList(['전체', ...dNames])
-        setCafeList(['전체', ...cNames])
       }
       setLoading(false)
     }
