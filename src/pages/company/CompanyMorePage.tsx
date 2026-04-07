@@ -120,20 +120,20 @@ export default function CompanyMorePage() {
           </div>
 
           <div className="flex items-center justify-around mt-4 pt-4 border-t border-white/20">
-            <div className="text-center">
+            <button className="text-center active:opacity-70" onClick={() => navigate('/company/drivers')}>
               <p className="text-lg font-bold text-white">{driverCount}</p>
               <p className="text-[10px] text-white/60">소속 기사</p>
-            </div>
+            </button>
             <div className="w-px h-8 bg-white/20" />
-            <div className="text-center">
+            <button className="text-center active:opacity-70" onClick={() => navigate('/company/cafes')}>
               <p className="text-lg font-bold text-white">{cafeCount}</p>
               <p className="text-[10px] text-white/60">이번 달 매장</p>
-            </div>
+            </button>
             <div className="w-px h-8 bg-white/20" />
-            <div className="text-center">
+            <button className="text-center active:opacity-70" onClick={() => navigate('/company/pickups')}>
               <p className="text-lg font-bold text-white">{weightDisplay}</p>
               <p className="text-[10px] text-white/60">이번 달</p>
-            </div>
+            </button>
           </div>
         </motion.div>
 
