@@ -83,27 +83,28 @@ export default function DriverStats() {
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-2.5">
-        {stats.map((stat, index) => {
+      <motion.div
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.6 }}
+        className="bg-white rounded-2xl shadow-card flex divide-x divide-gray-100"
+      >
+        {stats.map((stat) => {
           const Icon = stat.icon
           return (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.4, delay: 0.6 + index * 0.1 }}
-              className="bg-white rounded-xl p-3 shadow-card text-center"
-            >
-              <div className={`w-9 h-9 ${stat.bg} rounded-lg flex items-center justify-center mx-auto`}>
-                <Icon className={`w-4.5 h-4.5 ${stat.color}`} />
+            <div key={stat.label} className="flex-1 flex flex-col items-center py-4 px-1 gap-1.5">
+              <div className={`w-9 h-9 ${stat.bg} rounded-xl flex items-center justify-center`}>
+                <Icon className={`w-[18px] h-[18px] ${stat.color}`} />
               </div>
-              <p className="text-base font-bold text-gray-900 mt-2">{stat.value}</p>
-              <p className="text-[10px] text-gray-400 font-medium">{stat.unit}</p>
-              <p className="text-[10px] text-gray-500 mt-0.5">{stat.label}</p>
-            </motion.div>
+              <div className="text-center">
+                <span className="text-[17px] font-bold text-gray-900">{stat.value}</span>
+                <span className="text-[11px] font-semibold text-gray-400 ml-0.5">{stat.unit}</span>
+              </div>
+              <p className="text-[10px] text-gray-400 font-medium leading-none">{stat.label}</p>
+            </div>
           )
         })}
-      </div>
+      </motion.div>
 
       <div className="bg-white rounded-2xl p-4 shadow-card mt-3">
         <div className="flex items-center justify-between mb-3">
