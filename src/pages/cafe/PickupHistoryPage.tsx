@@ -264,10 +264,10 @@ export default function PickupHistoryPage() {
       .from('pickups')
       .select('id, status, estimated_weight, total_weight, created_at, completed_at, note, driver_id, settlement_amount')
       .eq('cafe_id', cafeId)
-      .order('created_at', { ascending: false })
+      .order(from ? 'completed_at' : 'created_at', { ascending: false })
 
-    if (from) query = query.gte('created_at', from)
-    if (to)   query = query.lte('created_at', to)
+    if (from) query = query.gte('completed_at', from)
+    if (to)   query = query.lte('completed_at', to)
 
     const { data } = await query
 
