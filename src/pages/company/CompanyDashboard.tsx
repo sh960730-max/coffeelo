@@ -997,7 +997,7 @@ export default function CompanyDashboard() {
                     <div>
                       <h2 className="text-base font-bold text-gray-900">수거 요청 현황</h2>
                       <p className="text-xs text-gray-400">
-                        기사 미지정 {unassignedList.filter(r => r.status === 'REQUESTED').length}건 · 진행 중 {unassignedList.filter(r => r.status !== 'REQUESTED').length}건
+                        기사 미지정 {unassignedList.filter(r => r.status === 'REQUESTED' && !r.driverName).length}건 · 콜 대기 {unassignedList.filter(r => r.status === 'REQUESTED' && r.driverName).length}건 · 진행 중 {unassignedList.filter(r => r.status !== 'REQUESTED').length}건
                       </p>
                     </div>
                   </div>
@@ -1036,7 +1036,9 @@ export default function CompanyDashboard() {
                           <p className="text-sm font-bold text-gray-900">{req.cafeName}</p>
                           {/* 상태 뱃지 */}
                           {req.status === 'REQUESTED' ? (
-                            <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600">기사 미지정</span>
+                            req.driverName
+                              ? <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-blue-50 text-blue-500">콜 대기</span>
+                              : <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-amber-50 text-amber-600">기사 미지정</span>
                           ) : (
                             <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-eco-green-100 text-eco-green">
                               {req.status === 'ASSIGNED' ? '배정완료' : req.status === 'EN_ROUTE' ? '이동중' : req.status === 'ARRIVED' ? '도착' : '상차완료'}
