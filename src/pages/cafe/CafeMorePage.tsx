@@ -101,22 +101,22 @@ export default function CafeMorePage() {
           </div>
 
           <div className="flex items-center justify-around mt-4 pt-4 border-t border-white/20">
-            <div className="text-center">
+            <button onClick={() => navigate('/cafe/history')} className="text-center active:opacity-70">
               <p className="text-lg font-bold text-white">{monthCount}</p>
               <p className="text-[10px] text-white/60">이번 달 수거</p>
-            </div>
+            </button>
             <div className="w-px h-8 bg-white/20" />
-            <div className="text-center">
+            <button onClick={() => navigate('/cafe/history')} className="text-center active:opacity-70">
               <p className="text-lg font-bold text-white">{monthWeight}kg</p>
               <p className="text-[10px] text-white/60">총 수거량</p>
-            </div>
+            </button>
             <div className="w-px h-8 bg-white/20" />
-            <div className="text-center">
+            <button onClick={() => navigate('/cafe/settlement')} className="text-center active:opacity-70">
               <p className="text-lg font-bold text-white">
-                {monthSaved >= 10000 ? `${(monthSaved / 10000).toFixed(1)}만` : `${monthSaved}원`}
+                {Math.round(monthWeight * 100).toLocaleString()}P
               </p>
-              <p className="text-[10px] text-white/60">절감 금액</p>
-            </div>
+              <p className="text-[10px] text-white/60">이번 달 포인트</p>
+            </button>
           </div>
         </motion.div>
 
