@@ -13,7 +13,7 @@ export default function CafeInquiryPage() {
       sub: '평일 09:00 ~ 18:00',
       color: 'bg-yellow-50',
       iconColor: 'text-yellow-500',
-      action: () => window.open('https://pf.kakao.com/', '_blank'),
+      action: () => window.open('http://pf.kakao.com/_xeSxdMX/chat', '_blank'),
       actionLabel: '채널 바로가기',
     },
     {
