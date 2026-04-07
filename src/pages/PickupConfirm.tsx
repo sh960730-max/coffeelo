@@ -153,24 +153,37 @@ export default function PickupConfirm() {
     setSubmitting(true)
     const db = supabase as any
 
-    // 전체 현장 사진 업로드
-    let pickupPhotoUrl: string | null = null
-    if (overallPhotoFile) {
+    // 사진 업로드 헬퍼
+    const uploadPhoto = async (file: File, pathSuffix: string): Promise<string | null> => {
       try {
-        const compressed = await compressImage(overallPhotoFile)
-        const ext = 'jpg'
-        const path = `${id}/${Date.now()}.${ext}`
-        const { error: uploadErr } = await (supabase as any).storage
+        const compressed = await compressImage(file)
+        const path = `${id}/${pathSuffix}.jpg`
+        const { error } = await (supabase as any).storage
           .from('pickup-photos')
           .upload(path, compressed, { contentType: 'image/jpeg', upsert: true })
-        if (!uploadErr) {
-          const { data: urlData } = (supabase as any).storage
-            .from('pickup-photos')
-            .getPublicUrl(path)
-          pickupPhotoUrl = urlData?.publicUrl ?? null
-        }
+        if (error) return null
+        const { data: urlData } = (supabase as any).storage
+          .from('pickup-photos')
+          .getPublicUrl(path)
+        return urlData?.publicUrl ?? null
       } catch (e) {
-        console.error('pickup photo upload error:', e)
+        console.error('photo upload error:', e)
+        return null
+      }
+    }
+
+    // 전체 현장 사진 업로드
+    const pickupPhotoUrl = overallPhotoFile
+      ? await uploadPhoto(overallPhotoFile, `overall_${Date.now()}`)
+      : null
+
+    // 박스/봉지별 사진 업로드
+    const containerPhotoUrls: string[] = []
+    for (let i = 0; i < containers.length; i++) {
+      const c = containers[i]
+      if (c.photoFile) {
+        const url = await uploadPhoto(c.photoFile, `container_${i + 1}_${Date.now()}`)
+        if (url) containerPhotoUrls.push(url)
       }
     }
 
@@ -182,6 +195,7 @@ export default function PickupConfirm() {
       completed_at: new Date().toISOString(),
       settlement_amount: Math.round(totalWeight * 80),
       ...(pickupPhotoUrl ? { pickup_photo_url: pickupPhotoUrl } : {}),
+      ...(containerPhotoUrls.length > 0 ? { container_photo_urls: containerPhotoUrls } : {}),
     }).eq('id', id)
 
     // 컨테이너 저장

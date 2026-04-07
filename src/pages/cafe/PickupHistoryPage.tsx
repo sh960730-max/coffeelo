@@ -19,6 +19,7 @@ interface CafePickupRecord {
   note: string | null
   settlementAmount: number | null
   pickupPhotoUrl: string | null
+  containerPhotoUrls: string[]
 }
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: typeof CheckCircle2 }> = {
@@ -264,7 +265,7 @@ export default function PickupHistoryPage() {
 
     let query = db
       .from('pickups')
-      .select('id, status, estimated_weight, total_weight, created_at, completed_at, note, driver_id, settlement_amount, pickup_photo_url')
+      .select('id, status, estimated_weight, total_weight, created_at, completed_at, note, driver_id, settlement_amount, pickup_photo_url, container_photo_urls')
       .eq('cafe_id', cafeId)
       .order(from ? 'completed_at' : 'created_at', { ascending: false })
 
@@ -307,6 +308,7 @@ export default function PickupHistoryPage() {
         note: p.note ?? null,
         settlementAmount: p.settlement_amount ?? (p.total_weight ? Math.round(p.total_weight * 80) : null),
         pickupPhotoUrl: p.pickup_photo_url ?? null,
+        containerPhotoUrls: p.container_photo_urls ?? [],
       })))
     }
     setLoading(false)
@@ -508,23 +510,38 @@ export default function PickupHistoryPage() {
                                 </span>
                               </div>
                             )}
-                            {pickup.pickupPhotoUrl && (
+                            {(pickup.pickupPhotoUrl || pickup.containerPhotoUrls.length > 0) && (
                               <div className="pt-3 border-t border-gray-100">
                                 <div className="flex items-center gap-1.5 mb-2">
                                   <Camera className="w-3.5 h-3.5 text-eco-green" />
-                                  <span className="text-xs font-semibold text-gray-700">기사 수거 현장 사진</span>
+                                  <span className="text-xs font-semibold text-gray-700">기사 수거 사진</span>
+                                  <span className="text-[10px] text-gray-400 ml-auto">탭하면 크게 보기</span>
                                 </div>
-                                <button
-                                  onClick={() => setPhotoModal(pickup.pickupPhotoUrl!)}
-                                  className="w-full rounded-xl overflow-hidden border border-gray-100 shadow-sm active:opacity-80"
-                                >
-                                  <img
-                                    src={pickup.pickupPhotoUrl}
-                                    alt="수거 현장"
-                                    className="w-full h-40 object-cover"
-                                  />
-                                </button>
-                                <p className="text-[10px] text-gray-400 mt-1 text-center">탭하면 크게 볼 수 있어요</p>
+                                <div className="flex gap-2 overflow-x-auto pb-1">
+                                  {pickup.containerPhotoUrls.map((url, i) => (
+                                    <button
+                                      key={i}
+                                      onClick={() => setPhotoModal(url)}
+                                      className="flex-shrink-0 relative rounded-xl overflow-hidden border border-gray-100 shadow-sm active:opacity-80"
+                                    >
+                                      <img src={url} alt={`박스 #${i + 1}`} className="w-28 h-28 object-cover" />
+                                      <span className="absolute bottom-1 left-1 bg-black/50 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">
+                                        박스 #{i + 1}
+                                      </span>
+                                    </button>
+                                  ))}
+                                  {pickup.pickupPhotoUrl && (
+                                    <button
+                                      onClick={() => setPhotoModal(pickup.pickupPhotoUrl!)}
+                                      className="flex-shrink-0 relative rounded-xl overflow-hidden border border-gray-100 shadow-sm active:opacity-80"
+                                    >
+                                      <img src={pickup.pickupPhotoUrl} alt="현장 전체" className="w-28 h-28 object-cover" />
+                                      <span className="absolute bottom-1 left-1 bg-black/50 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-md">
+                                        현장 전체
+                                      </span>
+                                    </button>
+                                  )}
+                                </div>
                               </div>
                             )}
                           </div>
