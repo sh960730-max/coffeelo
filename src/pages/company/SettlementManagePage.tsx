@@ -525,20 +525,24 @@ export default function SettlementManagePage() {
                 수거 가치 환산 금액 <span className="text-white font-semibold">{monthlyTotal.toLocaleString()}원</span>
               </p>
               <div className="flex items-center justify-around mt-4 pt-4 border-t border-white/20">
-                <div className="text-center">
-                  <p className="text-lg font-bold text-white">{pendingCount}</p>
-                  <p className="text-[10px] text-white/60">대기</p>
-                </div>
-                <div className="w-px h-8 bg-white/20" />
-                <div className="text-center">
-                  <p className="text-lg font-bold text-white">{confirmedCount}</p>
-                  <p className="text-[10px] text-white/60">확정</p>
-                </div>
-                <div className="w-px h-8 bg-white/20" />
-                <div className="text-center">
-                  <p className="text-lg font-bold text-white">{settlements.length}</p>
-                  <p className="text-[10px] text-white/60">전체</p>
-                </div>
+                {([
+                  { label: '대기', count: pendingCount, value: '대기' },
+                  { label: '확정', count: confirmedCount, value: '확정' },
+                  { label: '전체', count: settlements.length, value: '전체' },
+                ] as const).map((item, i, arr) => (
+                  <div key={item.label} className="flex items-center flex-1">
+                    <button
+                      onClick={() => setFilterStatus(item.value)}
+                      className={`flex-1 text-center py-1 rounded-xl transition-all ${
+                        filterStatus === item.value ? 'bg-white/20' : 'opacity-70'
+                      }`}
+                    >
+                      <p className="text-lg font-bold text-white">{item.count}</p>
+                      <p className="text-[10px] text-white/70">{item.label}</p>
+                    </button>
+                    {i < arr.length - 1 && <div className="w-px h-8 bg-white/20 flex-shrink-0" />}
+                  </div>
+                ))}
               </div>
             </motion.div>
 
