@@ -96,19 +96,46 @@ export default function SignupPage() {
     setIsLoading(true)
 
     try {
-      // 1. Supabase Auth 회원가입
       const email = `${phone}@coffeelo.kr`
-      const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
-      if (authError) throw new Error(authError.message)
-      if (!authData.user) throw new Error('회원가입에 실패했습니다.')
-
-      const authId = authData.user.id
 
       // 2. 역할별 테이블에 데이터 삽입
       if (selectedRole === 'cafe') {
+        // 거절된 계정 재가입 처리
+        const { data: rejectedCafe } = await (supabase as any)
+          .from('cafes')
+          .select('id, status, auth_id')
+          .eq('phone', phone)
+          .eq('status', 'REJECTED')
+          .maybeSingle()
+
+        if (rejectedCafe) {
+          // 기존 계정으로 로그인 확인
+          const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+          if (signInError) throw new Error('기존 계정의 비밀번호가 일치하지 않습니다. 처음 가입 시 사용한 비밀번호를 입력해주세요.')
+
+          // cafe 레코드만 PENDING으로 업데이트
+          const fullAddress = [cafeAddress, cafeAddressDetail].filter(Boolean).join(' ') || '주소 미입력'
+          await (supabase as any).from('cafes').update({
+            name: cafeName || name + '의 카페',
+            store_type: storeType,
+            address: fullAddress,
+            company: cafeCompanyName || null,
+            status: 'PENDING',
+          }).eq('id', rejectedCafe.id)
+
+          await supabase.auth.signOut()
+          navigate('/login', { state: { signupSuccess: true } })
+          return
+        }
+
+        // 신규 가입
+        const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
+        if (authError) throw new Error(authError.message)
+        if (!authData.user) throw new Error('회원가입에 실패했습니다.')
+
         const fullAddress = [cafeAddress, cafeAddressDetail].filter(Boolean).join(' ') || '주소 미입력'
         const { error: dbError } = await supabase.from('cafes').insert({
-          auth_id: authId,
+          auth_id: authData.user.id,
           name: cafeName || name + '의 카페',
           store_type: storeType,
           address: fullAddress,
@@ -121,6 +148,12 @@ export default function SignupPage() {
         // 관리자가 미리 등록한 기사인지 확인
         const { data: preRegistered } = await (supabase as any)
           .from('drivers').select('id, auth_id').eq('phone', phone).maybeSingle()
+
+        const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
+        if (authError) throw new Error(authError.message)
+        if (!authData.user) throw new Error('회원가입에 실패했습니다.')
+        const authId = authData.user.id
+
         if (preRegistered) {
           // 이미 등록된 기사 → auth_id 연결 후 로그인 유도
           if (!preRegistered.auth_id) {
@@ -143,8 +176,12 @@ export default function SignupPage() {
         })
         if (dbError) throw new Error(dbError.message)
       } else if (selectedRole === 'company') {
+        const { data: authData, error: authError } = await supabase.auth.signUp({ email, password })
+        if (authError) throw new Error(authError.message)
+        if (!authData.user) throw new Error('회원가입에 실패했습니다.')
+
         const { error: dbError } = await supabase.from('companies').insert({
-          auth_id: authId,
+          auth_id: authData.user.id,
           name: adminCompanyName || name + ' 물류',
           phone: companyPhone || phone,
           address: companyAddress || '주소 미입력',
