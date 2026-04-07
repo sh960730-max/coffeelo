@@ -28,7 +28,14 @@ export default function CompanyMorePage() {
         .eq('status', 'APPROVED')
       if (dc != null) setDriverCount(dc)
 
-      // 소속 기사 ID로 매장 연동된 카페 수 (pickups에서 unique cafe_id)
+      // 전체 등록 매장 수 (APPROVED)
+      const { count: cc } = await db.from('cafes')
+        .select('id', { count: 'exact', head: true })
+        .eq('company', company.name)
+        .eq('status', 'APPROVED')
+      if (cc != null) setCafeCount(cc)
+
+      // 이번 달 수거량
       const { data: drivers } = await db.from('drivers').select('id').eq('company', company.name)
       if (drivers && drivers.length > 0) {
         const driverIds = drivers.map((d: any) => d.id)
@@ -36,15 +43,13 @@ export default function CompanyMorePage() {
         const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
 
         const { data: monthPickups } = await db.from('pickups')
-          .select('total_weight, cafe_id')
+          .select('total_weight')
           .in('driver_id', driverIds)
           .eq('status', 'COMPLETED')
           .gte('completed_at', firstOfMonth)
 
         if (monthPickups) {
           setMonthWeight(monthPickups.reduce((s: number, p: any) => s + (p.total_weight || 0), 0))
-          const uniqueCafes = new Set(monthPickups.map((p: any) => p.cafe_id).filter(Boolean))
-          setCafeCount(uniqueCafes.size)
         }
       }
     }
@@ -127,12 +132,12 @@ export default function CompanyMorePage() {
             <div className="w-px h-8 bg-white/20" />
             <button className="text-center active:opacity-70" onClick={() => navigate('/company/cafes')}>
               <p className="text-lg font-bold text-white">{cafeCount}</p>
-              <p className="text-[10px] text-white/60">이번 달 매장</p>
+              <p className="text-[10px] text-white/60">전체 매장</p>
             </button>
             <div className="w-px h-8 bg-white/20" />
             <button className="text-center active:opacity-70" onClick={() => navigate('/company/pickups')}>
               <p className="text-lg font-bold text-white">{weightDisplay}</p>
-              <p className="text-[10px] text-white/60">이번 달</p>
+              <p className="text-[10px] text-white/60">이번 달 수거량</p>
             </button>
           </div>
         </motion.div>
