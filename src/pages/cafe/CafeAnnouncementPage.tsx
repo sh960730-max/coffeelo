@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { ArrowLeft, Megaphone, ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface Announcement {
   id: string
@@ -13,18 +14,21 @@ interface Announcement {
 
 export default function CafeAnnouncementPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
+  const cafeCompany = (user as any)?.company ?? ''
 
   const [items, setItems] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
-  useEffect(() => { fetchAnnouncements() }, [])
+  useEffect(() => { fetchAnnouncements() }, [cafeCompany])
 
   const fetchAnnouncements = async () => {
     const db = supabase as any
     const { data } = await db
       .from('announcements')
       .select('id, title, content, created_at')
+      .eq('company', cafeCompany)
       .order('created_at', { ascending: false })
 
     if (data) setItems(data)

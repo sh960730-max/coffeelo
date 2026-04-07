@@ -97,11 +97,12 @@ export default function DriverHeader() {
       })
     }
 
-    // 공지사항 알림
+    // 공지사항 알림 (소속 회사 공지만)
     if (settings.notice) {
       const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
       const { data } = await db.from('announcements')
         .select('id, title, created_at')
+        .eq('company', (user as any)?.company ?? '')
         .gte('created_at', threeDaysAgo)
         .order('created_at', { ascending: false })
         .limit(5)

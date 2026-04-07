@@ -70,11 +70,12 @@ export default function Header() {
       })
     }
 
-    // 공지사항
+    // 공지사항 (소속 회사 공지만)
+    const cafeCompany = (user as any)?.company ?? ''
     const { data: announcements } = await db
       .from('announcements')
       .select('id, title, content, created_at')
-      .eq('is_active', true)
+      .eq('company', cafeCompany)
       .order('created_at', { ascending: false })
       .limit(5)
 
