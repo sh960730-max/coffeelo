@@ -631,7 +631,7 @@ export default function PickupConfirm() {
                 </motion.button>
                 <motion.button
                   whileTap={{ scale: 0.95 }}
-                  onClick={() => navigate('/driver')}
+                  onClick={() => navigate('/driver', { state: { scrollToActive: true } })}
                   className="flex-1 py-3 bg-eco-green rounded-xl text-sm font-semibold text-white"
                 >
                   다음 매장

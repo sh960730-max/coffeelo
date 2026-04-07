@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import DriverHeader from '../../components/driver/DriverHeader'
 import ActivePickupCard from '../../components/driver/ActivePickupCard'
 import PickupCallList from '../../components/driver/PickupCallList'
@@ -57,8 +57,10 @@ const mapStatus = (status: string): 'waiting' | 'arrived' | 'loaded' | 'complete
 
 export default function HomePage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { user } = useAuth()
   const driverId = (user as any)?.id
+  const activeRef = useRef<HTMLDivElement>(null)
 
   const [activePickups, setActivePickups] = useState<PickupStop[]>([])
   const [calls, setCalls] = useState<PickupCall[]>([])
@@ -139,6 +141,15 @@ export default function HomePage() {
     loadData()
   }, [loadData])
 
+  // 다음 매장 버튼으로 돌아왔을 때 진행중인 수거 섹션으로 스크롤
+  useEffect(() => {
+    if ((location.state as any)?.scrollToActive) {
+      setTimeout(() => {
+        activeRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      }, 300)
+    }
+  }, [location.state])
+
   const handlePickupConfirm = (stopId: string) => {
     navigate(`/driver/pickup/${stopId}`)
   }
@@ -159,7 +170,9 @@ export default function HomePage() {
   return (
     <>
       <DriverHeader />
-      <ActivePickupCard pickups={activePickups} onPickupConfirm={handlePickupConfirm} />
+      <div ref={activeRef}>
+        <ActivePickupCard pickups={activePickups} onPickupConfirm={handlePickupConfirm} />
+      </div>
       <PickupCallList calls={calls} onAccept={handleAcceptCall} onDecline={handleDeclineCall} />
       <DriverWeighStation />
       <DriverStats />
