@@ -55,6 +55,7 @@ interface PendingCafe {
   address: string
   storeType: string
   createdAt: string
+  updatedAt: string
 }
 
 /* ── 기사별 오늘 수거내역 더미 데이터 ── */
@@ -158,9 +159,11 @@ export default function CompanyDashboard() {
     })
   }
 
+  const cafeNotifKey = (c: PendingCafe) => `cafe_${c.id}_${c.updatedAt}`
+
   const handleReadAll = () => {
     const allIds = [
-      ...pendingCafes.map(c => `cafe_${c.id}`),
+      ...pendingCafes.map(c => cafeNotifKey(c)),
       'pickup_unassigned',
     ]
     const next = new Set(allIds)
@@ -168,7 +171,7 @@ export default function CompanyDashboard() {
     localStorage.setItem(READ_KEY, JSON.stringify([...next]))
   }
 
-  const visibleCafes = pendingCafes.filter(c => !readIds.has(`cafe_${c.id}`))
+  const visibleCafes = pendingCafes.filter(c => !readIds.has(cafeNotifKey(c)))
   const pickupUnread = pendingCount > 0 && !readIds.has('pickup_unassigned')
   const totalNotifCount = visibleCafes.length + (pickupUnread ? pendingCount : 0)
 
@@ -206,7 +209,7 @@ export default function CompanyDashboard() {
       // 2-0. 가맹 승인 대기 카페 (PENDING)
       const { data: pendingCafeData } = await db
         .from('cafes')
-        .select('id, name, address, store_type, created_at')
+        .select('id, name, address, store_type, created_at, updated_at')
         .eq('company', companyName)
         .eq('status', 'PENDING')
         .order('created_at', { ascending: false })
@@ -219,6 +222,7 @@ export default function CompanyDashboard() {
           createdAt: c.created_at
             ? new Date(c.created_at).toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' })
             : '-',
+          updatedAt: c.updated_at ?? c.created_at ?? '',
         })))
       }
 
@@ -737,7 +741,7 @@ export default function CompanyDashboard() {
                               </div>
                               <div className="flex items-center gap-1.5 shrink-0 ml-2">
                                 <span className="text-[10px] text-gray-400">{cafe.createdAt}</span>
-                                <button onClick={() => handleReadNotif(`cafe_${cafe.id}`)}>
+                                <button onClick={() => handleReadNotif(cafeNotifKey(cafe))}>
                                   <X className="w-3.5 h-3.5 text-gray-400" />
                                 </button>
                               </div>

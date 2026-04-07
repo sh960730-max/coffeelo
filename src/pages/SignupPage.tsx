@@ -113,7 +113,7 @@ export default function SignupPage() {
           const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
           if (signInError) throw new Error('기존 계정의 비밀번호가 일치하지 않습니다. 처음 가입 시 사용한 비밀번호를 입력해주세요.')
 
-          // cafe 레코드만 PENDING으로 업데이트
+          // cafe 레코드만 PENDING으로 업데이트 (updated_at 갱신으로 알림 재발생)
           const fullAddress = [cafeAddress, cafeAddressDetail].filter(Boolean).join(' ') || '주소 미입력'
           await (supabase as any).from('cafes').update({
             name: cafeName || name + '의 카페',
@@ -121,6 +121,7 @@ export default function SignupPage() {
             address: fullAddress,
             company: cafeCompanyName || null,
             status: 'PENDING',
+            updated_at: new Date().toISOString(),
           }).eq('id', rejectedCafe.id)
 
           await supabase.auth.signOut()
