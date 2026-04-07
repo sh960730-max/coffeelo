@@ -1,22 +1,18 @@
 import { useState } from 'react'
 import { motion } from 'framer-motion'
-import { ArrowLeft, Store, MapPin, Phone, Tag, Save, Loader2, Building2 } from 'lucide-react'
+import { ArrowLeft, Store, MapPin, Phone, Tag, Save, Loader2, Building2, Lock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
-import KakaoAddressModal from '../../components/KakaoAddressModal'
 
 export default function CafeStoreInfoPage() {
   const navigate = useNavigate()
   const { user, refreshUser } = useAuth()
   const cafe = user as any
 
-  const [name,    setName]    = useState(cafe?.name    ?? '')
-  const [address, setAddress] = useState(cafe?.address ?? '')
-  const [phone,   setPhone]   = useState(cafe?.phone   ?? '')
-  const [saving,  setSaving]  = useState(false)
-  const [saved,   setSaved]   = useState(false)
-  const [showAddrModal, setShowAddrModal] = useState(false)
+  const [phone,  setPhone]  = useState(cafe?.phone ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saved,  setSaved]  = useState(false)
 
   const storeTypeLabel: Record<string, string> = {
     FRANCHISE: '프랜차이즈', INDIVIDUAL: '개인카페', STARBUCKS: '스타벅스',
@@ -25,7 +21,7 @@ export default function CafeStoreInfoPage() {
   const handleSave = async () => {
     setSaving(true)
     const db = supabase as any
-    await db.from('cafes').update({ name, address, phone }).eq('id', cafe?.id)
+    await db.from('cafes').update({ phone }).eq('id', cafe?.id)
     await refreshUser()
     setSaving(false)
     setSaved(true)
@@ -73,47 +69,54 @@ export default function CafeStoreInfoPage() {
           </div>
         </div>
 
-        {/* 수정 폼 */}
+        {/* 잠긴 필드 (매장명 / 주소) */}
         <div className="bg-white rounded-2xl shadow-card p-4 space-y-4">
           <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1.5 block">매장명</label>
-            <div className="relative">
-              <Store className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                value={name}
-                onChange={e => setName(e.target.value)}
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-eco-green/30"
-              />
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-gray-500">매장명</label>
+              <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                <Lock className="w-3 h-3" />
+                <span>담당 업체 문의</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 rounded-xl">
+              <Store className="w-4 h-4 text-gray-400 flex-shrink-0" />
+              <span className="text-sm text-gray-500">{cafe?.name ?? '-'}</span>
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1.5 block">주소</label>
-            <motion.button
-              type="button"
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowAddrModal(true)}
-              className="w-full flex items-center gap-2 px-3 py-2.5 bg-gray-50 rounded-xl text-sm text-left"
-            >
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-semibold text-gray-500">주소</label>
+              <div className="flex items-center gap-1 text-[10px] text-gray-400">
+                <Lock className="w-3 h-3" />
+                <span>담당 업체 문의</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-gray-100 rounded-xl">
               <MapPin className="w-4 h-4 text-gray-400 flex-shrink-0" />
-              <span className={address ? 'text-gray-800' : 'text-gray-400'}>
-                {address || '주소 검색 (클릭)'}
-              </span>
-            </motion.button>
-          </div>
-          <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1.5 block">연락처</label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <input
-                type="tel"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-                placeholder="02-0000-0000"
-                className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-eco-green/30"
-              />
+              <span className="text-sm text-gray-500">{cafe?.address ?? '-'}</span>
             </div>
           </div>
         </div>
+
+        {/* 수정 가능: 연락처 */}
+        <div className="bg-white rounded-2xl shadow-card p-4">
+          <label className="text-xs font-semibold text-gray-500 mb-1.5 block">연락처</label>
+          <div className="relative">
+            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <input
+              type="tel"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              placeholder="02-0000-0000"
+              className="w-full pl-9 pr-4 py-2.5 bg-gray-50 rounded-xl text-sm outline-none focus:ring-2 focus:ring-eco-green/30"
+            />
+          </div>
+        </div>
+
+        <p className="text-[11px] text-gray-400 text-center -mt-1">
+          매장명·주소 변경은 담당 수거업체에 문의해 주세요
+        </p>
 
         <motion.button
           whileTap={{ scale: 0.97 }}
@@ -127,12 +130,6 @@ export default function CafeStoreInfoPage() {
           {saved ? '저장되었습니다!' : '저장하기'}
         </motion.button>
       </div>
-
-      <KakaoAddressModal
-        isOpen={showAddrModal}
-        onClose={() => setShowAddrModal(false)}
-        onSelect={addr => setAddress(addr)}
-      />
     </div>
   )
 }
