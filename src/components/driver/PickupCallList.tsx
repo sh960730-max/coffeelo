@@ -64,25 +64,40 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     return [...new Set(candidates)]
   }
 
-  // OpenStreetMap Nominatim으로 주소 → 좌표 변환
+  // localStorage 좌표 캐시
+  const GEO_CACHE_KEY = 'geo_cache_v1'
+  const loadGeoCache = (): Record<string, { lat: number; lng: number }> => {
+    try { return JSON.parse(localStorage.getItem(GEO_CACHE_KEY) || '{}') } catch { return {} }
+  }
+  const saveGeoCache = (cache: Record<string, { lat: number; lng: number }>) => {
+    try { localStorage.setItem(GEO_CACHE_KEY, JSON.stringify(cache)) } catch {}
+  }
+
+  // OpenStreetMap Nominatim으로 주소 → 좌표 변환 (캐시 우선)
   const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
+    const cacheKey = address.trim().toLowerCase()
+    const cache = loadGeoCache()
+    if (cache[cacheKey]) return cache[cacheKey]   // 캐시 히트 → 즉시 반환
+
     const queries = buildQueries(address)
-    for (const q of queries) {
+    for (let qi = 0; qi < queries.length; qi++) {
+      const q = queries[qi]
       try {
+        if (qi > 0) await new Promise(r => setTimeout(r, 1100))  // 재시도 시에만 대기
         const res = await fetch(
           `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q + ', 대한민국')}&format=json&limit=1&accept-language=ko&countrycodes=kr`,
           { headers: { 'User-Agent': 'SmartEcoSys-Driver/1.0' } }
         )
         const json = await res.json()
         if (json?.[0]) {
-          console.log(`✅ geocode "${q}" → ${json[0].lat}, ${json[0].lon}`)
-          return { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) }
+          const result = { lat: parseFloat(json[0].lat), lng: parseFloat(json[0].lon) }
+          cache[cacheKey] = result
+          saveGeoCache(cache)  // 캐시 저장
+          return result
         }
-        console.warn(`❌ geocode no result: "${q}"`)
       } catch (e) {
         console.error('geocode error:', e)
       }
-      await new Promise(r => setTimeout(r, 1100))
     }
     return null
   }
@@ -106,25 +121,29 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
       async (pos) => {
         const { latitude: myLat, longitude: myLng } = pos.coords
         console.log(`📍 내 위치: ${myLat}, ${myLng}`)
-        const withCoords: any[] = []
-        for (let i = 0; i < snapshot.length; i++) {
-          const c = snapshot[i]
+        // 캐시된 주소는 병렬, 미캐시 주소만 순차 처리
+        const cache = loadGeoCache()
+        const needsApi = snapshot.filter(c =>
+          c.lat == null && c.lng == null && !cache[c.address.trim().toLowerCase()]
+        )
+        // 미캐시 주소들 순차 API 호출 (첫 번째 이후 1100ms 간격)
+        for (let i = 0; i < needsApi.length; i++) {
+          if (i > 0) await new Promise(r => setTimeout(r, 1100))
+          await geocodeAddress(needsApi[i].address)
+        }
+        // 모든 주소 좌표 계산 (이제 전부 캐시에 있음)
+        const withCoords: any[] = snapshot.map(c => {
           if (c.lat != null && c.lng != null) {
             const km = haversine(myLat, myLng, c.lat, c.lng)
-            withCoords.push({ ...c, distance: formatDist(km), _km: km })
-          } else {
-            if (i > 0) await new Promise(r => setTimeout(r, 1100))
-            const coords = await geocodeAddress(c.address)
-            if (coords) {
-              const km = haversine(myLat, myLng, coords.lat, coords.lng)
-              console.log(`🏪 ${c.storeName}: ${km.toFixed(2)}km`)
-              withCoords.push({ ...c, distance: formatDist(km), _km: km })
-            } else {
-              console.warn(`⚠️ geocode 실패: ${c.address}`)
-              withCoords.push({ ...c, distance: '?', _km: Infinity })
-            }
+            return { ...c, distance: formatDist(km), _km: km }
           }
-        }
+          const coords = loadGeoCache()[c.address.trim().toLowerCase()]
+          if (coords) {
+            const km = haversine(myLat, myLng, coords.lat, coords.lng)
+            return { ...c, distance: formatDist(km), _km: km }
+          }
+          return { ...c, distance: '?', _km: Infinity }
+        })
         withCoords.sort((a, b) => a._km - b._km)
         setDisplayCalls(withCoords)
         setSortedByDist(true)
