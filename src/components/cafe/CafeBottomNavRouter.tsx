@@ -1,12 +1,12 @@
 import { motion } from 'framer-motion'
-import { Home, ClipboardList, History, Wallet, MoreHorizontal } from 'lucide-react'
+import { Home, ClipboardList, History, Gift, MoreHorizontal } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 
 const navItems = [
   { icon: Home, label: '홈', path: '/cafe' },
   { icon: ClipboardList, label: '수거신청', path: '/cafe/request' },
   { icon: History, label: '수거내역', path: '/cafe/history', isCenter: true },
-  { icon: Wallet, label: '정산', path: '/cafe/settlement' },
+  { icon: Gift, label: '리워드', path: '/cafe/settlement' },
   { icon: MoreHorizontal, label: '더보기', path: '/cafe/more' },
 ]
 
