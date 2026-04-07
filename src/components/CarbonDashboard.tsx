@@ -1,6 +1,7 @@
 import { motion, useMotionValue, useTransform, animate } from 'framer-motion'
 import { TreePine, Droplets, Award, TrendingUp } from 'lucide-react'
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 
@@ -64,6 +65,7 @@ const rewardLevels = [
 ]
 
 export default function CarbonDashboard() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const cafeId = (user as any)?.id
 
@@ -138,7 +140,10 @@ export default function CarbonDashboard() {
     >
       <div className="flex items-center justify-between mb-3">
         <h2 className="text-base font-bold text-gray-900">나의 환경 기여</h2>
-        <button className="text-xs text-eco-green font-medium flex items-center gap-0.5">
+        <button
+          onClick={() => navigate('/cafe/eco')}
+          className="text-xs text-eco-green font-medium flex items-center gap-0.5"
+        >
           자세히 보기
           <TrendingUp className="w-3.5 h-3.5" />
         </button>

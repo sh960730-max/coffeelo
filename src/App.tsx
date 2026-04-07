@@ -36,6 +36,7 @@ import CafeFAQPage from './pages/cafe/CafeFAQPage'
 import CafeInquiryPage from './pages/cafe/CafeInquiryPage'
 import CafeTermsPage from './pages/cafe/CafeTermsPage'
 import CafePrivacyPage from './pages/cafe/CafePrivacyPage'
+import CafeEcoDetailPage from './pages/cafe/CafeEcoDetailPage'
 
 // Company
 import CompanyLayout from './pages/company/CompanyLayout'
@@ -131,6 +132,7 @@ function AppRoutes() {
         <Route path="inquiry" element={<CafeInquiryPage />} />
         <Route path="terms" element={<CafeTermsPage />} />
         <Route path="privacy" element={<CafePrivacyPage />} />
+        <Route path="eco" element={<CafeEcoDetailPage />} />
       </Route>
 
       {/* 소속회사 관리자 */}
