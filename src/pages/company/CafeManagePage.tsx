@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import KakaoAddressModal from '../../components/KakaoAddressModal'
+import { geocodeKakao } from '../../lib/geocodeKakao'
 
 const typeConfig: Record<string, { label: string; color: string }> = {
   STARBUCKS:  { label: '스벅',       color: 'bg-emerald-50 text-emerald-600' },
@@ -108,7 +109,12 @@ export default function CafeManagePage() {
   const handleApprove = async (cafeId: string) => {
     setApproving(cafeId)
     const db = supabase as any
-    const { error } = await db.from('cafes').update({ status: 'APPROVED' }).eq('id', cafeId)
+    // 카페 주소 → 좌표 변환 후 함께 저장
+    const cafe = pendingCafes.find(c => c.id === cafeId)
+    const coords = cafe?.address ? await geocodeKakao(cafe.address) : null
+    const updateData: any = { status: 'APPROVED' }
+    if (coords) { updateData.lat = coords.lat; updateData.lng = coords.lng }
+    const { error } = await db.from('cafes').update(updateData).eq('id', cafeId)
     if (error) {
       console.error('승인 오류:', error)
       alert('승인 처리 중 오류가 발생했습니다.\nSupabase RLS 정책을 확인해주세요.\n' + error.message)
