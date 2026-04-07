@@ -146,8 +146,10 @@ export default function HomePage() {
     await loadData()
   }
 
-  const handleDeclineCall = (callId: string) => {
+  const handleDeclineCall = async (callId: string) => {
     setCalls(prev => prev.filter(c => c.id !== callId))
+    const db = supabase as any
+    await db.from('pickups').update({ status: 'CANCELLED' }).eq('id', callId)
   }
 
   return (
