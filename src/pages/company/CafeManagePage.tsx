@@ -313,16 +313,27 @@ export default function CafeManagePage() {
                       className="w-full p-4 text-left"
                     >
                       <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          <div className="w-10 h-10 bg-gray-50 rounded-xl flex items-center justify-center flex-shrink-0">
                             <Coffee className="w-5 h-5 text-coffee-brown" />
                           </div>
-                          <div>
-                            <div className="flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
                               <p className="text-sm font-semibold text-gray-800">{cafe.name}</p>
                               <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${cfg.color}`}>
                                 {cfg.label}
                               </span>
+                              {cafe.driver_id ? (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-eco-green-100 text-eco-green flex items-center gap-0.5">
+                                  <UserCheck className="w-2.5 h-2.5" />
+                                  {drivers.find(d => d.id === cafe.driver_id)?.name ?? '배정됨'}
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-red-50 text-red-500 flex items-center gap-0.5">
+                                  <Truck className="w-2.5 h-2.5" />
+                                  미배정
+                                </span>
+                              )}
                             </div>
                             {cafe.address && (
                               <div className="flex items-center gap-1 mt-0.5">
