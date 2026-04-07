@@ -8,7 +8,7 @@ import KakaoAddressModal from '../../components/KakaoAddressModal'
 
 export default function CafeStoreInfoPage() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const cafe = user as any
 
   const [name,    setName]    = useState(cafe?.name    ?? '')
@@ -26,6 +26,7 @@ export default function CafeStoreInfoPage() {
     setSaving(true)
     const db = supabase as any
     await db.from('cafes').update({ name, address, phone }).eq('id', cafe?.id)
+    await refreshUser()
     setSaving(false)
     setSaved(true)
     setTimeout(() => setSaved(false), 2000)

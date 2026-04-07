@@ -22,6 +22,7 @@ interface AuthState {
   isAuthenticated: boolean
   login: (phone: string, password: string, role: UserRole) => Promise<{ error?: string }>
   logout: () => Promise<void>
+  refreshUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthState | undefined>(undefined)
@@ -192,6 +193,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setRole(null)
   }
 
+  async function refreshUser() {
+    const savedRole = localStorage.getItem('coffeelo_role') as UserRole | null
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session && savedRole) await fetchUserByRole(session.user.id, savedRole)
+  }
+
   return (
     <AuthContext.Provider value={{
       user,
@@ -200,6 +207,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthenticated: !!user,
       login,
       logout,
+      refreshUser,
     }}>
       {children}
     </AuthContext.Provider>
