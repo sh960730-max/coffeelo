@@ -135,7 +135,7 @@ export default function CompanyMorePage() {
               <p className="text-[10px] text-white/60">전체 매장</p>
             </button>
             <div className="w-px h-8 bg-white/20" />
-            <button className="text-center active:opacity-70" onClick={() => navigate('/company/pickups')}>
+            <button className="text-center active:opacity-70" onClick={() => navigate('/company/pickups?filter=month')}>
               <p className="text-lg font-bold text-white">{weightDisplay}</p>
               <p className="text-[10px] text-white/60">이번 달 수거량</p>
             </button>

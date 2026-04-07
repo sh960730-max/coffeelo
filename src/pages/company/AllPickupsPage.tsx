@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar, Filter, ArrowUpDown, CheckCircle2, Clock, Truck,
@@ -205,7 +206,8 @@ export default function AllPickupsPage() {
   const { user } = useAuth()
   const companyName = (user as any)?.name ?? ''
 
-  const [dateFilter, setDateFilter] = useState('today')
+  const [searchParams] = useSearchParams()
+  const [dateFilter, setDateFilter] = useState(searchParams.get('filter') ?? 'today')
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [selectedDriver, setSelectedDriver] = useState('전체')
