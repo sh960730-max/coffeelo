@@ -44,8 +44,11 @@ export default function CafeStoreInfoPage() {
     setLoginChanging(true)
     setLoginMsg(null)
 
-    // 1) 현재 비밀번호로 재인증
-    const currentEmail = `${cafe?.phone}@coffeelo.kr`
+    // 1) 현재 세션에서 실제 auth 이메일 가져오기
+    const { data: { session } } = await supabase.auth.getSession()
+    const currentEmail = session?.user?.email || `${cafe?.phone}@coffeelo.kr`
+
+    // 2) 현재 비밀번호로 재인증
     const { error: reAuthError } = await supabase.auth.signInWithPassword({
       email: currentEmail,
       password: currentPw,
@@ -57,9 +60,9 @@ export default function CafeStoreInfoPage() {
       return
     }
 
-    // 2) Supabase Auth 이메일 변경
+    // 3) RPC로 auth.users 직접 업데이트 (이메일 도메인 검증 우회)
     const newEmail = `${newLoginPhone.trim()}@coffeelo.kr`
-    const { error: updateError } = await supabase.auth.updateUser({ email: newEmail })
+    const { error: updateError } = await (supabase as any).rpc('update_own_login_email', { new_email: newEmail })
 
     if (updateError) {
       setLoginMsg({ type: 'error', text: '로그인 번호 변경에 실패했습니다: ' + updateError.message })
