@@ -143,15 +143,15 @@ function StopCard({
             </div>
           </div>
 
-          <div className="text-right ml-3">
+          <div className="text-right ml-3 flex-shrink-0">
             <div className="flex items-center gap-1">
-              <Coffee className="w-3.5 h-3.5 text-coffee-brown/60" />
-              <span className="text-sm font-bold text-coffee-brown">
+              <Coffee className="w-3.5 h-3.5 text-coffee-brown/60 flex-shrink-0" />
+              <span className="text-sm font-bold text-coffee-brown whitespace-nowrap">
                 {stop.containerType === 'box' ? `${stop.estimatedCount}박스` : `${stop.estimatedCount}봉지`}
               </span>
             </div>
             {stop.estimatedWeight && (
-              <p className="text-[10px] text-gray-400 mt-0.5">~{stop.estimatedWeight}kg 예상</p>
+              <p className="text-[10px] text-gray-400 mt-0.5 whitespace-nowrap">~{stop.estimatedWeight}kg 예상</p>
             )}
           </div>
         </div>
