@@ -7,6 +7,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { compressImage } from '../../lib/compressImage'
 
 type ContainerType = 'BOX' | 'BAG'
 
@@ -68,11 +69,11 @@ export default function PickupRequestPage() {
     let storagePhotoUrl: string | null = null
     if (storagePhotoFile) {
       try {
-        const ext = storagePhotoFile.name.split('.').pop() || 'jpg'
-        const fileName = `${cafeId}_${Date.now()}.${ext}`
+        const compressed = await compressImage(storagePhotoFile, 1024, 0.6)
+        const fileName = `${cafeId}_${Date.now()}.jpg`
         const { data: uploadData, error: uploadError } = await supabase.storage
           .from('pickup-photos')
-          .upload(fileName, storagePhotoFile, { upsert: true })
+          .upload(fileName, compressed, { upsert: true, contentType: 'image/jpeg' })
         if (uploadError) {
           console.error('사진 업로드 실패:', uploadError.message)
         }

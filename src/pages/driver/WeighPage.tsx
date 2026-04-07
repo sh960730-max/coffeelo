@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Scale, Truck, Camera, Check, ArrowRight, Image as ImageIcon, X, Loader2 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { compressImage } from '../../lib/compressImage'
 
 type WeighStep = 'idle' | 'loaded' | 'empty' | 'complete'
 
@@ -93,11 +94,11 @@ export default function WeighPage() {
 
   const uploadPhoto = async (file: File, label: string): Promise<string | null> => {
     try {
-      const ext = file.name.split('.').pop() || 'jpg'
-      const fileName = `${driverId}_${label}_${Date.now()}.${ext}`
+      const compressed = await compressImage(file, 1024, 0.6)
+      const fileName = `${driverId}_${label}_${Date.now()}.jpg`
       const { data, error } = await supabase.storage
         .from('weigh-photos')
-        .upload(fileName, file, { upsert: true })
+        .upload(fileName, compressed, { upsert: true, contentType: 'image/jpeg' })
       if (error) { console.error('upload error:', error); return null }
       const { data: { publicUrl } } = supabase.storage
         .from('weigh-photos')
