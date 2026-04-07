@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import { compressImage } from '../lib/compressImage'
 
 /* ── 타입 ── */
 interface ContainerItem {
@@ -152,6 +153,27 @@ export default function PickupConfirm() {
     setSubmitting(true)
     const db = supabase as any
 
+    // 전체 현장 사진 업로드
+    let pickupPhotoUrl: string | null = null
+    if (overallPhotoFile) {
+      try {
+        const compressed = await compressImage(overallPhotoFile)
+        const ext = 'jpg'
+        const path = `${id}/${Date.now()}.${ext}`
+        const { error: uploadErr } = await (supabase as any).storage
+          .from('pickup-photos')
+          .upload(path, compressed, { contentType: 'image/jpeg', upsert: true })
+        if (!uploadErr) {
+          const { data: urlData } = (supabase as any).storage
+            .from('pickup-photos')
+            .getPublicUrl(path)
+          pickupPhotoUrl = urlData?.publicUrl ?? null
+        }
+      } catch (e) {
+        console.error('pickup photo upload error:', e)
+      }
+    }
+
     // 픽업 상태 업데이트
     await db.from('pickups').update({
       status: 'COMPLETED',
@@ -159,6 +181,7 @@ export default function PickupConfirm() {
       total_weight: totalWeight,
       completed_at: new Date().toISOString(),
       settlement_amount: Math.round(totalWeight * 80),
+      ...(pickupPhotoUrl ? { pickup_photo_url: pickupPhotoUrl } : {}),
     }).eq('id', id)
 
     // 컨테이너 저장

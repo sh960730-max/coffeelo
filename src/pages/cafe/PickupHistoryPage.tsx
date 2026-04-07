@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar, ChevronDown, ChevronUp, Package, Scale,
   Clock, CheckCircle2, XCircle, Truck, Coffee, Loader2,
-  ChevronLeft, ChevronRight, X
+  ChevronLeft, ChevronRight, X, Camera
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -18,6 +18,7 @@ interface CafePickupRecord {
   driverName: string | null
   note: string | null
   settlementAmount: number | null
+  pickupPhotoUrl: string | null
 }
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: typeof CheckCircle2 }> = {
@@ -238,6 +239,7 @@ export default function PickupHistoryPage() {
   const [loading, setLoading]           = useState(true)
   const [showDatePicker, setShowDatePicker] = useState(false)
   const [customRange, setCustomRange]   = useState<{ from: string; to: string } | null>(null)
+  const [photoModal, setPhotoModal]     = useState<string | null>(null)
 
   useEffect(() => {
     if (!cafeId) return
@@ -262,7 +264,7 @@ export default function PickupHistoryPage() {
 
     let query = db
       .from('pickups')
-      .select('id, status, estimated_weight, total_weight, created_at, completed_at, note, driver_id, settlement_amount')
+      .select('id, status, estimated_weight, total_weight, created_at, completed_at, note, driver_id, settlement_amount, pickup_photo_url')
       .eq('cafe_id', cafeId)
       .order(from ? 'completed_at' : 'created_at', { ascending: false })
 
@@ -304,6 +306,7 @@ export default function PickupHistoryPage() {
           : cafeDedicatedDriverName,
         note: p.note ?? null,
         settlementAmount: p.settlement_amount ?? (p.total_weight ? Math.round(p.total_weight * 80) : null),
+        pickupPhotoUrl: p.pickup_photo_url ?? null,
       })))
     }
     setLoading(false)
@@ -505,6 +508,25 @@ export default function PickupHistoryPage() {
                                 </span>
                               </div>
                             )}
+                            {pickup.pickupPhotoUrl && (
+                              <div className="pt-3 border-t border-gray-100">
+                                <div className="flex items-center gap-1.5 mb-2">
+                                  <Camera className="w-3.5 h-3.5 text-eco-green" />
+                                  <span className="text-xs font-semibold text-gray-700">기사 수거 현장 사진</span>
+                                </div>
+                                <button
+                                  onClick={() => setPhotoModal(pickup.pickupPhotoUrl!)}
+                                  className="w-full rounded-xl overflow-hidden border border-gray-100 shadow-sm active:opacity-80"
+                                >
+                                  <img
+                                    src={pickup.pickupPhotoUrl}
+                                    alt="수거 현장"
+                                    className="w-full h-40 object-cover"
+                                  />
+                                </button>
+                                <p className="text-[10px] text-gray-400 mt-1 text-center">탭하면 크게 볼 수 있어요</p>
+                              </div>
+                            )}
                           </div>
                         </motion.div>
                       )}
@@ -531,6 +553,35 @@ export default function PickupHistoryPage() {
             onConfirm={handleDateConfirm}
             onClose={() => setShowDatePicker(false)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* 사진 전체화면 모달 */}
+      <AnimatePresence>
+        {photoModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[100] bg-black flex items-center justify-center"
+            onClick={() => setPhotoModal(null)}
+          >
+            <button
+              onClick={() => setPhotoModal(null)}
+              className="absolute top-5 right-5 z-10 w-10 h-10 bg-white/20 rounded-full flex items-center justify-center"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+            <motion.img
+              initial={{ scale: 0.95 }}
+              animate={{ scale: 1 }}
+              exit={{ scale: 0.95 }}
+              src={photoModal}
+              alt="수거 현장 사진"
+              className="max-w-full max-h-full object-contain"
+              onClick={e => e.stopPropagation()}
+            />
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
