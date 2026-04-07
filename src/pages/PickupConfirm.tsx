@@ -142,8 +142,8 @@ export default function PickupConfirm() {
     return sum + (isNaN(w) ? 0 : w)
   }, 0)
 
-  const allFilled = containers.every(c => c.weight && parseFloat(c.weight) > 0) && overallPhoto
-  const filledCount = containers.filter(c => c.weight && parseFloat(c.weight) > 0).length
+  const allFilled = containers.every(c => c.weight && parseFloat(c.weight) > 0 && c.photoFile) && overallPhoto
+  const filledCount = containers.filter(c => c.weight && parseFloat(c.weight) > 0 && c.photoFile).length
   const containerLabel = storeInfo.containerType === 'box' ? '박스' : '봉지'
   const typeInfo = storeTypeStyle[storeInfo.storeType]
 
@@ -346,7 +346,7 @@ export default function PickupConfirm() {
                     exit={{ opacity: 0, height: 0, marginBottom: 0 }}
                     transition={{ duration: 0.3 }}
                     className={`bg-white rounded-2xl shadow-card overflow-hidden border-l-4 transition-colors duration-300 ${
-                      hasWeight && hasPhoto ? 'border-l-eco-green' : hasWeight ? 'border-l-amber-400' : 'border-l-gray-200'
+                      hasWeight && hasPhoto ? 'border-l-eco-green' : hasWeight && !hasPhoto ? 'border-l-red-400' : 'border-l-gray-200'
                     }`}
                   >
                     <button
@@ -357,13 +357,15 @@ export default function PickupConfirm() {
                         <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${hasWeight && hasPhoto ? 'bg-eco-green-100' : 'bg-gray-100'}`}>
                           {hasWeight && hasPhoto
                             ? <Check className="w-5 h-5 text-eco-green" />
-                            : <Package className="w-5 h-5 text-gray-400" />
+                            : <Package className={`w-5 h-5 ${hasWeight && !hasPhoto ? 'text-red-400' : 'text-gray-400'}`} />
                           }
                         </div>
                         <div className="text-left">
                           <p className="text-sm font-bold text-gray-900">{containerLabel} #{index + 1}</p>
-                          {hasWeight
-                            ? <p className="text-xs text-eco-green font-semibold">{container.weight} kg{hasPhoto && ' · 사진 완료'}</p>
+                          {hasWeight && hasPhoto
+                            ? <p className="text-xs text-eco-green font-semibold">{container.weight} kg · 사진 완료</p>
+                            : hasWeight && !hasPhoto
+                            ? <p className="text-xs text-red-400 font-semibold">{container.weight} kg · 사진 필요 !</p>
                             : <p className="text-xs text-gray-400">무게를 입력해 주세요</p>
                           }
                         </div>
@@ -559,7 +561,7 @@ export default function PickupConfirm() {
         <div className="max-w-md mx-auto">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[11px] text-gray-500">
-              {filledCount}개 측정 완료 · {overallPhoto ? '현장사진 완료' : '현장사진 필요'}
+              {filledCount}/{containers.length}개 완료 · {overallPhoto ? '현장사진 ✓' : '현장사진 필요'}
             </span>
             <span className="text-[11px] font-bold text-eco-green">{totalWeight.toFixed(1)} kg</span>
           </div>
