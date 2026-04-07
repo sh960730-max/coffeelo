@@ -14,6 +14,8 @@ export interface PickupStop {
   storeType: 'starbucks' | 'franchise' | 'individual'
   address: string
   phone?: string | null
+  lat?: number | null
+  lng?: number | null
   containerType: 'box' | 'bag'
   estimatedCount: number
   status: 'waiting' | 'arrived' | 'loaded' | 'completed'
@@ -68,7 +70,7 @@ export default function HomePage() {
     // 진행 중인 수거 (이 기사에게 배정된)
     const { data: active } = await db
       .from('pickups')
-      .select('*, cafe:cafes(name, address, store_type, phone)')
+      .select('*, cafe:cafes(name, address, store_type, phone, lat, lng)')
       .eq('driver_id', driverId)
       .in('status', ['ASSIGNED', 'EN_ROUTE', 'ARRIVED', 'LOADED'])
       .order('created_at', { ascending: true })
@@ -80,6 +82,8 @@ export default function HomePage() {
         storeType: mapStoreType(p.cafe?.store_type || 'INDIVIDUAL'),
         address: p.cafe?.address ?? '-',
         phone: p.cafe?.phone ?? null,
+        lat: p.cafe?.lat ?? null,
+        lng: p.cafe?.lng ?? null,
         containerType: (p.container_type === 'BAG' ? 'bag' : 'box') as 'box' | 'bag',
         estimatedCount: p.quantity ?? 0,
         status: mapStatus(p.status),

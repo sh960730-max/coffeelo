@@ -1,6 +1,14 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Navigation, Phone, Camera, Package, MapPin, Clock, ChevronRight, Coffee, X } from 'lucide-react'
+
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLng/2)**2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
+}
 import type { PickupStop } from '../../pages/driver/HomePage'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -266,6 +274,39 @@ export default function ActivePickupCard({ pickups, onPickupConfirm }: ActivePic
 
   const [depotAddress, setDepotAddress] = useState<string | null>(null)
   const [showDepotNav, setShowDepotNav] = useState(false)
+  const [displayPickups, setDisplayPickups] = useState(pickups)
+  const [sortedByDist, setSortedByDist] = useState(false)
+  const [sortingLoading, setSortingLoading] = useState(false)
+
+  useEffect(() => {
+    setSortedByDist(false)
+    setDisplayPickups(pickups)
+  }, [pickups])
+
+  const handleSortByDistance = () => {
+    if (sortedByDist) {
+      setSortedByDist(false)
+      setDisplayPickups(pickups)
+      return
+    }
+    if (!navigator.geolocation) return
+    setSortingLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const { latitude: myLat, longitude: myLng } = pos.coords
+        const sorted = [...pickups].sort((a, b) => {
+          const kmA = a.lat != null && a.lng != null ? haversine(myLat, myLng, a.lat, a.lng) : Infinity
+          const kmB = b.lat != null && b.lng != null ? haversine(myLat, myLng, b.lat, b.lng) : Infinity
+          return kmA - kmB
+        })
+        setDisplayPickups(sorted)
+        setSortedByDist(true)
+        setSortingLoading(false)
+      },
+      () => setSortingLoading(false),
+      { timeout: 8000, maximumAge: 60000 }
+    )
+  }
 
   useEffect(() => {
     if (!driverCompany) return
@@ -309,15 +350,25 @@ export default function ActivePickupCard({ pickups, onPickupConfirm }: ActivePic
             {pickups.length}곳 · {totalBoxes > 0 && `박스 ${totalBoxes}개`}{totalBoxes > 0 && totalBags > 0 && ' · '}{totalBags > 0 && `봉지 ${totalBags}개`}
           </p>
         </div>
-        <div className="flex items-center gap-1">
-          <Clock className="w-3.5 h-3.5 text-eco-green" />
-          <span className="text-xs font-semibold text-eco-green">예상 1시간 20분</span>
-        </div>
+        <motion.button
+          whileTap={{ scale: 0.94 }}
+          onClick={handleSortByDistance}
+          disabled={sortingLoading}
+          className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-lg transition-colors ${
+            sortedByDist ? 'bg-eco-green text-white' : 'bg-eco-green-100 text-eco-green'
+          }`}
+        >
+          {sortingLoading
+            ? <span className="w-3 h-3 border border-eco-green border-t-transparent rounded-full animate-spin" />
+            : <Navigation className="w-3 h-3" />
+          }
+          {sortedByDist ? '거리순 ✓' : '거리순 정렬'}
+        </motion.button>
       </div>
 
       {/* 경로 순서 카드 리스트 */}
       <div className="space-y-2.5">
-        {pickups.map((stop, index) => (
+        {displayPickups.map((stop, index) => (
           <StopCard key={stop.id} stop={stop} index={index} onPickupConfirm={onPickupConfirm} />
         ))}
       </div>
