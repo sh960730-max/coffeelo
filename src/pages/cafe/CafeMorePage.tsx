@@ -108,7 +108,7 @@ export default function CafeMorePage() {
             <div className="w-px h-8 bg-white/20" />
             <button onClick={() => navigate('/cafe/history')} className="text-center active:opacity-70">
               <p className="text-lg font-bold text-white">{monthWeight}kg</p>
-              <p className="text-[10px] text-white/60">총 수거량</p>
+              <p className="text-[10px] text-white/60">이번 달 수거량</p>
             </button>
             <div className="w-px h-8 bg-white/20" />
             <button onClick={() => navigate('/cafe/settlement')} className="text-center active:opacity-70">
