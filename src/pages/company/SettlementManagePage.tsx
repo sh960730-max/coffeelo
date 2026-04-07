@@ -207,9 +207,16 @@ export default function SettlementManagePage() {
     // 이번 달 전체 픽업 (방문완료율은 항상 이번 달 기준으로 계산)
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
     const { data: allPickups } = await db.from('pickups')
-      .select('driver_id, status, total_weight, settlement_amount, completed_at, created_at, updated_at')
+      .select('driver_id, status, completed_at, created_at, updated_at')
       .in('driver_id', driverIds)
       .or(`created_at.gte.${monthStart},completed_at.gte.${monthStart},updated_at.gte.${monthStart}`)
+
+    // 집하장 계량 기록 (정산 무게 기준)
+    const { data: allWeighIns } = await db.from('weigh_ins')
+      .select('driver_id, net_weight, created_at')
+      .in('driver_id', driverIds)
+      .eq('status', 'COMPLETED')
+      .gte('created_at', monthStart)
 
     const statsMap: Record<string, { visitCount: number; totalAssigned: number; isOnline: boolean }> = {}
     driverIds.forEach((id: string) => {
@@ -249,19 +256,17 @@ export default function SettlementManagePage() {
       }
     })
 
-    // 미정산 픽업: 기사별 마지막 확정 정산 이후 수거분만 집계
-    const completedPickups = (allPickups || []).filter((p: any) => p.status === 'COMPLETED')
+    // 미정산 집하장 계량: 기사별 마지막 확정 정산 이후 계량분만 집계 (정산 무게 기준)
     const agg: Record<string, { kg: number; amount: number; minDate: Date; maxDate: Date }> = {}
-    completedPickups.forEach((p: any) => {
-      if (!p.driver_id) return
-      const pickupDate = new Date(p.completed_at || p.created_at)
-      // 이미 확정된 정산에 포함된 수거는 제외
-      if (lastSettledEnd[p.driver_id] && pickupDate <= lastSettledEnd[p.driver_id]) return
-      if (!agg[p.driver_id]) agg[p.driver_id] = { kg: 0, amount: 0, minDate: pickupDate, maxDate: pickupDate }
-      agg[p.driver_id].kg += p.total_weight || 0
-      agg[p.driver_id].amount += p.settlement_amount || 0
-      if (pickupDate < agg[p.driver_id].minDate) agg[p.driver_id].minDate = pickupDate
-      if (pickupDate > agg[p.driver_id].maxDate) agg[p.driver_id].maxDate = pickupDate
+    ;(allWeighIns || []).forEach((w: any) => {
+      if (!w.driver_id) return
+      const weighDate = new Date(w.created_at)
+      // 이미 확정된 정산에 포함된 계량은 제외
+      if (lastSettledEnd[w.driver_id] && weighDate <= lastSettledEnd[w.driver_id]) return
+      if (!agg[w.driver_id]) agg[w.driver_id] = { kg: 0, amount: 0, minDate: weighDate, maxDate: weighDate }
+      agg[w.driver_id].kg += w.net_weight || 0
+      if (weighDate < agg[w.driver_id].minDate) agg[w.driver_id].minDate = weighDate
+      if (weighDate > agg[w.driver_id].maxDate) agg[w.driver_id].maxDate = weighDate
     })
 
     const fromD = new Date(fromDate)
@@ -282,7 +287,7 @@ export default function SettlementManagePage() {
         periodStr,
         total_weight: v.kg,
         rate_per_kg: 80,
-        gross_amount: v.amount || Math.round(v.kg * 80),
+        gross_amount: Math.round(v.kg * 80),
         status: 'PENDING',
       }
     }).filter(s => {
