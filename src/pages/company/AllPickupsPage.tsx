@@ -294,6 +294,7 @@ export default function AllPickupsPage() {
   const completedWithWeight = filtered.filter(p => p.status === 'COMPLETED' && p.total_weight)
   const totalStoreEst = completedWithWeight.reduce((s, p) => s + (p.estimated_weight || 0), 0)
   const totalDriverW = completedWithWeight.reduce((s, p) => s + (p.total_weight || 0), 0)
+  const totalAllWeight = filtered.reduce((s, p) => s + (p.total_weight || 0), 0)
 
   const dateFilters = [
     { key: 'today', label: '오늘' },
@@ -436,6 +437,11 @@ export default function AllPickupsPage() {
               <Package className="w-4 h-4 text-gray-400" />
               <h2 className="text-sm font-bold text-gray-800">수거 내역</h2>
               <span className="text-[11px] text-gray-400 ml-auto">{filtered.length}건</span>
+              {totalAllWeight > 0 && (
+                <span className="text-[11px] font-bold text-eco-green bg-eco-green-100 px-2 py-0.5 rounded-lg">
+                  총 {totalAllWeight.toLocaleString()}kg
+                </span>
+              )}
             </div>
 
             <div className="space-y-2">
