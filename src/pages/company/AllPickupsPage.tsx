@@ -227,10 +227,12 @@ export default function AllPickupsPage() {
       let toDate: string | null = null
 
       if (customRange) {
-        fromDate = customRange.from + 'T00:00:00'
-        toDate = customRange.to + 'T23:59:59'
+        fromDate = customRange.from + 'T00:00:00+09:00'
+        toDate = customRange.to + 'T23:59:59+09:00'
       } else if (dateFilter === 'today') {
-        fromDate = now.toISOString().split('T')[0] + 'T00:00:00'
+        const todayStart = new Date(now)
+        todayStart.setHours(0, 0, 0, 0)
+        fromDate = todayStart.toISOString()
       } else if (dateFilter === 'week') {
         const dow = now.getDay()
         const mon = new Date(now)
@@ -238,7 +240,7 @@ export default function AllPickupsPage() {
         mon.setHours(0, 0, 0, 0)
         fromDate = mon.toISOString()
       } else {
-        fromDate = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
+        fromDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0).toISOString()
       }
 
       // 소속 기사 ID 목록
