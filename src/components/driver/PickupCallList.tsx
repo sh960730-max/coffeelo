@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { MapPin, Clock, Coffee, ChevronRight, Zap, MessageSquare, X, Package, Navigation } from 'lucide-react'
+import { MapPin, Clock, Coffee, ChevronRight, Zap, MessageSquare, X, Package, Navigation, Phone } from 'lucide-react'
 import type { PickupCall } from '../../pages/driver/HomePage'
 
 // Haversine 거리 계산 (km)
@@ -363,6 +363,12 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
                     <MapPin className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" />
                     <p className="text-xs text-gray-500">{selectedCall.address}</p>
                   </div>
+                  {selectedCall.phone && (
+                    <a href={`tel:${selectedCall.phone}`} className="flex items-center gap-1 mt-1.5">
+                      <Phone className="w-3.5 h-3.5 text-eco-green flex-shrink-0" />
+                      <p className="text-xs text-eco-green font-semibold">{selectedCall.phone}</p>
+                    </a>
+                  )}
                 </div>
 
                 {/* 수거 정보 */}

@@ -25,6 +25,7 @@ export interface PickupCall {
   storeName: string
   storeType: 'starbucks' | 'franchise' | 'individual'
   address: string
+  phone?: string | null
   distance: string
   lat?: number | null
   lng?: number | null
@@ -97,7 +98,7 @@ export default function HomePage() {
     // 대기 중인 콜 (담당 카페의 미배정 수거 요청)
     const pendingQuery = db
       .from('pickups')
-      .select('*, cafe:cafes(name, address, store_type, lat, lng)')
+      .select('*, cafe:cafes(name, address, store_type, lat, lng, phone)')
       .eq('status', 'REQUESTED')
       .order('requested_at', { ascending: false })
 
@@ -111,6 +112,7 @@ export default function HomePage() {
         storeName: p.cafe?.name ?? '알 수 없음',
         storeType: mapStoreType(p.cafe?.store_type ?? 'INDIVIDUAL'),
         address: p.cafe?.address ?? '-',
+        phone: p.cafe?.phone ?? null,
         distance: '-',
         lat: p.cafe?.lat ?? null,
         lng: p.cafe?.lng ?? null,
