@@ -62,6 +62,11 @@ const rewardLevels = [
   { name: '나무', threshold: 30,  emoji: '🌳' },
   { name: '숲',   threshold: 60,  emoji: '🏞️' },
   { name: '지구', threshold: 100, emoji: '🌍' },
+  { name: '바다', threshold: 150, emoji: '🌊' },
+  { name: '하늘', threshold: 200, emoji: '🌤️' },
+  { name: '태양', threshold: 300, emoji: '☀️' },
+  { name: '별',   threshold: 400, emoji: '⭐' },
+  { name: '은하', threshold: 500, emoji: '🌌' },
 ]
 
 export default function CarbonDashboard() {
@@ -123,7 +128,7 @@ export default function CarbonDashboard() {
 
   // 환경 등급
   const gradeLevel = rewardLevels.filter(l => l.threshold <= monthKg).length
-  const gradeName = ['씨앗', '새싹', '나무', '숲', '지구'][Math.min(gradeLevel - 1, 4)] || '씨앗'
+  const gradeName = rewardLevels[Math.min(gradeLevel - 1, rewardLevels.length - 1)]?.name || '씨앗'
 
   const stats = [
     { icon: TreePine, label: '나무 환산', value: treesEquiv.toString(), unit: '그루', color: 'text-green-600', bgColor: 'bg-green-50' },

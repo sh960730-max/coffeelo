@@ -11,6 +11,11 @@ const rewardLevels = [
   { name: '나무', threshold: 30,  emoji: '🌳', desc: '든든한 나무로 성장' },
   { name: '숲',   threshold: 60,  emoji: '🏞️', desc: '숲을 이루고 있어요' },
   { name: '지구', threshold: 100, emoji: '🌍', desc: '지구를 지키는 영웅' },
+  { name: '바다', threshold: 150, emoji: '🌊', desc: '바다처럼 넓은 기여' },
+  { name: '하늘', threshold: 200, emoji: '🌤️', desc: '하늘을 향해 날아올라' },
+  { name: '태양', threshold: 300, emoji: '☀️', desc: '빛나는 환경 리더' },
+  { name: '별',   threshold: 400, emoji: '⭐', desc: '별처럼 빛나는 실천' },
+  { name: '은하', threshold: 500, emoji: '🌌', desc: '우주를 품은 에코 챔피언' },
 ]
 
 interface MonthStat {
@@ -88,8 +93,8 @@ export default function CafeEcoDetailPage() {
 
   // 등급 계산
   const gradeLevel = rewardLevels.filter(l => l.threshold <= currentMonthKg).length
-  const currentGrade = rewardLevels[Math.min(gradeLevel - 1, 4)] || rewardLevels[0]
-  const nextGrade = rewardLevels[gradeLevel] || rewardLevels[4]
+  const currentGrade = rewardLevels[Math.min(gradeLevel - 1, rewardLevels.length - 1)] || rewardLevels[0]
+  const nextGrade = rewardLevels[gradeLevel] || rewardLevels[rewardLevels.length - 1]
   const progressToNext = nextGrade.threshold > currentGrade.threshold
     ? Math.min(((currentMonthKg - currentGrade.threshold) / (nextGrade.threshold - currentGrade.threshold)) * 100, 100)
     : 100
