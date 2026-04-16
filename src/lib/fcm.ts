@@ -1,4 +1,4 @@
-import { getToken, onMessage } from 'firebase/messaging'
+import { getToken, onMessage, deleteToken } from 'firebase/messaging'
 import { getFirebaseMessaging } from './firebase'
 import { supabase } from './supabase'
 
@@ -14,9 +14,14 @@ export async function initFCM(userId: string, table: 'drivers' | 'cafes' | 'comp
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return
 
+    // 만료된 토큰 강제 삭제 후 새 토큰 발급 (UNREGISTERED 방지)
+    try { await deleteToken(messaging) } catch (_) {}
+
     // FCM 토큰 발급
     const token = await getToken(messaging, { vapidKey: VAPID_KEY })
     if (!token) return
+
+    console.log('[FCM] new token saved for', table, token.slice(0, 20) + '...')
 
     // Supabase에 저장
     await (supabase as any)
