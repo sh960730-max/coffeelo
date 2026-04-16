@@ -173,7 +173,7 @@ serve(async (req) => {
         }
 
         const results = await Promise.all(notifications.map(n => sendFCM(n.token, n.title, n.body)))
-        result = { sent: results.length }
+        result = { sent: results.length, fcm: results }
       }
 
     } else if (payload.cafeId) {

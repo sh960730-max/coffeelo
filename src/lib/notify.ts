@@ -8,7 +8,7 @@ async function callEdge(payload: object) {
       body: JSON.stringify(payload),
     })
     const result = await res.json()
-    console.log('[FCM] status:', res.status, '→', JSON.stringify(result))
+    alert('[FCM응답]\n' + JSON.stringify(result).slice(0, 300))
   } catch (e) {
     console.error('[FCM] error:', e)
   }
