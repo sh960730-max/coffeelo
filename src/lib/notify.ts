@@ -1,12 +1,15 @@
 import { supabase } from './supabase'
 
-const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`
+// Supabase anon key — 공개 키이므로 하드코딩 안전 (브라우저 번들에 항상 포함됨)
+const SUPABASE_URL  = 'https://ysofjeniptffnxfrddns.supabase.co'
+const ANON_KEY      = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inlzb2ZqZW5pcHRmZm54ZnJkZG5zIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMzNzg2NjksImV4cCI6MjA4ODk1NDY2OX0.Ou51cYwBSuF5YIDjSHwX7TA_5YneYIGlzFtkXrlt8O8'
+const EDGE_URL      = `${SUPABASE_URL}/functions/v1/send-notification`
 
 async function callEdge(payload: object) {
   try {
-    // 로그인된 사용자의 세션 토큰 사용 (없으면 anon key 폴백)
+    // 로그인 세션 토큰 우선 사용, 없으면 anon key 사용
     const { data: { session } } = await (supabase as any).auth.getSession()
-    const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY
+    const token = session?.access_token ?? ANON_KEY
 
     const res = await fetch(EDGE_URL, {
       method: 'POST',
@@ -17,7 +20,7 @@ async function callEdge(payload: object) {
       body: JSON.stringify(payload),
     })
     const result = await res.json()
-    console.log('[FCM] payload:', JSON.stringify(payload), '→ result:', JSON.stringify(result))
+    console.log('[FCM] status:', res.status, '→ result:', JSON.stringify(result))
   } catch (e) {
     console.error('[FCM] push error:', e)
   }
