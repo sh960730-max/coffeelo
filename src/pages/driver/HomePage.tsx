@@ -174,7 +174,13 @@ export default function HomePage() {
   const handleDeclineCall = async (callId: string) => {
     setCalls(prev => prev.filter(c => c.id !== callId))
     const db = supabase as any
+    // cafe_id 조회 후 거절 처리
+    const { data: pickup } = await db.from('pickups').select('cafe_id').eq('id', callId).single()
     await db.from('pickups').update({ status: 'CANCELLED' }).eq('id', callId)
+    // 점주에게 거절 알림
+    if (pickup?.cafe_id) {
+      notifyCafe(pickup.cafe_id, '수거 거절 알림 😢', '기사님이 수거를 거절했습니다. 다시 신청하거나 취소해주세요.')
+    }
   }
 
   return (

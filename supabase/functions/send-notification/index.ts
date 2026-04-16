@@ -131,13 +131,18 @@ serve(async (req) => {
 
     } else if (payload.pickupCafeId) {
       /* 수거 신청 알림: cafeId → 담당기사 + 관리자 동시 알림 */
-      const cafes = await dbSelect('cafes', { id: payload.pickupCafeId }, 'name,company,driver_id')
+      const cafes = await dbSelect('cafes', { id: payload.pickupCafeId }, 'name,company,driver_id,fcm_token')
       const cafe = cafes[0]
       if (!cafe) {
         result = { skipped: 'cafe not found' }
       } else {
         const cafeName = cafe.name ?? '매장'
         const sends: Promise<any>[] = []
+
+        // 점주 본인에게 신청 확인 알림
+        if (cafe.fcm_token) {
+          sends.push(sendFCM(cafe.fcm_token, '수거 신청 완료 ✅', `${cafeName} 수거가 접수되었습니다. 기사 배정을 기다려주세요.`))
+        }
 
         // 담당 기사에게 알림
         if (cafe.driver_id) {
