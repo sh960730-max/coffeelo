@@ -110,7 +110,9 @@ export default function PickupRequestPage() {
     }
 
     // 담당기사 + 관리자 알림 (Edge Function이 서버에서 처리)
+    console.log('[알림] notifyPickupRequest 호출, cafeId:', cafeId)
     await notifyPickupRequest(cafeId)
+    console.log('[알림] notifyPickupRequest 완료')
 
     setShowSuccess(true)
   }

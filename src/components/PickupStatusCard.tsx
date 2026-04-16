@@ -121,10 +121,7 @@ export default function PickupStatusCard() {
   const handleCancel = async (pickupId: string) => {
     setCancelling(pickupId)
     const db = supabase as any
-    await db.from('pickups').update({
-      status: 'CANCELLED',
-      updated_at: new Date().toISOString(),
-    }).eq('id', pickupId)
+    await db.from('pickups').delete().eq('id', pickupId)
     setPickups(prev => prev.filter(p => p.id !== pickupId))
     setCancelling(null)
   }
