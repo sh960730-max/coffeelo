@@ -1,4 +1,4 @@
-import { getToken, onMessage, deleteToken } from 'firebase/messaging'
+import { getToken, onMessage } from 'firebase/messaging'
 import { getFirebaseMessaging } from './firebase'
 import { supabase } from './supabase'
 
@@ -20,15 +20,8 @@ export async function initFCM(userId: string, table: 'drivers' | 'cafes' | 'comp
     const permission = await Notification.requestPermission()
     if (permission !== 'granted') return
 
-    const swRegistration = await navigator.serviceWorker.ready
-
-    // 기존 토큰 삭제 후 새 토큰 발급 (PushSubscription은 건드리지 않음)
-    try { await deleteToken(messaging) } catch (_) {}
-
-    const token = await getToken(messaging, {
-      vapidKey: VAPID_KEY,
-      serviceWorkerRegistration: swRegistration,
-    })
+    // FCM 토큰 발급
+    const token = await getToken(messaging, { vapidKey: VAPID_KEY })
     if (!token) return
 
     // Supabase에 저장
@@ -37,19 +30,12 @@ export async function initFCM(userId: string, table: 'drivers' | 'cafes' | 'comp
       .update({ fcm_token: token })
       .eq('id', userId)
 
-    // 포그라운드 메시지 → 서비스 워커로 위임해 알림 표시
-    onMessage(messaging, async (payload) => {
+    // 포그라운드 메시지 수신 처리
+    onMessage(messaging, (payload) => {
       const title = payload.notification?.title ?? '커피로 알림'
       const body  = payload.notification?.body  ?? ''
-      try {
-        const reg = await navigator.serviceWorker.ready
-        await reg.showNotification(title, {
-          body,
-          icon: '/icons/icon-192.png',
-          badge: '/icons/icon-72.png',
-        })
-      } catch (_) {
-        new Notification(title, { body })
+      if (Notification.permission === 'granted') {
+        new Notification(title, { body, icon: '/icons/icon-192.png' })
       }
     })
 

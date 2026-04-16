@@ -79,16 +79,12 @@ async function sendFCM(token: string, title: string, body: string, data?: Record
       body: JSON.stringify({
         message: {
           token,
-          data: { ...(data ?? {}), title, body },
+          notification: { title, body },
+          data: data ?? {},
           webpush: {
             notification: {
-              title,
-              body,
+              title, body,
               icon: 'https://smartecosys.kr/icons/icon-192.png',
-              badge: 'https://smartecosys.kr/icons/icon-72.png',
-            },
-            fcm_options: {
-              link: '/',
             },
           },
         },

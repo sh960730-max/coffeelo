@@ -10,35 +10,16 @@ firebase.initializeApp({
   appId: '1:992943222054:web:1219b148be421fe680e5e7',
 })
 
-// Firebase messaging 초기화 (포그라운드 ↔ 서비스워커 메시지 라우팅)
-firebase.messaging()
+const messaging = firebase.messaging()
 
-// iOS PWA 호환: push 이벤트를 직접 처리해 알림 표시
-// Firebase compat의 onBackgroundMessage 대신 raw push 핸들러 사용
-self.addEventListener('push', event => {
-  if (!event.data) return
-
-  let title = '커피로 알림'
-  let body = ''
-
-  try {
-    const json = event.data.json()
-    // FCM 페이로드 형식: notification 또는 data 필드
-    title = (json.notification && json.notification.title)
-         || (json.data && json.data.title)
-         || title
-    body  = (json.notification && json.notification.body)
-         || (json.data && json.data.body)
-         || body
-  } catch (_) {
-    try { body = event.data.text() } catch (_2) {}
-  }
-
-  event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-72.png',
-    })
-  )
+// 백그라운드 메시지 처리 (앱이 꺼져있거나 백그라운드일 때)
+messaging.onBackgroundMessage((payload) => {
+  const title = payload.notification?.title ?? '커피로 알림'
+  const body  = payload.notification?.body  ?? ''
+  self.registration.showNotification(title, {
+    body,
+    icon: '/icons/icon-192.png',
+    badge: '/icons/icon-72.png',
+    data: payload.data ?? {},
+  })
 })
