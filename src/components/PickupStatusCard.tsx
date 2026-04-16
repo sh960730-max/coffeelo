@@ -74,6 +74,7 @@ export default function PickupStatusCard() {
   const [pickups, setPickups] = useState<PickupItem[]>([])
   const [loading, setLoading] = useState(true)
   const [reapplying, setReapplying] = useState<string | null>(null)
+  const [cancelling, setCancelling] = useState<string | null>(null)
 
   useEffect(() => {
     if (!cafeId) return
@@ -115,6 +116,17 @@ export default function PickupStatusCard() {
     }).eq('id', pickupId)
     await fetchPickups()
     setReapplying(null)
+  }
+
+  const handleCancel = async (pickupId: string) => {
+    setCancelling(pickupId)
+    const db = supabase as any
+    await db.from('pickups').update({
+      status: 'CANCELLED',
+      updated_at: new Date().toISOString(),
+    }).eq('id', pickupId)
+    setPickups(prev => prev.filter(p => p.id !== pickupId))
+    setCancelling(null)
   }
 
   if (loading) return null
@@ -180,15 +192,26 @@ export default function PickupStatusCard() {
                 {isCancelled ? (
                   <div className="mt-3 pt-3 border-t border-red-50">
                     <p className="text-xs text-red-400 mb-2.5">담당 기사님이 수거를 거절했습니다.</p>
-                    <motion.button
-                      whileTap={{ scale: 0.97 }}
-                      onClick={() => handleReapply(pickup.id)}
-                      disabled={reapplying === pickup.id}
-                      className="w-full py-2.5 bg-eco-green text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-60"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      {reapplying === pickup.id ? '재신청 중...' : '다시 신청하기'}
-                    </motion.button>
+                    <div className="flex gap-2">
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleCancel(pickup.id)}
+                        disabled={cancelling === pickup.id}
+                        className="flex-1 py-2.5 bg-gray-100 text-gray-500 text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-60"
+                      >
+                        <XCircle className="w-3.5 h-3.5" />
+                        {cancelling === pickup.id ? '취소 중...' : '취소하기'}
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.97 }}
+                        onClick={() => handleReapply(pickup.id)}
+                        disabled={reapplying === pickup.id}
+                        className="flex-1 py-2.5 bg-eco-green text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-60"
+                      >
+                        <RotateCcw className="w-3.5 h-3.5" />
+                        {reapplying === pickup.id ? '재신청 중...' : '다시 신청하기'}
+                      </motion.button>
+                    </div>
                   </div>
                 ) : (
                   <StatusStepper currentStatus={pickup.status} />
