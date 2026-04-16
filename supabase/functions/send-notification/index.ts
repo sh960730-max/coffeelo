@@ -137,11 +137,22 @@ serve(async (req) => {
         result = { skipped: 'cafe not found' }
       } else {
         const cafeName = cafe.name ?? '매장'
-        const sends: Promise<any>[] = []
+        // 중복 토큰 방지: 수신자별 { token, title, body } 구성
+        const notifications: { token: string; title: string; body: string }[] = []
+        const seen = new Set<string>()
+
+        const addNotif = (token: string, title: string, body: string) => {
+          // 같은 토큰+타이틀 조합이면 중복 제거
+          const key = `${token}::${title}`
+          if (token && !seen.has(key)) {
+            seen.add(key)
+            notifications.push({ token, title, body })
+          }
+        }
 
         // 점주 본인에게 신청 확인 알림
         if (cafe.fcm_token) {
-          sends.push(sendFCM(cafe.fcm_token, '수거 신청 완료 ✅', `${cafeName} 수거가 접수되었습니다. 기사 배정을 기다려주세요.`))
+          addNotif(cafe.fcm_token, '수거 신청 완료 ✅', `${cafeName} 수거가 접수되었습니다. 기사 배정을 기다려주세요.`)
         }
 
         // 담당 기사에게 알림
@@ -149,7 +160,7 @@ serve(async (req) => {
           const drivers = await dbSelect('drivers', { id: cafe.driver_id })
           const driverToken = drivers[0]?.fcm_token
           if (driverToken) {
-            sends.push(sendFCM(driverToken, '새 수거 콜 🚛', `${cafeName} 수거 요청이 들어왔습니다!`))
+            addNotif(driverToken, '새 수거 콜 🚛', `${cafeName} 수거 요청이 들어왔습니다!`)
           }
         }
 
@@ -157,12 +168,12 @@ serve(async (req) => {
         if (cafe.company) {
           const companies = await dbSelect('companies', { name: cafe.company })
           for (const c of companies ?? []) {
-            if (c.fcm_token) sends.push(sendFCM(c.fcm_token, '새 수거 신청 ☕', `${cafeName}에서 수거를 신청했습니다.`))
+            if (c.fcm_token) addNotif(c.fcm_token, '새 수거 신청 ☕', `${cafeName}에서 수거를 신청했습니다.`)
           }
         }
 
-        const results = await Promise.all(sends)
-        result = { sent: results.length, results }
+        const results = await Promise.all(notifications.map(n => sendFCM(n.token, n.title, n.body)))
+        result = { sent: results.length }
       }
 
     } else if (payload.cafeId) {
