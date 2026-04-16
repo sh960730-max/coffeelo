@@ -15,29 +15,17 @@ export async function initFCM(userId: string, table: 'drivers' | 'cafes' | 'comp
     if (permission !== 'granted') return
 
     // 만료된 토큰 강제 삭제 후 새 토큰 발급 (UNREGISTERED 방지)
-    try {
-      await deleteToken(messaging)
-      alert('[FCM] 기존 토큰 삭제 성공')
-    } catch (e) {
-      alert('[FCM] 기존 토큰 삭제 실패(정상): ' + String(e).slice(0, 60))
-    }
+    try { await deleteToken(messaging) } catch (_) {}
 
     // FCM 토큰 발급
     const token = await getToken(messaging, { vapidKey: VAPID_KEY })
-    if (!token) {
-      alert('[FCM] 토큰 발급 실패 - token이 null')
-      return
-    }
-
-    alert('[FCM] 새 토큰: ' + token.slice(0, 30) + '...')
+    if (!token) return
 
     // Supabase에 저장
-    const { error: dbErr } = await (supabase as any)
+    await (supabase as any)
       .from(table)
       .update({ fcm_token: token })
       .eq('id', userId)
-
-    alert('[FCM] DB저장 결과: ' + (dbErr ? '❌ ' + dbErr.message : '✅ 성공'))
 
     // 포그라운드 메시지 수신 처리
     onMessage(messaging, (payload) => {

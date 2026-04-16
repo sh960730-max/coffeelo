@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Clock, XCircle, Coffee, LogOut } from 'lucide-react'
 import DriverBottomNavRouter from '../../components/driver/DriverBottomNavRouter'
 import { useAuth } from '../../contexts/AuthContext'
+import { useFCM } from '../../hooks/useFCM'
 
 function PendingApprovalScreen() {
   const { logout } = useAuth()
@@ -76,6 +77,7 @@ function RejectedScreen() {
 export default function DriverLayout() {
   const { user } = useAuth()
   const driverStatus = (user as any)?.status
+  useFCM('drivers')
 
   if (driverStatus === 'PENDING') return <PendingApprovalScreen />
   if (driverStatus === 'REJECTED') return <RejectedScreen />

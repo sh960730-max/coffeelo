@@ -8,9 +8,9 @@ async function callEdge(payload: object) {
       body: JSON.stringify(payload),
     })
     const result = await res.json()
-    alert('[알림전송] status:' + res.status + '\n' + JSON.stringify(result).slice(0, 120))
+    console.log('[FCM] status:', res.status, '→', JSON.stringify(result))
   } catch (e) {
-    alert('[알림전송] 오류: ' + String(e).slice(0, 100))
+    console.error('[FCM] error:', e)
   }
 }
 

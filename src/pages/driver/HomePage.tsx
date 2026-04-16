@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { useFCM } from '../../hooks/useFCM'
 import { notifyCafe } from '../../lib/notify'
 import DriverHeader from '../../components/driver/DriverHeader'
 import ActivePickupCard from '../../components/driver/ActivePickupCard'
@@ -63,8 +62,6 @@ export default function HomePage() {
   const { user } = useAuth()
   const driverId = (user as any)?.id
   const activeRef = useRef<HTMLDivElement>(null)
-
-  useFCM('drivers')
 
   const [activePickups, setActivePickups] = useState<PickupStop[]>([])
   const [calls, setCalls] = useState<PickupCall[]>([])

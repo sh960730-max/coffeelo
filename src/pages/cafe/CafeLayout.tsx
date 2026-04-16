@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { Clock, XCircle, Coffee, LogOut } from 'lucide-react'
 import CafeBottomNavRouter from '../../components/cafe/CafeBottomNavRouter'
 import { useAuth } from '../../contexts/AuthContext'
+import { useFCM } from '../../hooks/useFCM'
 
 function PendingApprovalScreen() {
   const { logout } = useAuth()
@@ -81,6 +82,7 @@ function RejectedScreen() {
 export default function CafeLayout() {
   const { user } = useAuth()
   const cafeStatus = (user as any)?.status
+  useFCM('cafes')
 
   if (cafeStatus === 'PENDING') return <PendingApprovalScreen />
   if (cafeStatus === 'REJECTED') return <RejectedScreen />
