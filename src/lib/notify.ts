@@ -42,3 +42,8 @@ export async function notifyCompany(companyName: string, title: string, body: st
 export async function notifyAllDrivers(companyName: string, title: string, body: string, data?: Record<string, string>) {
   await callEdge({ companyName, targetType: 'drivers', title, body, data })
 }
+
+/** 수거 신청 알림 - cafeId만으로 담당기사+관리자 동시 알림 (서버사이드 처리) */
+export async function notifyPickupRequest(cafeId: string) {
+  await callEdge({ pickupCafeId: cafeId })
+}

@@ -129,8 +129,39 @@ serve(async (req) => {
       const token = rows[0]?.fcm_token
       result = token ? await sendFCM(token, title, body, data) : { skipped: 'no fcm_token' }
 
+    } else if (payload.pickupCafeId) {
+      /* 수거 신청 알림: cafeId → 담당기사 + 관리자 동시 알림 */
+      const cafes = await dbSelect('cafes', { id: payload.pickupCafeId }, 'name,company,driver_id')
+      const cafe = cafes[0]
+      if (!cafe) {
+        result = { skipped: 'cafe not found' }
+      } else {
+        const cafeName = cafe.name ?? '매장'
+        const sends: Promise<any>[] = []
+
+        // 담당 기사에게 알림
+        if (cafe.driver_id) {
+          const drivers = await dbSelect('drivers', { id: cafe.driver_id })
+          const driverToken = drivers[0]?.fcm_token
+          if (driverToken) {
+            sends.push(sendFCM(driverToken, '새 수거 콜 🚛', `${cafeName} 수거 요청이 들어왔습니다!`))
+          }
+        }
+
+        // 관리자에게 알림
+        if (cafe.company) {
+          const companies = await dbSelect('companies', { name: cafe.company })
+          for (const c of companies ?? []) {
+            if (c.fcm_token) sends.push(sendFCM(c.fcm_token, '새 수거 신청 ☕', `${cafeName}에서 수거를 신청했습니다.`))
+          }
+        }
+
+        const results = await Promise.all(sends)
+        result = { sent: results.length, results }
+      }
+
     } else if (payload.cafeId) {
-      /* 특정 점주 */
+      /* 특정 점주에게 직접 알림 */
       const rows = await dbSelect('cafes', { id: payload.cafeId })
       const token = rows[0]?.fcm_token
       result = token ? await sendFCM(token, title, body, data) : { skipped: 'no fcm_token' }
