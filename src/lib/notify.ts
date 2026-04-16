@@ -2,49 +2,43 @@ import { supabase } from './supabase'
 
 const EDGE_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`
 
-async function sendPush(token: string, title: string, body: string, data?: Record<string, string>) {
+async function callEdge(payload: object) {
   try {
-    await fetch(EDGE_URL, {
+    // 로그인된 사용자의 세션 토큰 사용 (없으면 anon key 폴백)
+    const { data: { session } } = await (supabase as any).auth.getSession()
+    const token = session?.access_token ?? import.meta.env.VITE_SUPABASE_ANON_KEY
+
+    const res = await fetch(EDGE_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+        'Authorization': `Bearer ${token}`,
       },
-      body: JSON.stringify({ token, title, body, data }),
+      body: JSON.stringify(payload),
     })
+    const result = await res.json()
+    console.log('[FCM] payload:', JSON.stringify(payload), '→ result:', JSON.stringify(result))
   } catch (e) {
-    console.error('push error:', e)
+    console.error('[FCM] push error:', e)
   }
 }
 
 /** 기사에게 알림 */
 export async function notifyDriver(driverId: string, title: string, body: string, data?: Record<string, string>) {
-  const db = supabase as any
-  const { data: driver } = await db.from('drivers').select('fcm_token').eq('id', driverId).single()
-  if (driver?.fcm_token) await sendPush(driver.fcm_token, title, body, data)
+  await callEdge({ driverId, title, body, data })
 }
 
 /** 점주에게 알림 */
 export async function notifyCafe(cafeId: string, title: string, body: string, data?: Record<string, string>) {
-  const db = supabase as any
-  const { data: cafe } = await db.from('cafes').select('fcm_token').eq('id', cafeId).single()
-  if (cafe?.fcm_token) await sendPush(cafe.fcm_token, title, body, data)
+  await callEdge({ cafeId, title, body, data })
 }
 
 /** 관리자에게 알림 */
 export async function notifyCompany(companyName: string, title: string, body: string, data?: Record<string, string>) {
-  const db = supabase as any
-  const { data: companies } = await db.from('companies').select('fcm_token').eq('name', companyName)
-  for (const c of companies ?? []) {
-    if (c.fcm_token) await sendPush(c.fcm_token, title, body, data)
-  }
+  await callEdge({ companyName, targetType: 'company', title, body, data })
 }
 
 /** 소속 기사 전체에게 알림 */
 export async function notifyAllDrivers(companyName: string, title: string, body: string, data?: Record<string, string>) {
-  const db = supabase as any
-  const { data: drivers } = await db.from('drivers').select('fcm_token').eq('company', companyName).eq('status', 'APPROVED')
-  for (const d of drivers ?? []) {
-    if (d.fcm_token) await sendPush(d.fcm_token, title, body, data)
-  }
+  await callEdge({ companyName, targetType: 'drivers', title, body, data })
 }

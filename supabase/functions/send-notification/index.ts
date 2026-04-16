@@ -1,49 +1,59 @@
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { importPKCS8, SignJWT } from 'https://deno.land/x/jose@v5.2.3/index.ts'
 
 const PROJECT_ID   = Deno.env.get('FCM_PROJECT_ID')!
 const CLIENT_EMAIL = Deno.env.get('FCM_CLIENT_EMAIL')!
-const PRIVATE_KEY  = Deno.env.get('FCM_PRIVATE_KEY')!.replace(/\\n/g, '\n')
+const PRIVATE_KEY  = Deno.env.get('FCM_PRIVATE_KEY')!
 
-/* ── JWT 생성 (서비스 계정 → Google OAuth2 액세스 토큰) ── */
-async function getAccessToken(): Promise<string> {
-  const now = Math.floor(Date.now() / 1000)
-  const header  = { alg: 'RS256', typ: 'JWT' }
-  const payload = {
-    iss:  CLIENT_EMAIL,
-    scope: 'https://www.googleapis.com/auth/firebase.messaging',
-    aud:  'https://oauth2.googleapis.com/token',
-    iat:  now,
-    exp:  now + 3600,
+/* ── Supabase 서비스롤 DB 조회 ── */
+async function dbSelect(table: string, filters: Record<string, string>, select = 'fcm_token'): Promise<any[]> {
+  const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
+  const SERVICE_KEY  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+  const params = new URLSearchParams({ select })
+  for (const [k, v] of Object.entries(filters)) {
+    params.set(k, `eq.${v}`)
   }
 
-  const enc = (obj: object) =>
-    btoa(JSON.stringify(obj))
-      .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}?${params}`, {
+    headers: {
+      'apikey': SERVICE_KEY,
+      'Authorization': `Bearer ${SERVICE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+  })
+  if (!res.ok) {
+    console.error(`dbSelect error: ${res.status}`, await res.text())
+    return []
+  }
+  return res.json()
+}
 
-  const signingInput = `${enc(header)}.${enc(payload)}`
+/* ── private key PEM 복원 ── */
+function buildPem(raw: string): string {
+  if (raw.includes('-----BEGIN PRIVATE KEY-----')) {
+    return raw.replace(/\\n/g, '\n')
+  }
+  const body = raw.replace(/\s+/g, '')
+  const lines = body.match(/.{1,64}/g)?.join('\n') ?? body
+  return `-----BEGIN PRIVATE KEY-----\n${lines}\n-----END PRIVATE KEY-----`
+}
 
-  const keyData = PRIVATE_KEY
-    .replace('-----BEGIN PRIVATE KEY-----\n', '')
-    .replace('\n-----END PRIVATE KEY-----\n', '')
-    .replace(/\n/g, '')
+/* ── Google OAuth2 액세스 토큰 발급 ── */
+async function getAccessToken(): Promise<string> {
+  const pem = buildPem(PRIVATE_KEY)
+  const privateKey = await importPKCS8(pem, 'RS256')
 
-  const binaryKey = Uint8Array.from(atob(keyData), c => c.charCodeAt(0))
-
-  const cryptoKey = await crypto.subtle.importKey(
-    'pkcs8', binaryKey,
-    { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' },
-    false, ['sign']
-  )
-
-  const signature = await crypto.subtle.sign(
-    'RSASSA-PKCS1-v1_5', cryptoKey,
-    new TextEncoder().encode(signingInput)
-  )
-
-  const encodedSig = btoa(String.fromCharCode(...new Uint8Array(signature)))
-    .replace(/=/g, '').replace(/\+/g, '-').replace(/\//g, '_')
-
-  const jwt = `${signingInput}.${encodedSig}`
+  const now = Math.floor(Date.now() / 1000)
+  const jwt = await new SignJWT({
+    scope: 'https://www.googleapis.com/auth/firebase.messaging',
+  })
+    .setProtectedHeader({ alg: 'RS256' })
+    .setIssuer(CLIENT_EMAIL)
+    .setAudience('https://oauth2.googleapis.com/token')
+    .setIssuedAt(now)
+    .setExpirationTime(now + 3600)
+    .sign(privateKey)
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
@@ -51,10 +61,11 @@ async function getAccessToken(): Promise<string> {
     body: `grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer&assertion=${jwt}`,
   })
   const data = await res.json()
+  if (!data.access_token) throw new Error(`OAuth failed: ${JSON.stringify(data)}`)
   return data.access_token
 }
 
-/* ── FCM 발송 ── */
+/* ── FCM 단건 발송 ── */
 async function sendFCM(token: string, title: string, body: string, data?: Record<string, string>) {
   const accessToken = await getAccessToken()
   const res = await fetch(
@@ -83,6 +94,14 @@ async function sendFCM(token: string, title: string, body: string, data?: Record
   return res.json()
 }
 
+/* ── 토큰 목록으로 일괄 발송 ── */
+async function sendToTokens(tokens: string[], title: string, body: string, data?: Record<string, string>) {
+  const unique = [...new Set(tokens.filter(Boolean))]
+  if (unique.length === 0) return { sent: 0, results: [] }
+  const results = await Promise.all(unique.map(t => sendFCM(t, title, body, data)))
+  return { sent: unique.length, results }
+}
+
 /* ── 엔트리포인트 ── */
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -95,14 +114,48 @@ serve(async (req) => {
   }
 
   try {
-    const { token, title, body, data } = await req.json()
-    if (!token) return new Response(JSON.stringify({ error: 'token required' }), { status: 400 })
+    const payload = await req.json()
+    const { title, body, data } = payload
 
-    const result = await sendFCM(token, title, body, data)
+    let result: any
+
+    if (payload.token) {
+      /* 직접 토큰으로 발송 */
+      result = await sendFCM(payload.token, title, body, data)
+
+    } else if (payload.driverId) {
+      /* 특정 기사 */
+      const rows = await dbSelect('drivers', { id: payload.driverId })
+      const token = rows[0]?.fcm_token
+      result = token ? await sendFCM(token, title, body, data) : { skipped: 'no fcm_token' }
+
+    } else if (payload.cafeId) {
+      /* 특정 점주 */
+      const rows = await dbSelect('cafes', { id: payload.cafeId })
+      const token = rows[0]?.fcm_token
+      result = token ? await sendFCM(token, title, body, data) : { skipped: 'no fcm_token' }
+
+    } else if (payload.companyName && payload.targetType === 'company') {
+      /* 관리자 전체 */
+      const rows = await dbSelect('companies', { name: payload.companyName })
+      const tokens = rows.map((r: any) => r.fcm_token)
+      result = await sendToTokens(tokens, title, body, data)
+
+    } else if (payload.companyName && payload.targetType === 'drivers') {
+      /* 소속 기사 전체 */
+      const rows = await dbSelect('drivers', { company: payload.companyName, status: 'APPROVED' })
+      const tokens = rows.map((r: any) => r.fcm_token)
+      result = await sendToTokens(tokens, title, body, data)
+
+    } else {
+      return new Response(JSON.stringify({ error: 'invalid payload' }), { status: 400 })
+    }
+
     return new Response(JSON.stringify(result), {
       headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     })
   } catch (e) {
+    console.error('send-notification error:', e)
     return new Response(JSON.stringify({ error: String(e) }), { status: 500 })
   }
 })

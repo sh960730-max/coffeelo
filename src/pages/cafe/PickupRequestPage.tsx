@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { compressImage } from '../../lib/compressImage'
-import { notifyCompany, notifyAllDrivers } from '../../lib/notify'
+import { notifyCompany, notifyDriver, notifyAllDrivers } from '../../lib/notify'
 
 type ContainerType = 'BOX' | 'BAG'
 
@@ -109,11 +109,18 @@ export default function PickupRequestPage() {
       return
     }
 
-    // 관리자 + 소속 기사 전체에게 새 수거 신청 알림
-    const { data: cafeInfo } = await (supabase as any).from('cafes').select('name, company').eq('id', cafeId).single()
+    // 관리자 + 담당 기사에게 새 수거 신청 알림
+    const { data: cafeInfo } = await (supabase as any)
+      .from('cafes').select('name, company, driver_id').eq('id', cafeId).single()
     if (cafeInfo?.company) {
-      notifyCompany(cafeInfo.company, '새 수거 신청 ☕', `${cafeInfo.name ?? '매장'}에서 수거를 신청했습니다.`)
-      notifyAllDrivers(cafeInfo.company, '새 수거 콜 🚛', `${cafeInfo.name ?? '매장'} 수거 요청이 들어왔습니다!`)
+      await notifyCompany(cafeInfo.company, '새 수거 신청 ☕', `${cafeInfo.name ?? '매장'}에서 수거를 신청했습니다.`)
+      if (cafeInfo.driver_id) {
+        // 담당 기사에게 직접 알림
+        await notifyDriver(cafeInfo.driver_id, '새 수거 콜 🚛', `${cafeInfo.name ?? '매장'} 수거 요청이 들어왔습니다!`)
+      } else {
+        // 담당 기사 없으면 소속 기사 전체에게
+        await notifyAllDrivers(cafeInfo.company, '새 수거 콜 🚛', `${cafeInfo.name ?? '매장'} 수거 요청이 들어왔습니다!`)
+      }
     }
 
     setShowSuccess(true)
