@@ -39,3 +39,12 @@ export async function notifyCompany(companyName: string, title: string, body: st
     if (c.fcm_token) await sendPush(c.fcm_token, title, body, data)
   }
 }
+
+/** 소속 기사 전체에게 알림 */
+export async function notifyAllDrivers(companyName: string, title: string, body: string, data?: Record<string, string>) {
+  const db = supabase as any
+  const { data: drivers } = await db.from('drivers').select('fcm_token').eq('company', companyName).eq('status', 'APPROVED')
+  for (const d of drivers ?? []) {
+    if (d.fcm_token) await sendPush(d.fcm_token, title, body, data)
+  }
+}

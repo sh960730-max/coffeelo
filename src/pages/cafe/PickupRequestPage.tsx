@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import { compressImage } from '../../lib/compressImage'
-import { notifyCompany } from '../../lib/notify'
+import { notifyCompany, notifyAllDrivers } from '../../lib/notify'
 
 type ContainerType = 'BOX' | 'BAG'
 
@@ -109,10 +109,11 @@ export default function PickupRequestPage() {
       return
     }
 
-    // 관리자에게 새 수거 신청 알림
+    // 관리자 + 소속 기사 전체에게 새 수거 신청 알림
     const { data: cafeInfo } = await (supabase as any).from('cafes').select('name, company').eq('id', cafeId).single()
     if (cafeInfo?.company) {
       notifyCompany(cafeInfo.company, '새 수거 신청 ☕', `${cafeInfo.name ?? '매장'}에서 수거를 신청했습니다.`)
+      notifyAllDrivers(cafeInfo.company, '새 수거 콜 🚛', `${cafeInfo.name ?? '매장'} 수거 요청이 들어왔습니다!`)
     }
 
     setShowSuccess(true)
