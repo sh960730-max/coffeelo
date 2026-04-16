@@ -55,7 +55,7 @@ export default function CafeStoreInfoPage() {
     })
 
     if (reAuthError) {
-      setLoginMsg({ type: 'error', text: '현재 비밀번호가 올바르지 않습니다.' })
+      setLoginMsg({ type: 'error', text: `재인증 실패: ${reAuthError.message}` })
       setLoginChanging(false)
       return
     }

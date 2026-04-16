@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { useFCM } from '../../hooks/useFCM'
 
 interface DriverStatus {
   id: string
@@ -121,6 +122,7 @@ const driverPickups: Record<string, PickupRecord[]> = {
 }
 
 export default function CompanyDashboard() {
+  useFCM('companies')
   const { user } = useAuth()
   const companyName = (user as any)?.name ?? '관리자'
   const [driverStatuses, setDriverStatuses] = useState<DriverStatus[]>([])

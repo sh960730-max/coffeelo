@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useFCM } from '../../hooks/useFCM'
+import { notifyCafe } from '../../lib/notify'
 import DriverHeader from '../../components/driver/DriverHeader'
 import ActivePickupCard from '../../components/driver/ActivePickupCard'
 import PickupCallList from '../../components/driver/PickupCallList'
@@ -61,6 +63,8 @@ export default function HomePage() {
   const { user } = useAuth()
   const driverId = (user as any)?.id
   const activeRef = useRef<HTMLDivElement>(null)
+
+  useFCM('drivers')
 
   const [activePickups, setActivePickups] = useState<PickupStop[]>([])
   const [calls, setCalls] = useState<PickupCall[]>([])
@@ -157,7 +161,13 @@ export default function HomePage() {
   const handleAcceptCall = async (callId: string) => {
     if (!driverId) return
     const db = supabase as any
+    // 픽업 수락 + 카페 ID 조회
+    const { data: pickup } = await db.from('pickups').select('cafe_id').eq('id', callId).single()
     await db.from('pickups').update({ driver_id: driverId, status: 'ASSIGNED' }).eq('id', callId)
+    // 점주에게 수락 알림
+    if (pickup?.cafe_id) {
+      notifyCafe(pickup.cafe_id, '수거 기사 배정 완료 🚛', '담당 기사님이 배정되었습니다. 수거 내역에서 확인하세요.')
+    }
     await loadData()
   }
 
