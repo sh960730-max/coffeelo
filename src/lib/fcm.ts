@@ -32,15 +32,21 @@ export async function initFCM(userId: string, table: 'drivers' | 'cafes' | 'comp
     alert('[FCM] DB저장: ' + (error ? '❌'+error.message : '✅성공'))
 
     // 포그라운드 메시지 수신 처리 (앱이 열려있을 때)
-    // Chrome Android: new Notification() 대신 SW를 통해 알림 표시
+    // navigator.serviceWorker.ready는 Chrome Android에서 멈출 수 있으므로
+    // getRegistrations()를 사용 (즉시 반환)
     onMessage(messaging, (payload) => {
       const title = payload.notification?.title ?? '커피로 알림'
       const body  = payload.notification?.body  ?? ''
-      if (Notification.permission === 'granted') {
-        navigator.serviceWorker.ready.then(registration => {
-          registration.showNotification(title, { body, icon: '/icons/icon-192.png' })
-        }).catch(e => console.error('[FCM] foreground notification error:', e))
-      }
+      if (Notification.permission !== 'granted') return
+      navigator.serviceWorker.getRegistrations().then(regs => {
+        const reg = regs.find(r => r.active) ?? regs[0]
+        if (reg) {
+          reg.showNotification(title, { body, icon: '/icons/icon-192.png' })
+        } else {
+          // SW 없으면 일반 Notification 시도
+          try { new Notification(title, { body, icon: '/icons/icon-192.png' }) } catch {}
+        }
+      }).catch(e => console.error('[FCM] foreground notification error:', e))
     })
 
     return token

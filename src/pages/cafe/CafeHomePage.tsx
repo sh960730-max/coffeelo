@@ -30,18 +30,24 @@ async function sendTestNotif() {
 
 async function testSWNotif() {
   try {
-    if (Notification.permission !== 'granted') {
-      alert('알림 권한 없음: ' + Notification.permission)
+    alert('권한: ' + Notification.permission)
+    if (Notification.permission !== 'granted') return
+
+    const regs = await navigator.serviceWorker.getRegistrations()
+    alert('SW 수: ' + regs.length + (regs[0] ? '\n범위: ' + regs[0].scope + '\n상태: ' + (regs[0].active?.state ?? 'none') : ''))
+
+    if (regs.length === 0) {
+      alert('❌ 서비스워커 없음 — 페이지 새로고침 후 재시도')
       return
     }
-    const reg = await navigator.serviceWorker.ready
+    const reg = regs.find(r => r.active) ?? regs[0]
     await reg.showNotification('🔔 SW 직접 테스트', {
-      body: 'FCM 없이 서비스워커가 직접 보낸 알림 — 이게 오면 FCM이 문제!',
+      body: '이 알림이 보이면 SW 정상! FCM 전달이 문제.',
       icon: '/icons/icon-192.png',
     })
-    alert('SW showNotification 완료\n알림 보이면: FCM전달 문제\n알림 안보이면: Android 알림 설정 확인')
+    alert('✅ showNotification 완료 — 알림창 확인!')
   } catch (e) {
-    alert('SW 오류: ' + String(e))
+    alert('❌ SW 오류: ' + String(e))
   }
 }
 
