@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Search, Calendar, ChevronDown, ChevronUp, Package, MapPin, Coffee, Image as ImageIcon, Store, Phone, ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { Search, Calendar, ChevronDown, ChevronUp, Package, MapPin, Coffee, Image as ImageIcon, Store, Phone, ChevronLeft, ChevronRight, X, Camera } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 import type { Pickup } from '../../lib/database.types'
@@ -214,6 +214,7 @@ export default function PickupListPage() {
   const [allPickups, setAllPickups] = useState<Pickup[]>([])
   const [assignedCafes, setAssignedCafes] = useState<any[]>([])
   const [loadingCafes, setLoadingCafes] = useState(false)
+  const [photoViewer, setPhotoViewer] = useState<{ url: string; label: string } | null>(null)
 
   // 수거 목록 조회
   useEffect(() => {
@@ -454,6 +455,38 @@ export default function PickupListPage() {
                                 {(pickup.containers.reduce((s, c) => s + c.weight, 0) / containerCount).toFixed(1)}kg
                               </span>
                             </div>
+
+                            {/* 수거 사진 */}
+                            {(() => {
+                              const containerPhotos: string[] = Array.isArray((pickup as any).container_photo_urls)
+                                ? (pickup as any).container_photo_urls
+                                : []
+                              const overallPhoto: string | null = (pickup as any).pickup_photo_url ?? null
+                              const allPhotos = [
+                                ...containerPhotos.map((url, i) => ({ url, label: `박스 #${i + 1}` })),
+                                ...(overallPhoto ? [{ url: overallPhoto, label: '현장 전체' }] : []),
+                              ]
+                              if (allPhotos.length === 0) return null
+                              return (
+                                <div className="mt-3 pt-3 border-t border-gray-100">
+                                  <p className="text-[11px] font-semibold text-gray-500 flex items-center gap-1 mb-2">
+                                    <Camera className="w-3 h-3" /> 수거 사진
+                                  </p>
+                                  <div className="grid grid-cols-4 gap-1.5">
+                                    {allPhotos.map((photo, pi) => (
+                                      <button key={pi} onClick={() => setPhotoViewer(photo)}
+                                        className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 active:scale-95 transition-transform"
+                                      >
+                                        <img src={photo.url} alt={photo.label} className="w-full h-full object-cover" />
+                                        <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-0.5 text-center">
+                                          <span className="text-white text-[9px] font-semibold">{photo.label}</span>
+                                        </div>
+                                      </button>
+                                    ))}
+                                  </div>
+                                </div>
+                              )
+                            })()}
                           </div>
                         </motion.div>
                       )}
@@ -542,6 +575,31 @@ export default function PickupListPage() {
               setShowDatePicker(false)
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* 사진 전체보기 모달 */}
+      <AnimatePresence>
+        {photoViewer && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] bg-black/95 flex flex-col items-center justify-center px-4"
+            onClick={() => setPhotoViewer(null)}
+          >
+            <button
+              onClick={() => setPhotoViewer(null)}
+              className="absolute top-5 right-5 w-10 h-10 bg-white/15 rounded-full flex items-center justify-center"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              src={photoViewer.url} alt={photoViewer.label}
+              className="max-w-full max-h-[80vh] object-contain rounded-2xl"
+              onClick={e => e.stopPropagation()}
+            />
+            <p className="text-white font-semibold text-sm mt-4">{photoViewer.label}</p>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
