@@ -31,12 +31,15 @@ export async function initFCM(userId: string, table: 'drivers' | 'cafes' | 'comp
       .eq('id', userId)
     alert('[FCM] DB저장: ' + (error ? '❌'+error.message : '✅성공'))
 
-    // 포그라운드 메시지 수신 처리
+    // 포그라운드 메시지 수신 처리 (앱이 열려있을 때)
+    // Chrome Android: new Notification() 대신 SW를 통해 알림 표시
     onMessage(messaging, (payload) => {
       const title = payload.notification?.title ?? '커피로 알림'
       const body  = payload.notification?.body  ?? ''
       if (Notification.permission === 'granted') {
-        new Notification(title, { body, icon: '/icons/icon-192.png' })
+        navigator.serviceWorker.ready.then(registration => {
+          registration.showNotification(title, { body, icon: '/icons/icon-192.png' })
+        }).catch(e => console.error('[FCM] foreground notification error:', e))
       }
     })
 

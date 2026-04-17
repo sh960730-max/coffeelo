@@ -28,6 +28,23 @@ async function sendTestNotif() {
   }
 }
 
+async function testSWNotif() {
+  try {
+    if (Notification.permission !== 'granted') {
+      alert('알림 권한 없음: ' + Notification.permission)
+      return
+    }
+    const reg = await navigator.serviceWorker.ready
+    await reg.showNotification('🔔 SW 직접 테스트', {
+      body: 'FCM 없이 서비스워커가 직접 보낸 알림 — 이게 오면 FCM이 문제!',
+      icon: '/icons/icon-192.png',
+    })
+    alert('SW showNotification 완료\n알림 보이면: FCM전달 문제\n알림 안보이면: Android 알림 설정 확인')
+  } catch (e) {
+    alert('SW 오류: ' + String(e))
+  }
+}
+
 export default function CafeHomePage() {
   return (
     <>
@@ -37,12 +54,18 @@ export default function CafeHomePage() {
         <PickupRequestButton />
       </Link>
       {/* 임시 테스트 버튼 */}
-      <div style={{ padding: '16px' }}>
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
         <button
           onClick={sendTestNotif}
           style={{ width: '100%', padding: '12px', background: '#e74c3c', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold' }}
         >
-          🔔 알림 테스트 (갤럭시 자체 전송)
+          🔴 FCM 알림 테스트 (갤럭시 자체 전송)
+        </button>
+        <button
+          onClick={testSWNotif}
+          style={{ width: '100%', padding: '12px', background: '#27ae60', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: 'bold' }}
+        >
+          🟢 SW 직접 알림 테스트 (FCM 없이)
         </button>
       </div>
       <CarbonDashboard />
