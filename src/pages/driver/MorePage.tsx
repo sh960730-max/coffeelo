@@ -14,9 +14,6 @@ export default function MorePage() {
   const driver = user as any
   const driverId = driver?.id
 
-  const [monthCount, setMonthCount] = useState(0)
-  const [totalWeight, setTotalWeight] = useState(0)
-  const [completionRate, setCompletionRate] = useState(0)
   const [announcementCount, setAnnouncementCount] = useState(0)
   const [showWithdrawModal, setShowWithdrawModal] = useState(false)
   const [withdrawing, setWithdrawing] = useState(false)
@@ -27,27 +24,6 @@ export default function MorePage() {
     const load = async () => {
       const now = new Date()
       const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
-
-      // 이번 달 완료 수거
-      const { data: monthPickups } = await db.from('pickups')
-        .select('total_weight')
-        .eq('driver_id', driverId).eq('status', 'COMPLETED')
-        .gte('completed_at', firstOfMonth)
-      if (monthPickups) {
-        setMonthCount(monthPickups.length)
-      }
-
-      // 전체 수거량 + 완료율
-      const { data: allPickups } = await db.from('pickups')
-        .select('status, total_weight')
-        .eq('driver_id', driverId)
-        .in('status', ['COMPLETED', 'CANCELLED'])
-      if (allPickups) {
-        const completed = allPickups.filter((p: any) => p.status === 'COMPLETED')
-        const weight = completed.reduce((s: number, p: any) => s + (p.total_weight || 0), 0)
-        setTotalWeight(weight)
-        setCompletionRate(allPickups.length > 0 ? Math.round((completed.length / allPickups.length) * 100) : 0)
-      }
 
       // 공지사항 수
       const { count } = await db.from('announcements')
@@ -95,10 +71,6 @@ export default function MorePage() {
     navigate('/login', { replace: true })
   }
 
-  const weightDisplay = totalWeight >= 1000
-    ? `${(totalWeight / 1000).toFixed(1)}t`
-    : `${totalWeight.toLocaleString()}kg`
-
   return (
     <div>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
@@ -131,23 +103,6 @@ export default function MorePage() {
             </div>
           </div>
 
-          {/* 월간 실적 요약 */}
-          <div className="flex items-center justify-around mt-4 pt-4 border-t border-white/20">
-            <div className="text-center">
-              <p className="text-lg font-bold text-white">{monthCount}</p>
-              <p className="text-[10px] text-white/60">이번 달 수거</p>
-            </div>
-            <div className="w-px h-8 bg-white/20" />
-            <div className="text-center">
-              <p className="text-lg font-bold text-white">{weightDisplay}</p>
-              <p className="text-[10px] text-white/60">총 수거량</p>
-            </div>
-            <div className="w-px h-8 bg-white/20" />
-            <div className="text-center">
-              <p className="text-lg font-bold text-white">{completionRate}%</p>
-              <p className="text-[10px] text-white/60">완료율</p>
-            </div>
-          </div>
         </motion.div>
 
         {/* 메뉴 섹션들 */}
