@@ -83,22 +83,22 @@ export default function SettlementPage() {
         setSettlements(settlementsData)
 
         // 날짜 → 정산 상태 맵 빌드
-        // 정산 기간에 속하는 날짜마다 상태를 기록 (PAID > CONFIRMED > PENDING 우선순위)
+        // ★ UTC 날짜 문자열 기준으로 키 생성 (dailyMap 키와 동일 방식 — 타임존 어긋남 방지)
         const statusPriority: Record<string, number> = { PAID: 3, CONFIRMED: 2, PENDING: 1 }
         const dsMap: Record<string, string> = {}
         settlementsData.forEach((s: any) => {
           const status = (s.status || 'PENDING').toUpperCase()
-          const cur = new Date(s.period_start)
-          const endD = new Date(s.period_end)
-          cur.setHours(0, 0, 0, 0)
-          endD.setHours(23, 59, 59, 999)
+          // period_start / period_end 의 UTC 날짜 부분만 추출 후 UTC midnight 기준 반복
+          const startKey = s.period_start.split('T')[0]
+          const endKey   = (s.period_end || s.period_start).split('T')[0]
+          const cur = new Date(startKey + 'T00:00:00Z')
+          const endD = new Date(endKey + 'T00:00:00Z')
           while (cur <= endD) {
             const k = cur.toISOString().split('T')[0]
-            // 더 높은 우선순위 상태로 덮어씀
             if (!dsMap[k] || (statusPriority[status] || 0) > (statusPriority[dsMap[k]] || 0)) {
               dsMap[k] = status
             }
-            cur.setDate(cur.getDate() + 1)
+            cur.setUTCDate(cur.getUTCDate() + 1)
           }
         })
         setDateStatusMap(dsMap)
