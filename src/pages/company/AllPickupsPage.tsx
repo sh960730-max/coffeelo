@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useSearchParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar, Filter, ArrowUpDown, CheckCircle2, Clock, Truck,
@@ -206,6 +206,7 @@ export default function AllPickupsPage() {
   const { user } = useAuth()
   const companyName = (user as any)?.name ?? ''
 
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const [dateFilter, setDateFilter] = useState(searchParams.get('filter') ?? 'today')
   const [customRange, setCustomRange] = useState<{ from: string; to: string } | null>(null)
@@ -305,7 +306,12 @@ export default function AllPickupsPage() {
   return (
     <div>
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-lg border-b border-gray-100 px-5 py-4">
-        <h1 className="text-lg font-bold text-gray-900 mb-3">수거 현황</h1>
+        <div className="flex items-center gap-2 mb-3">
+          <button onClick={() => navigate(-1)} className="w-8 h-8 flex items-center justify-center rounded-xl bg-gray-100 mr-1">
+            <ChevronLeft className="w-4 h-4 text-gray-600" />
+          </button>
+          <h1 className="text-lg font-bold text-gray-900">수거 현황</h1>
+        </div>
         <div className="flex items-center gap-2 mb-3">
           <Calendar className="w-4 h-4 text-gray-400" />
           {dateFilters.map(f => (
