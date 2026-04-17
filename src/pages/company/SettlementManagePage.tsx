@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Scale, ChevronDown, ChevronUp, CheckCircle,
   Calendar, TrendingUp, Truck, Loader2, CreditCard,
-  Trees, Target, MapPin, BarChart3, Circle, Download,
-  ChevronLeft, ChevronRight, X
+  Trees, Target, BarChart3, Circle, Download,
+  ChevronLeft, ChevronRight, X, Camera, ImageOff
 } from 'lucide-react'
 import * as XLSX from 'xlsx'
 import { useAuth } from '../../contexts/AuthContext'
@@ -140,7 +139,6 @@ function DateRangePicker({ onClose, onApply }: { onClose: () => void; onApply: (
 
 export default function SettlementManagePage() {
   const { user } = useAuth()
-  const navigate = useNavigate()
   const companyName = (user as any)?.name ?? ''
 
   const [settlements, setSettlements] = useState<any[]>([])
@@ -159,6 +157,26 @@ export default function SettlementManagePage() {
   // 목록 필터
   const [filterDriver, setFilterDriver] = useState('전체')
   const [filterStatus, setFilterStatus] = useState('전체')
+
+  // 계량 사진
+  const [weighPhotos, setWeighPhotos] = useState<Record<string, any[]>>({})
+  const [loadingPhotos, setLoadingPhotos] = useState<string | null>(null)
+  const [photoViewer, setPhotoViewer] = useState<{ url: string; label: string; date: string } | null>(null)
+
+  const fetchWeighPhotosFor = async (ds: any) => {
+    if (weighPhotos[ds.id] !== undefined) return // 이미 로드됨
+    setLoadingPhotos(ds.id)
+    const db = supabase as any
+    const { data } = await db.from('weigh_ins')
+      .select('id, created_at, loaded_photo_url, empty_photo_url, net_weight')
+      .eq('driver_id', ds.driver_id)
+      .eq('status', 'COMPLETED')
+      .gte('created_at', ds.period_start)
+      .lte('created_at', ds.period_end)
+      .order('created_at', { ascending: true })
+    setWeighPhotos(prev => ({ ...prev, [ds.id]: data || [] }))
+    setLoadingPhotos(null)
+  }
 
   const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
     setToast({ msg, type })
@@ -588,7 +606,11 @@ export default function SettlementManagePage() {
                       transition={{ delay: 0.1 + idx * 0.06 }}
                       className="bg-white rounded-2xl shadow-card overflow-hidden"
                     >
-                      <button onClick={() => setExpandedId(isExpanded ? null : ds.id)} className="w-full p-4 text-left">
+                      <button onClick={() => {
+                        const newId = isExpanded ? null : ds.id
+                        setExpandedId(newId)
+                        if (newId) fetchWeighPhotosFor(ds)
+                      }} className="w-full p-4 text-left">
                         <div className="flex items-start justify-between">
                           <div className="flex items-start gap-3 min-w-0">
                             <div className="w-10 h-10 bg-gray-100 rounded-xl flex items-center justify-center flex-shrink-0">
@@ -707,27 +729,53 @@ export default function SettlementManagePage() {
                                 </p>
                               )}
 
-                              {/* 액션 버튼 */}
-                              <div className="flex gap-2 mt-1">
-                                <motion.button whileTap={{ scale: 0.97 }}
-                                  onClick={() => navigate('/company/drivers')}
-                                  className="flex-1 border border-gray-200 text-gray-600 text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5"
-                                >
-                                  <MapPin className="w-3.5 h-3.5" />
-                                  상세 경로 보기
-                                </motion.button>
-
-                                {(statusUpper === 'PENDING' || ds.id.startsWith('synth_')) && (
-                                  <motion.button whileTap={{ scale: 0.97 }}
-                                    disabled={isUpdating}
-                                    onClick={() => updateStatus(ds.id, 'CONFIRMED')}
-                                    className="flex-1 bg-blue-500 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
-                                  >
-                                    {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
-                                    실적 확정
-                                  </motion.button>
-                                )}
+                              {/* 계량 사진 */}
+                              <div className="mb-3">
+                                <span className="text-[11px] font-semibold text-gray-500 flex items-center gap-1 mb-2">
+                                  <Camera className="w-3.5 h-3.5" /> 계량 사진
+                                </span>
+                                {loadingPhotos === ds.id ? (
+                                  <div className="flex justify-center py-4">
+                                    <Loader2 className="w-4 h-4 text-gray-300 animate-spin" />
+                                  </div>
+                                ) : (() => {
+                                  const photos = (weighPhotos[ds.id] || []).flatMap((w: any) => [
+                                    w.loaded_photo_url ? { url: w.loaded_photo_url, label: '적재', date: w.created_at } : null,
+                                    w.empty_photo_url  ? { url: w.empty_photo_url,  label: '공차', date: w.created_at } : null,
+                                  ]).filter(Boolean)
+                                  return photos.length === 0 ? (
+                                    <div className="flex items-center justify-center gap-1.5 py-4 bg-gray-50 rounded-xl">
+                                      <ImageOff className="w-4 h-4 text-gray-300" />
+                                      <span className="text-[11px] text-gray-300">등록된 사진 없음</span>
+                                    </div>
+                                  ) : (
+                                    <div className="grid grid-cols-4 gap-1.5">
+                                      {photos.map((photo: any, i: number) => (
+                                        <button key={i} onClick={() => setPhotoViewer(photo)}
+                                          className="relative aspect-square rounded-xl overflow-hidden bg-gray-100 border border-gray-100 active:scale-95 transition-transform"
+                                        >
+                                          <img src={photo.url} alt={photo.label} className="w-full h-full object-cover" />
+                                          <div className="absolute bottom-0 left-0 right-0 bg-black/40 py-0.5 text-center">
+                                            <span className="text-white text-[9px] font-semibold">{photo.label}</span>
+                                          </div>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )
+                                })()}
                               </div>
+
+                              {/* 실적 확정 버튼 */}
+                              {(statusUpper === 'PENDING' || ds.id.startsWith('synth_')) && (
+                                <motion.button whileTap={{ scale: 0.97 }}
+                                  disabled={isUpdating}
+                                  onClick={() => updateStatus(ds.id, 'CONFIRMED')}
+                                  className="w-full bg-blue-500 text-white text-xs font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                >
+                                  {isUpdating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle className="w-3.5 h-3.5" />}
+                                  실적 확정
+                                </motion.button>
+                              )}
                             </div>
                           </motion.div>
                         )}
@@ -799,6 +847,38 @@ export default function SettlementManagePage() {
               setShowDatePicker(false)
             }}
           />
+        )}
+      </AnimatePresence>
+
+      {/* 사진 전체 보기 모달 */}
+      <AnimatePresence>
+        {photoViewer && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] bg-black/95 flex flex-col items-center justify-center px-4"
+            onClick={() => setPhotoViewer(null)}
+          >
+            <button
+              onClick={() => setPhotoViewer(null)}
+              className="absolute top-5 right-5 w-10 h-10 bg-white/15 rounded-full flex items-center justify-center"
+            >
+              <X className="w-5 h-5 text-white" />
+            </button>
+            <motion.img
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              src={photoViewer.url} alt={photoViewer.label}
+              className="max-w-full max-h-[78vh] object-contain rounded-2xl shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            />
+            <div className="mt-4 text-center">
+              <p className="text-white font-semibold text-sm">{photoViewer.label} 사진</p>
+              <p className="text-white/50 text-xs mt-1">
+                {new Date(photoViewer.date).toLocaleDateString('ko-KR', {
+                  month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                })}
+              </p>
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>
