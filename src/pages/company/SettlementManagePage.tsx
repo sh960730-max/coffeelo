@@ -309,9 +309,11 @@ export default function SettlementManagePage() {
         status: 'PENDING',
       }
     }).filter(s => {
-      // period_start 기준 strict 필터 (DB settlements와 동일 방식)
+      // 미정산(synth) 건은 선택 기간과 겹치면 표시
+      // (period_start가 조회 기간 전이어도 아직 미정산이면 보여야 함)
       const sStart = new Date(s.period_start)
-      return sStart >= fromD && sStart <= toD
+      const sEnd   = new Date(s.period_end)
+      return sStart <= toD && sEnd >= fromD
     })
 
     const realList = (settlementsData || []).map((s: any) => ({
