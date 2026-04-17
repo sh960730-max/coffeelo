@@ -192,20 +192,10 @@ export default function SettlementPage() {
               const isLastRow = idx >= cells.length - 7
               const hasData = !!data
 
-              // 배지 색상: 확정/지급→파랑, 미정산→빨강
-              const badgeClass =
-                settlStatus === 'PAID'
-                  ? 'bg-eco-green text-white'
-                  : settlStatus === 'CONFIRMED'
-                  ? 'bg-blue-500 text-white'
-                  : 'bg-red-400 text-white' // PENDING or unsettled
-
-              const amtClass =
-                settlStatus === 'PAID'
-                  ? 'text-eco-green'
-                  : settlStatus === 'CONFIRMED'
-                  ? 'text-blue-500'
-                  : 'text-red-400'
+              // 배지 색상: 확정(CONFIRMED/PAID)→파랑, 미정산→빨강
+              const isConfirmed = settlStatus === 'CONFIRMED' || settlStatus === 'PAID'
+              const badgeClass = isConfirmed ? 'bg-blue-500 text-white' : 'bg-red-400 text-white'
+              const amtClass   = isConfirmed ? 'text-blue-500' : 'text-red-400'
 
               return (
                 <motion.div
@@ -248,10 +238,6 @@ export default function SettlementPage() {
           <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-sm bg-blue-500" />
             <span className="text-[10px] text-gray-400">확정</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-eco-green" />
-            <span className="text-[10px] text-gray-400">지급완료</span>
           </div>
         </div>
 
