@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Scale, Wallet, X, MapPin, Coffee } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Scale, Wallet, X } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -42,29 +42,32 @@ export default function SettlementPage() {
       const from = new Date(year, month, 1).toISOString()
       const to = new Date(year, month + 1, 1).toISOString()
 
-      const { data: pickups } = await db.from('pickups')
-        .select('id, completed_at, settlement_amount, total_weight, cafe:cafes(name, address)')
+      // 계량 기록 기준으로 정산 (weigh_ins 테이블)
+      const RATE = 80 // 원/kg 기본 단가
+      const { data: weighIns } = await db.from('weigh_ins')
+        .select('id, created_at, net_weight, loaded_weight, empty_weight, loaded_photo_url, empty_photo_url')
         .eq('driver_id', driverId)
         .eq('status', 'COMPLETED')
-        .gte('completed_at', from)
-        .lt('completed_at', to)
-        .order('completed_at', { ascending: true })
+        .gte('created_at', from)
+        .lt('created_at', to)
+        .order('created_at', { ascending: true })
 
-      if (pickups) {
+      if (weighIns) {
         const map: Record<string, { amount: number; count: number }> = {}
         const byDate: Record<string, any[]> = {}
-        pickups.forEach((p: any) => {
-          const key = p.completed_at?.split('T')[0]
+        weighIns.forEach((w: any) => {
+          const key = w.created_at?.split('T')[0]
           if (!key) return
+          const amount = Math.round((w.net_weight || 0) * RATE)
           if (!map[key]) map[key] = { amount: 0, count: 0 }
-          map[key].amount += p.settlement_amount || 0
+          map[key].amount += amount
           map[key].count += 1
           if (!byDate[key]) byDate[key] = []
-          byDate[key].push(p)
+          byDate[key].push({ ...w, amount })
         })
         setDailyMap(map)
         setPickupsByDate(byDate)
-        const total = pickups.reduce((s: number, p: any) => s + (p.settlement_amount || 0), 0)
+        const total = Object.values(map).reduce((s, d) => s + d.amount, 0)
         setMonthTotal(total)
         setMonthDays(Object.keys(map).length)
       }
@@ -346,7 +349,7 @@ export default function SettlementPage() {
               {/* 날짜 헤더 */}
               <div className="flex items-center justify-between mb-4">
                 <div>
-                  <h3 className="text-base font-bold text-gray-900">{selectedDateLabel} 수거 내역</h3>
+                  <h3 className="text-base font-bold text-gray-900">{selectedDateLabel} 계량 내역</h3>
                   {selectedData && (
                     <p className="text-xs text-gray-500 mt-0.5">
                       {selectedData.count}건 · 총 {selectedData.amount.toLocaleString()}원
@@ -358,42 +361,40 @@ export default function SettlementPage() {
                 </button>
               </div>
 
-              {/* 수거 목록 */}
+              {/* 계량 목록 */}
               <div className="space-y-2.5">
-                {selectedPickups.map((p, idx) => (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: idx * 0.05 }}
-                    className="bg-gray-50 rounded-2xl px-4 py-3"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div className="w-9 h-9 bg-eco-green/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                          <Coffee className="w-4 h-4 text-eco-green" />
+                {selectedPickups.map((w, idx) => {
+                  const date = new Date(w.created_at)
+                  const timeStr = `${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
+                  return (
+                    <motion.div
+                      key={w.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: idx * 0.05 }}
+                      className="bg-gray-50 rounded-2xl px-4 py-3"
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-9 h-9 bg-eco-green/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Scale className="w-4 h-4 text-eco-green" />
+                          </div>
+                          <div>
+                            <p className="text-sm font-semibold text-gray-800">계량 {idx + 1}회차</p>
+                            <p className="text-[10px] text-gray-400">{timeStr}</p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-semibold text-gray-800">{p.cafe?.name ?? '매장'}</p>
-                          {p.cafe?.address && (
-                            <div className="flex items-center gap-0.5 mt-0.5">
-                              <MapPin className="w-2.5 h-2.5 text-gray-400 flex-shrink-0" />
-                              <p className="text-[10px] text-gray-400 truncate max-w-[160px]">{p.cafe.address}</p>
-                            </div>
-                          )}
+                        <div className="text-right">
+                          <p className="text-xs text-gray-500">{(w.net_weight || 0).toFixed(1)}kg</p>
+                          <p className="text-sm font-bold text-eco-green">{(w.amount || 0).toLocaleString()}원</p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        {p.total_weight && (
-                          <p className="text-xs text-gray-500">{p.total_weight}kg</p>
-                        )}
-                        <p className="text-sm font-bold text-eco-green">
-                          {(p.settlement_amount || 0).toLocaleString()}원
-                        </p>
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
+                      <p className="text-[11px] text-gray-400 ml-11">
+                        적재 {w.loaded_weight?.toFixed(1)}kg → 공차 {w.empty_weight?.toFixed(1)}kg = 순수 {(w.net_weight || 0).toFixed(1)}kg
+                      </p>
+                    </motion.div>
+                  )
+                })}
               </div>
 
               {/* 합계 */}
