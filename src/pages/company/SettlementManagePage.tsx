@@ -269,8 +269,14 @@ export default function SettlementManagePage() {
     const { data: settlementsData } = await settQuery
 
     // 기사별 마지막 확정 정산의 period_end 추적
+    // ★ 날짜 필터와 무관하게 이달 전체 확정 정산을 기준으로 계산해야
+    //   "오늘" 필터에서도 이전 확정분이 누락되지 않음
+    const { data: allMonthSettlements } = await db.from('settlements')
+      .select('driver_id, period_end, period_start')
+      .in('driver_id', driverIds)
+      .gte('period_start', monthStart)
     const lastSettledEnd: Record<string, Date> = {}
-    ;(settlementsData || []).forEach((s: any) => {
+    ;(allMonthSettlements || []).forEach((s: any) => {
       const endDate = new Date(s.period_end || s.period_start)
       if (!lastSettledEnd[s.driver_id] || endDate > lastSettledEnd[s.driver_id]) {
         lastSettledEnd[s.driver_id] = endDate
