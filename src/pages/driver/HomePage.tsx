@@ -4,7 +4,6 @@ import { notifyCafe } from '../../lib/notify'
 import DriverHeader from '../../components/driver/DriverHeader'
 import ActivePickupCard from '../../components/driver/ActivePickupCard'
 import PickupCallList from '../../components/driver/PickupCallList'
-import DriverWeighStation from '../../components/driver/DriverWeighStation'
 import DriverStats from '../../components/driver/DriverStats'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
@@ -187,7 +186,6 @@ export default function HomePage() {
         <ActivePickupCard pickups={activePickups} onPickupConfirm={handlePickupConfirm} />
       </div>
       <PickupCallList calls={calls} onAccept={handleAcceptCall} onDecline={handleDeclineCall} />
-      <DriverWeighStation />
       <DriverStats />
     </>
   )
