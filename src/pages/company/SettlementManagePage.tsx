@@ -167,12 +167,15 @@ export default function SettlementManagePage() {
     if (weighPhotos[ds.id] !== undefined) return // 이미 로드됨
     setLoadingPhotos(ds.id)
     const db = supabase as any
+    // period_end에 1분 여유를 추가 — DB는 마이크로초, JS Date는 밀리초라
+    // 동일 시각이라도 lte 비교 시 누락될 수 있어 버퍼 적용
+    const endWithBuffer = new Date(new Date(ds.period_end).getTime() + 60_000).toISOString()
     const { data } = await db.from('weigh_ins')
       .select('id, created_at, loaded_photo_url, empty_photo_url, net_weight')
       .eq('driver_id', ds.driver_id)
       .eq('status', 'COMPLETED')
       .gte('created_at', ds.period_start)
-      .lte('created_at', ds.period_end)
+      .lte('created_at', endWithBuffer)
       .order('created_at', { ascending: true })
     setWeighPhotos(prev => ({ ...prev, [ds.id]: data || [] }))
     setLoadingPhotos(null)
