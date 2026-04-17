@@ -53,9 +53,9 @@ export default function SettlementPage() {
         .lt('created_at', to)
         .order('created_at', { ascending: true })
 
+      const map: Record<string, { amount: number; count: number }> = {}
+      const byDate: Record<string, any[]> = {}
       if (weighIns) {
-        const map: Record<string, { amount: number; count: number }> = {}
-        const byDate: Record<string, any[]> = {}
         weighIns.forEach((w: any) => {
           const key = w.created_at?.split('T')[0]
           if (!key) return
@@ -66,12 +66,9 @@ export default function SettlementPage() {
           if (!byDate[key]) byDate[key] = []
           byDate[key].push({ ...w, amount })
         })
-        setDailyMap(map)
-        setPickupsByDate(byDate)
-        const total = Object.values(map).reduce((s, d) => s + d.amount, 0)
-        setMonthTotal(total)
-        setMonthDays(Object.keys(map).length)
       }
+      setDailyMap(map)
+      setPickupsByDate(byDate)
 
       const { data: settlementsData } = await db.from('settlements')
         .select('*')
@@ -79,6 +76,10 @@ export default function SettlementPage() {
         .gte('period_start', from)
         .lt('period_start', to)
         .order('period_start', { ascending: false })
+
+      const weighInTotal = Object.values(map).reduce((s, d) => s + d.amount, 0)
+      setMonthDays(Object.keys(map).length)
+
       if (settlementsData) {
         setSettlements(settlementsData)
 
@@ -102,6 +103,16 @@ export default function SettlementPage() {
           }
         })
         setDateStatusMap(dsMap)
+
+        // weigh_ins가 없으면 settlements 합계로 월 수입 표시
+        if (weighInTotal === 0) {
+          const settlTotal = settlementsData.reduce((s: number, d: any) => s + (d.gross_amount || 0), 0)
+          setMonthTotal(settlTotal)
+        } else {
+          setMonthTotal(weighInTotal)
+        }
+      } else {
+        setMonthTotal(weighInTotal)
       }
     }
     load()
@@ -213,7 +224,7 @@ export default function SettlementPage() {
                     {day}
                   </div>
 
-                  {data && (
+                  {data ? (
                     <div className="mt-0.5 flex flex-col items-center gap-0.5 w-full">
                       <div className={`w-full text-center text-[9px] font-bold px-0.5 py-0.5 rounded-md ${badgeClass}`}>
                         {data.count}건
@@ -222,7 +233,10 @@ export default function SettlementPage() {
                         {fmt만(data.amount)}
                       </span>
                     </div>
-                  )}
+                  ) : settlStatus ? (
+                    // weigh_ins 없이 정산만 있는 날 (수동 정산 등): 작은 점으로 표시
+                    <div className={`mt-1.5 w-1.5 h-1.5 rounded-full mx-auto ${isConfirmed ? 'bg-blue-400' : 'bg-red-400'}`} />
+                  ) : null}
                 </motion.div>
               )
             })}
