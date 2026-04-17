@@ -7,11 +7,12 @@ const VAPID_KEY = 'BHU0hNNSh23jSOmENa3RWJxJrRpU2-DKorqOG8M9-VrnCzeUmSVzVr1MLurtw
 /** FCM 토큰 발급 + Supabase 저장 */
 export async function initFCM(userId: string, table: 'drivers' | 'cafes' | 'companies') {
   try {
-    // PWA(홈화면 추가)에서만 토큰 등록 — 일반 브라우저 탭은 건너뜀
+    // 데스크탑 브라우저(노트북 등)는 토큰 등록 건너뜀 — 모바일/PWA만 허용
     const isStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true
-    if (!isStandalone) return
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    if (!isStandalone && !isMobile) return
 
     const messaging = await getFirebaseMessaging()
     if (!messaging) return
