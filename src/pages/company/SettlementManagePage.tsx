@@ -232,9 +232,9 @@ export default function SettlementManagePage() {
       .in('driver_id', driverIds)
       .or(`created_at.gte.${monthStart},completed_at.gte.${monthStart},updated_at.gte.${monthStart}`)
 
-    // 집하장 계량 기록 (정산 무게 기준)
+    // 집하장 계량 기록 (정산 무게 기준) — id 포함
     const { data: allWeighIns } = await db.from('weigh_ins')
-      .select('driver_id, net_weight, created_at')
+      .select('id, driver_id, net_weight, created_at')
       .in('driver_id', driverIds)
       .eq('status', 'COMPLETED')
       .gte('created_at', monthStart)
@@ -286,46 +286,33 @@ export default function SettlementManagePage() {
     const fromD = new Date(fromDate)
     const toD = toDate ? new Date(toDate) : now
 
-    // 미정산 집하장 계량: 기사별 마지막 확정 정산 이후 계량분만 집계 (정산 무게 기준)
-    const agg: Record<string, { kg: number; amount: number; minDate: Date; maxDate: Date }> = {}
-    ;(allWeighIns || []).forEach((w: any) => {
-      if (!w.driver_id) return
-      const weighDate = new Date(w.created_at)
-      // 이미 확정된 정산에 포함된 계량은 제외
-      if (lastSettledEnd[w.driver_id] && weighDate <= lastSettledEnd[w.driver_id]) return
-      // 선택한 날짜 범위 내 계량만 집계 (오늘 → 오늘 것만, 이번 주 → 이번 주 것만)
-      if (weighDate < fromD || weighDate > toD) return
-      if (!agg[w.driver_id]) agg[w.driver_id] = { kg: 0, amount: 0, minDate: weighDate, maxDate: weighDate }
-      agg[w.driver_id].kg += w.net_weight || 0
-      if (weighDate < agg[w.driver_id].minDate) agg[w.driver_id].minDate = weighDate
-      if (weighDate > agg[w.driver_id].maxDate) agg[w.driver_id].maxDate = weighDate
-    })
-
-    const synthList = Object.entries(agg).map(([driverId, v]) => {
-      const start = lastSettledEnd[driverId]
-        ? new Date(lastSettledEnd[driverId].getTime() + 1000)
-        : v.minDate
-      const end = v.maxDate
-      const periodStr = `${start.getMonth()+1}/${start.getDate()} ~ ${end.getMonth()+1}/${end.getDate()}`
-      return {
-        id: `synth_${driverId}`,
-        driver_id: driverId,
-        driverName: driverMap[driverId] || '알 수 없음',
-        period_start: start.toISOString(),
-        period_end: end.toISOString(),
-        periodStr,
-        total_weight: v.kg,
-        rate_per_kg: 80,
-        gross_amount: Math.round(v.kg * 80),
-        status: 'PENDING',
-      }
-    }).filter(s => {
-      // 미정산(synth) 건은 선택 기간과 겹치면 표시
-      // (period_start가 조회 기간 전이어도 아직 미정산이면 보여야 함)
-      const sStart = new Date(s.period_start)
-      const sEnd   = new Date(s.period_end)
-      return sStart <= toD && sEnd >= fromD
-    })
+    // 미정산 계량: 합산 X — 계량 건별 개별 정산 레코드 생성
+    const synthList = (allWeighIns || [])
+      .filter((w: any) => {
+        if (!w.driver_id) return false
+        const weighDate = new Date(w.created_at)
+        // 이미 확정된 정산에 포함된 계량은 제외
+        if (lastSettledEnd[w.driver_id] && weighDate <= lastSettledEnd[w.driver_id]) return false
+        // 선택한 날짜 범위 내 계량만
+        if (weighDate < fromD || weighDate > toD) return false
+        return true
+      })
+      .map((w: any) => {
+        const weighDate = new Date(w.created_at)
+        const timeStr = `${weighDate.getMonth()+1}/${weighDate.getDate()} ${weighDate.getHours()}:${String(weighDate.getMinutes()).padStart(2, '0')}`
+        return {
+          id: `synth_${w.driver_id}_${w.id}`,
+          driver_id: w.driver_id,
+          driverName: driverMap[w.driver_id] || '알 수 없음',
+          period_start: w.created_at,
+          period_end: w.created_at,
+          periodStr: timeStr,
+          total_weight: w.net_weight || 0,
+          rate_per_kg: 80,
+          gross_amount: Math.round((w.net_weight || 0) * 80),
+          status: 'PENDING',
+        }
+      })
 
     const realList = (settlementsData || []).map((s: any) => ({
       ...s,
