@@ -274,6 +274,9 @@ export default function SettlementManagePage() {
       }
     })
 
+    const fromD = new Date(fromDate)
+    const toD = toDate ? new Date(toDate) : now
+
     // 미정산 집하장 계량: 기사별 마지막 확정 정산 이후 계량분만 집계 (정산 무게 기준)
     const agg: Record<string, { kg: number; amount: number; minDate: Date; maxDate: Date }> = {}
     ;(allWeighIns || []).forEach((w: any) => {
@@ -281,14 +284,13 @@ export default function SettlementManagePage() {
       const weighDate = new Date(w.created_at)
       // 이미 확정된 정산에 포함된 계량은 제외
       if (lastSettledEnd[w.driver_id] && weighDate <= lastSettledEnd[w.driver_id]) return
+      // 선택한 날짜 범위 내 계량만 집계 (오늘 → 오늘 것만, 이번 주 → 이번 주 것만)
+      if (weighDate < fromD || weighDate > toD) return
       if (!agg[w.driver_id]) agg[w.driver_id] = { kg: 0, amount: 0, minDate: weighDate, maxDate: weighDate }
       agg[w.driver_id].kg += w.net_weight || 0
       if (weighDate < agg[w.driver_id].minDate) agg[w.driver_id].minDate = weighDate
       if (weighDate > agg[w.driver_id].maxDate) agg[w.driver_id].maxDate = weighDate
     })
-
-    const fromD = new Date(fromDate)
-    const toD = toDate ? new Date(toDate) : now
 
     const synthList = Object.entries(agg).map(([driverId, v]) => {
       const start = lastSettledEnd[driverId]
