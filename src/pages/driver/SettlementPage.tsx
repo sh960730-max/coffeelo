@@ -29,6 +29,7 @@ export default function SettlementPage() {
 
   const [dailyMap, setDailyMap] = useState<Record<string, { amount: number; count: number }>>({})
   const [pickupsByDate, setPickupsByDate] = useState<Record<string, any[]>>({})
+  const [dateStatusMap, setDateStatusMap] = useState<Record<string, string>>({}) // 날짜 → 정산 상태
   const [monthTotal, setMonthTotal] = useState(0)
   const [monthDays, setMonthDays] = useState(0)
   const [settlements, setSettlements] = useState<any[]>([])
@@ -78,7 +79,30 @@ export default function SettlementPage() {
         .gte('period_start', from)
         .lt('period_start', to)
         .order('period_start', { ascending: false })
-      if (settlementsData) setSettlements(settlementsData)
+      if (settlementsData) {
+        setSettlements(settlementsData)
+
+        // 날짜 → 정산 상태 맵 빌드
+        // 정산 기간에 속하는 날짜마다 상태를 기록 (PAID > CONFIRMED > PENDING 우선순위)
+        const statusPriority: Record<string, number> = { PAID: 3, CONFIRMED: 2, PENDING: 1 }
+        const dsMap: Record<string, string> = {}
+        settlementsData.forEach((s: any) => {
+          const status = (s.status || 'PENDING').toUpperCase()
+          const cur = new Date(s.period_start)
+          const endD = new Date(s.period_end)
+          cur.setHours(0, 0, 0, 0)
+          endD.setHours(23, 59, 59, 999)
+          while (cur <= endD) {
+            const k = cur.toISOString().split('T')[0]
+            // 더 높은 우선순위 상태로 덮어씀
+            if (!dsMap[k] || (statusPriority[status] || 0) > (statusPriority[dsMap[k]] || 0)) {
+              dsMap[k] = status
+            }
+            cur.setDate(cur.getDate() + 1)
+          }
+        })
+        setDateStatusMap(dsMap)
+      }
     }
     load()
   }, [driverId, year, month])
@@ -160,12 +184,28 @@ export default function SettlementPage() {
               const col = idx % 7
               const key = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
               const data = dailyMap[key]
+              const settlStatus = dateStatusMap[key] // 'CONFIRMED' | 'PAID' | 'PENDING' | undefined
               const isToday = key === todayKey
               const isSelected = key === selectedDate
               const isSun = col === 0
               const isSat = col === 6
               const isLastRow = idx >= cells.length - 7
               const hasData = !!data
+
+              // 배지 색상: 확정/지급→파랑, 미정산→빨강
+              const badgeClass =
+                settlStatus === 'PAID'
+                  ? 'bg-eco-green text-white'
+                  : settlStatus === 'CONFIRMED'
+                  ? 'bg-blue-500 text-white'
+                  : 'bg-red-400 text-white' // PENDING or unsettled
+
+              const amtClass =
+                settlStatus === 'PAID'
+                  ? 'text-eco-green'
+                  : settlStatus === 'CONFIRMED'
+                  ? 'text-blue-500'
+                  : 'text-red-400'
 
               return (
                 <motion.div
@@ -175,8 +215,8 @@ export default function SettlementPage() {
                   className={`h-16 p-1 flex flex-col items-center border-b border-r border-gray-50
                     ${isLastRow ? 'border-b-0' : ''}
                     ${col === 6 ? 'border-r-0' : ''}
-                    ${isSelected ? 'bg-eco-green-100/60' : isToday ? 'bg-eco-green-100/30' : ''}
-                    ${hasData ? 'cursor-pointer active:bg-eco-green-100/50' : ''}`}
+                    ${isSelected ? 'bg-blue-50/60' : isToday ? 'bg-gray-50' : ''}
+                    ${hasData ? 'cursor-pointer' : ''}`}
                 >
                   <div className={`w-6 h-6 flex items-center justify-center rounded-full text-xs font-bold
                     ${isSelected ? 'bg-eco-green text-white' : isToday ? 'bg-eco-green text-white' : isSun ? 'text-red-400' : isSat ? 'text-blue-400' : 'text-gray-700'}`}>
@@ -185,11 +225,10 @@ export default function SettlementPage() {
 
                   {data && (
                     <div className="mt-0.5 flex flex-col items-center gap-0.5 w-full">
-                      <div className={`w-full text-center text-[9px] font-bold px-0.5 py-0.5 rounded-md
-                        ${data.count >= 3 ? 'bg-eco-green text-white' : data.count >= 2 ? 'bg-eco-green/70 text-white' : 'bg-eco-green/20 text-eco-green'}`}>
+                      <div className={`w-full text-center text-[9px] font-bold px-0.5 py-0.5 rounded-md ${badgeClass}`}>
                         {data.count}건
                       </div>
-                      <span className="text-[9px] font-semibold text-gray-600 leading-tight">
+                      <span className={`text-[9px] font-semibold leading-tight ${amtClass}`}>
                         {fmt만(data.amount)}
                       </span>
                     </div>
@@ -203,16 +242,16 @@ export default function SettlementPage() {
         {/* 범례 */}
         <div className="flex items-center gap-3 mt-2 px-1">
           <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-red-400" />
+            <span className="text-[10px] text-gray-400">미정산</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <div className="w-3 h-3 rounded-sm bg-blue-500" />
+            <span className="text-[10px] text-gray-400">확정</span>
+          </div>
+          <div className="flex items-center gap-1">
             <div className="w-3 h-3 rounded-sm bg-eco-green" />
-            <span className="text-[10px] text-gray-400">3건 이상</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-eco-green/70" />
-            <span className="text-[10px] text-gray-400">2건</span>
-          </div>
-          <div className="flex items-center gap-1">
-            <div className="w-3 h-3 rounded-sm bg-eco-green/20" />
-            <span className="text-[10px] text-gray-400">1건</span>
+            <span className="text-[10px] text-gray-400">지급완료</span>
           </div>
         </div>
 
