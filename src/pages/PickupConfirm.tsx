@@ -9,6 +9,7 @@ import {
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
 import { compressImage } from '../lib/compressImage'
+import { notifyCafe } from '../lib/notify'
 
 /* ── 타입 ── */
 interface ContainerItem {
@@ -51,6 +52,7 @@ export default function PickupConfirm() {
   const { user } = useAuth()
   const driverId = (user as any)?.id
 
+  const [cafeId, setCafeId] = useState<string | null>(null)
   const [storeInfo, setStoreInfo] = useState<StoreData>(defaultStore)
   const [pickupNote, setPickupNote] = useState<string | null>(null)
   const [storagePhotoUrl, setStoragePhotoUrl] = useState<string | null>(null)
@@ -79,6 +81,7 @@ export default function PickupConfirm() {
       .single()
       .then(({ data }: any) => {
         if (data) {
+          setCafeId(data.cafe_id ?? null)
           const cafe = data.cafe
           const rawType = cafe?.store_type || 'INDIVIDUAL'
           const containerType: 'box' | 'bag' =
@@ -205,6 +208,15 @@ export default function PickupConfirm() {
         type: c.type === 'box' ? 'BOX' : 'BAG',
         weight: parseFloat(c.weight) || 0,
       })
+    }
+
+    // 점주에게 수거 완료 알림
+    if (cafeId) {
+      notifyCafe(
+        cafeId,
+        '수거 완료 ✅',
+        `${storeInfo.name} 수거가 완료되었습니다. 총 ${totalWeight.toFixed(1)}kg`,
+      )
     }
 
     setSubmitting(false)
