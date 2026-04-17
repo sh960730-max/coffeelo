@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react'
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import { dummyDriver } from '../lib/dummyData'
+import { clearFCMToken } from '../lib/fcm'
 import type { Driver, Cafe } from '../lib/database.types'
 
 export type UserRole = 'driver' | 'cafe' | 'company'
@@ -185,7 +186,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   async function logout() {
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && user && role) {
+      // 로그아웃 전 FCM 토큰을 DB에서 제거 → 이 기기로 더 이상 알림 X
+      const table = role === 'driver' ? 'drivers' : role === 'cafe' ? 'cafes' : 'companies'
+      await clearFCMToken((user as any).id, table)
       await supabase.auth.signOut()
     }
     localStorage.removeItem('coffeelo_role')

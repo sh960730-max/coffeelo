@@ -1,4 +1,4 @@
-import { getToken, onMessage } from 'firebase/messaging'
+import { getToken, onMessage, deleteToken } from 'firebase/messaging'
 import { getFirebaseMessaging } from './firebase'
 import { supabase } from './supabase'
 
@@ -61,5 +61,24 @@ export async function initFCM(userId: string, table: 'drivers' | 'cafes' | 'comp
     return token
   } catch (e) {
     console.error('FCM init error:', e)
+  }
+}
+
+/** 로그아웃 시 FCM 토큰 삭제 — 다른 사람/기기로 알림 안 오게 */
+export async function clearFCMToken(userId: string, table: 'drivers' | 'cafes' | 'companies') {
+  try {
+    // 1) Firebase에서 토큰 폐기 (브라우저 캐시 제거)
+    const messaging = await getFirebaseMessaging()
+    if (messaging) {
+      try { await deleteToken(messaging) } catch {}
+    }
+    // 2) DB의 fcm_token 을 null 로 초기화
+    await (supabase as any)
+      .from(table)
+      .update({ fcm_token: null })
+      .eq('id', userId)
+    console.log('[FCM] 토큰 삭제 완료 - 로그아웃')
+  } catch (e) {
+    console.error('[FCM] clearFCMToken error:', e)
   }
 }
