@@ -12,24 +12,24 @@ export async function initFCM(userId: string, table: 'drivers' | 'cafes' | 'comp
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as any).standalone === true
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    if (!isStandalone && !isMobile) return
+    if (!isStandalone && !isMobile) { alert('[FCM] 데스크탑 브라우저 - 건너뜀'); return }
 
     const messaging = await getFirebaseMessaging()
-    if (!messaging) return
+    if (!messaging) { alert('[FCM] messaging 지원 안됨'); return }
 
-    // 알림 권한 요청
     const permission = await Notification.requestPermission()
+    alert('[FCM] 알림권한: ' + permission)
     if (permission !== 'granted') return
 
-    // FCM 토큰 발급
     const token = await getToken(messaging, { vapidKey: VAPID_KEY })
+    alert('[FCM] 토큰: ' + (token ? token.slice(0,20)+'...' : 'null'))
     if (!token) return
 
-    // Supabase에 저장
-    await (supabase as any)
+    const { error } = await (supabase as any)
       .from(table)
       .update({ fcm_token: token })
       .eq('id', userId)
+    alert('[FCM] DB저장: ' + (error ? '❌'+error.message : '✅성공'))
 
     // 포그라운드 메시지 수신 처리
     onMessage(messaging, (payload) => {
