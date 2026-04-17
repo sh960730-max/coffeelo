@@ -1,6 +1,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, Truck, ChevronDown, X, Megaphone, Package, CheckCircle2 } from 'lucide-react'
+import { Bell, Truck, ChevronDown, X, Megaphone, Package, CheckCircle2, ChevronRight } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
 
@@ -31,6 +32,7 @@ interface NotifItem {
 
 export default function DriverHeader() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const driverId = (user as any)?.id
   const driverName = (user as any)?.name ?? '기사'
   const driverCompany = (user as any)?.company ?? ''
@@ -158,12 +160,23 @@ export default function DriverHeader() {
   const visibleNotifs = notifs.filter(n => !readIds.has(n.id))
   const unreadCount = visibleNotifs.length
 
-  const handleReadNotif = (id: string) => {
+  const handleReadNotif = (n: NotifItem) => {
+    // 읽음 처리
     setReadIds(prev => {
-      const next = new Set([...prev, id])
+      const next = new Set([...prev, n.id])
       localStorage.setItem(`${READ_KEY}_${driverId}`, JSON.stringify([...next]))
       return next
     })
+    // 패널 닫고 해당 페이지로 이동
+    setShowNotif(false)
+    if (n.type === 'assign') {
+      const pickupId = n.id.replace('assign_', '')
+      navigate(`/driver/pickup/${pickupId}`)
+    } else if (n.type === 'complete') {
+      navigate('/driver/pickups')
+    } else if (n.type === 'notice') {
+      navigate('/driver/announcements')
+    }
   }
 
   const handleReadAll = () => {
@@ -314,7 +327,7 @@ export default function DriverHeader() {
                         >
                           <motion.button
                             whileTap={{ scale: 0.98 }}
-                            onClick={() => handleReadNotif(n.id)}
+                            onClick={() => handleReadNotif(n)}
                             className="w-full flex items-center gap-3 bg-gray-50 rounded-2xl px-4 py-3 text-left"
                           >
                             <div className={`w-9 h-9 ${cfg.bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
@@ -327,6 +340,7 @@ export default function DriverHeader() {
                               </div>
                               <p className="text-[11px] text-gray-400 mt-0.5">{n.time}</p>
                             </div>
+                            <ChevronRight className="w-4 h-4 text-gray-300 flex-shrink-0" />
                           </motion.button>
                         </motion.div>
                       )
