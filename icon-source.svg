@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- 배경: 딥 그린 라운드 사각형 -->
+  <rect width="512" height="512" rx="110" fill="#2C7A3E"/>
+
+  <!-- 그라디언트 배경 광택 -->
+  <radialGradient id="bgGlow" cx="40%" cy="30%" r="60%">
+    <stop offset="0%" stop-color="#3D9952" stop-opacity="0.6"/>
+    <stop offset="100%" stop-color="#1A5C2A" stop-opacity="0"/>
+  </radialGradient>
+  <rect width="512" height="512" rx="110" fill="url(#bgGlow)"/>
+
+  <!-- 소서(받침대) -->
+  <ellipse cx="256" cy="418" rx="152" ry="24" fill="#8B4513"/>
+  <ellipse cx="256" cy="414" rx="152" ry="22" fill="#A0522D"/>
+  <ellipse cx="256" cy="411" rx="140" ry="14" fill="#C4773B"/>
+
+  <!-- 컵 몸체 -->
+  <path d="M152 215 L182 398 Q185 412 200 412 L312 412 Q327 412 330 398 L360 215 Z" fill="#FFF5EC"/>
+
+  <!-- 컵 상단 테두리 타원 -->
+  <ellipse cx="256" cy="215" rx="104" ry="16" fill="#F0E0CC"/>
+
+  <!-- 커피 (브라운) -->
+  <clipPath id="cupClip">
+    <path d="M152 215 L182 398 Q185 412 200 412 L312 412 Q327 412 330 398 L360 215 Z"/>
+  </clipPath>
+  <rect x="148" y="230" width="216" height="190" fill="#5C2D0A" clip-path="url(#cupClip)"/>
+
+  <!-- 커피 크레마 (거품) -->
+  <ellipse cx="256" cy="232" rx="100" ry="14" fill="#8B5E3C"/>
+  <ellipse cx="240" cy="230" rx="30" ry="8" fill="#C4915A" opacity="0.5"/>
+  <ellipse cx="272" cy="233" rx="22" ry="6" fill="#C4915A" opacity="0.4"/>
+
+  <!-- 컵 핸들 -->
+  <path d="M330 272 Q398 272 398 328 Q398 384 330 384" fill="none" stroke="#FFF5EC" stroke-width="24" stroke-linecap="round"/>
+  <path d="M330 272 Q390 272 390 328 Q390 378 330 378" fill="none" stroke="#F0E0CC" stroke-width="10" stroke-linecap="round"/>
+
+  <!-- 컵 줄무늬 장식 -->
+  <line x1="210" y1="260" x2="220" y2="395" stroke="#EDD5B8" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+  <line x1="256" y1="248" x2="256" y2="405" stroke="#EDD5B8" stroke-width="4" stroke-linecap="round" opacity="0.3"/>
+
+  <!-- 스팀 (연한 그린 = 친환경) -->
+  <path d="M200 188 C194 168 210 150 200 128" fill="none" stroke="#A8E6BC" stroke-width="11" stroke-linecap="round"/>
+  <path d="M256 178 C250 158 268 138 256 116" fill="none" stroke="#A8E6BC" stroke-width="11" stroke-linecap="round"/>
+  <path d="M312 188 C306 168 322 150 312 128" fill="none" stroke="#A8E6BC" stroke-width="11" stroke-linecap="round"/>
+
+  <!-- 잎사귀 (왼쪽 하단 포인트) -->
+  <path d="M118 340 C90 310 95 270 128 268 C128 268 115 305 118 340Z" fill="#5CB87A" opacity="0.85"/>
+  <path d="M118 340 C110 305 128 268 128 268" fill="none" stroke="#3D9952" stroke-width="3"/>
+</svg>
