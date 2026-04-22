@@ -158,10 +158,18 @@ export default function DriverHeader() {
 
     fetchNotifications()
 
-    // Realtime 구독
+    // Realtime 구독 1: 이 기사에게 배정된 pickup 변경 감지 (ASSIGNED/COMPLETED 등)
     const pickupSub = (supabase as any)
       .channel(`driver-pickups-${driverId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'pickups', filter: `driver_id=eq.${driverId}` },
+        () => fetchNotifications())
+      .subscribe()
+
+    // Realtime 구독 2: 새 수거 요청(REQUESTED) 감지
+    // REQUESTED 상태는 driver_id가 NULL이므로 위 채널에서 안 잡힘 → 별도 INSERT 채널 필요
+    const newCallSub = (supabase as any)
+      .channel(`new-pickup-requests-${driverId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'pickups' },
         () => fetchNotifications())
       .subscribe()
 
@@ -173,6 +181,7 @@ export default function DriverHeader() {
 
     return () => {
       ;(supabase as any).removeChannel(pickupSub)
+      ;(supabase as any).removeChannel(newCallSub)
       ;(supabase as any).removeChannel(announceSub)
     }
   }, [driverId, fetchNotifications])
