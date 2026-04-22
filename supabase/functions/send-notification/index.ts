@@ -68,6 +68,19 @@ async function getAccessToken(): Promise<string> {
 /* ── FCM 단건 발송 ── */
 async function sendFCM(token: string, title: string, body: string, data?: Record<string, string>) {
   const accessToken = await getAccessToken()
+
+  // data에서 Android 채널 ID 추출 (FCM data 필드에는 문자열만 가능)
+  const androidChannelId = data?.android_channel_id ?? 'notice'
+  const deepLink = data?.link ?? null
+
+  // FCM data 페이로드 (문자열 값만 허용)
+  const fcmData: Record<string, string> = {}
+  if (data) {
+    for (const [k, v] of Object.entries(data)) {
+      fcmData[k] = String(v)
+    }
+  }
+
   const res = await fetch(
     `https://fcm.googleapis.com/v1/projects/${PROJECT_ID}/messages:send`,
     {
@@ -80,12 +93,29 @@ async function sendFCM(token: string, title: string, body: string, data?: Record
         message: {
           token,
           notification: { title, body },
-          data: data ?? {},
+          data: fcmData,
+          // ── Android 네이티브 설정 ──
+          android: {
+            notification: {
+              channel_id: androidChannelId,   // Android 8+ 알림 채널
+              icon: 'ic_notification',         // res/drawable/ic_notification
+              color: '#2d9a4e',                // 에코 그린
+              sound: 'default',
+              ...(deepLink ? { click_action: 'OPEN_DEEP_LINK' } : {}),
+            },
+            ...(deepLink ? {
+              data: { ...fcmData, link: deepLink },
+            } : {}),
+          },
+          // ── 웹 푸시 설정 ──
           webpush: {
             notification: {
               title, body,
               icon: 'https://smartecosys.kr/icons/icon-192.png',
             },
+            ...(deepLink ? {
+              fcm_options: { link: `https://app.smartecosys.kr${deepLink}` },
+            } : {}),
           },
         },
       }),
@@ -172,7 +202,22 @@ serve(async (req) => {
           }
         }
 
-        const results = await Promise.all(notifications.map(n => sendFCM(n.token, n.title, n.body)))
+        // 수거 신청 알림: 기사는 홈(콜 목록), 점주/관리자는 수거내역으로
+        const pickupCafeData: Record<string, string> = {
+          link: '/driver',
+          android_channel_id: 'new_pickup_call',
+        }
+        const results = await Promise.all(notifications.map(n => {
+          const isDriver = cafe.driver_id && n.token !== cafe.fcm_token &&
+            !n.token.startsWith('company-')  // 기사 토큰인지 판별은 알림 수신자로 구분
+          // 기사 알림에는 driver 딥링크, 점주/관리자는 cafe/history 딥링크
+          const d = n.title.includes('새 수거 콜')
+            ? { link: '/driver', android_channel_id: 'new_pickup_call' }
+            : n.title.includes('수거 신청 완료')
+            ? { link: '/cafe/history', android_channel_id: 'pickup_assign' }
+            : { link: '/company/pickups', android_channel_id: 'notice' }
+          return sendFCM(n.token, n.title, n.body, d)
+        }))
         result = { sent: results.length, fcm: results }
       }
 

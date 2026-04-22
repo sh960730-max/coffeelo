@@ -92,7 +92,7 @@ function pageTitle(slide, title, subtitle) {
   });
 }
 function footerPage(slide, n) {
-  slide.addText(`${n} / 23`, {
+  slide.addText(`${n} / 25`, {
     x: W - 1.0, y: H - 0.4, w: 0.8, h: 0.3,
     fontSize: 9, color: C.light, align: "right", margin: 0
   });
@@ -892,7 +892,203 @@ async function build() {
   }
 
   // ============================================================
-  // SLIDE 16 - 국내 시장 규모
+  // SLIDE 16 - 고형 연료(Bio-SRF) 영업 전략
+  // ============================================================
+  {
+    const s = pres.addSlide();
+    pageFrame(s, C.green);
+    pageHeader(s, 3, "사업 소개");
+    pageTitle(s,
+      "투트랙(Two-Track) 시장 진입 — 고형 연료(Bio-SRF) 영업 전략",
+      "대규모 B2B 파이프라인 확보 및 고수익 B2C 니치마켓 공략"
+    );
+
+    // Description banner
+    s.addShape(pres.shapes.RECTANGLE, { x: 0.6, y: 2.15, w: 12.1, h: 0.65, fill: { color: C.greenSoft }, line: { color: C.green, width: 0.5 } });
+    s.addImage({ data: I.check, x: 0.8, y: 2.3, w: 0.35, h: 0.35 });
+    s.addText([
+      { text: "스마트에코시스의 고형 연료 사업은 ", options: { color: C.body } },
+      { text: "B2B 대량 공급을 통한 조기 매출 안정화", options: { color: C.dark, bold: true } },
+      { text: "와 ", options: { color: C.body } },
+      { text: "B2C 채널을 통한 고부가가치 창출", options: { color: C.dark, bold: true } },
+      { text: "을 동시에 달성하는 투트랙(Two-Track) 전략을 전개합니다.", options: { color: C.body } },
+    ], { x: 1.2, y: 2.2, w: 11.4, h: 0.55, fontSize: 11, valign: "middle", margin: 0 });
+
+    // Two column header cards (B2B blue / B2C green)
+    const colHeadY = 3.0;
+    s.addShape(pres.shapes.RECTANGLE, { x: 3.1, y: colHeadY, w: 4.85, h: 0.55, fill: { color: C.blue } });
+    s.addImage({ data: I.industry, x: 3.3, y: colHeadY + 0.1, w: 0.35, h: 0.35 });
+    s.addText("B2B (안정적 볼륨 확보)", { x: 3.75, y: colHeadY + 0.05, w: 4.1, h: 0.45, fontSize: 13, bold: true, color: "FFFFFF", valign: "middle", margin: 0 });
+
+    s.addShape(pres.shapes.RECTANGLE, { x: 7.95, y: colHeadY, w: 4.75, h: 0.55, fill: { color: C.green } });
+    s.addImage({ data: I.cart, x: 8.15, y: colHeadY + 0.1, w: 0.35, h: 0.35 });
+    s.addText("B2C (고부가가치 창출)", { x: 8.6, y: colHeadY + 0.05, w: 4.1, h: 0.45, fontSize: 13, bold: true, color: "FFFFFF", valign: "middle", margin: 0 });
+
+    // 3 rows
+    const rows = [
+      {
+        label: "핵심 타겟",
+        b2b: [{t:"산업용 연료 대형 수요처"},{t:"공공 / 사회복지 기관"}],
+        b2c: [{t:"친환경 가치 소비를 지향하는 캠핑족 및 레저 인구"}],
+      },
+      {
+        label: "주요 채널\n및 파트너",
+        b2b: [{t:"대형리싸이클링:",b:true},{t:" 산업용 수요 (구매의향서 체결 중)"},{t:"사랑의 연탄:",b:true},{t:" 공공/복지 수요 (구매의향서 체결 중)"}],
+        b2c: [{t:"네이버 스마트스토어, 쿠팡 등 D2C 채널"},{t:"캠핑 전문 커뮤니티 및 아웃도어 버티컬 플랫폼"}],
+      },
+      {
+        label: "전략적\n방향성",
+        b2b: [{t:"초기 캐시카우 창출:",b:true},{t:" LOI 기반의 사전 물량 확보로 양산 초기 리스크 최소화 및 공장 가동률 극대화"},{t:"ESG 가치 실현:",b:true},{t:" '사랑의 연탄' 공급 등 사회공헌(CSR) 결합을 통해 친환경 선도 기업으로서의 브랜드 이미지 구축"}],
+        b2c: [{t:"프리미엄 친환경 펠릿 포지셔닝:",b:true},{t:" 기존 목재 펠릿 대비 커피박 특유의 우수한 열량과 탈취 효과를 강조"},{t:"D2C 마진 극대화:",b:true},{t:" 유통 단계를 최소화하고 리뷰/바이럴 마케팅을 통한 직접 판매 활성화"}],
+      },
+    ];
+    const rowY = [3.7, 4.4, 5.4];
+    const rowH = [0.65, 0.95, 1.8];
+    rows.forEach((r, i) => {
+      const y = rowY[i], h = rowH[i];
+      // label cell
+      s.addShape(pres.shapes.RECTANGLE, { x: 0.6, y, w: 2.45, h, fill: { color: "EFF2F7" }, line: { color: C.border, width: 0.5 } });
+      s.addText(r.label, { x: 0.7, y, w: 2.3, h, fontSize: 12, bold: true, color: C.dark, align: "center", valign: "middle", margin: 0 });
+      // B2B cell
+      s.addShape(pres.shapes.RECTANGLE, { x: 3.1, y, w: 4.85, h, fill: { color: C.blueSoft }, line: { color: C.border, width: 0.5 } });
+      const b2bRuns = [];
+      r.b2b.forEach((item, idx) => {
+        if (typeof item === "object" && !Array.isArray(item)) {
+          b2bRuns.push({ text: "•  ", options: { color: C.blue, bold: true } });
+          // if item.t and the next item(s) are continuation of same bullet, handle inline
+          b2bRuns.push({ text: item.t, options: { color: item.b ? C.dark : C.body, bold: !!item.b, breakLine: !r.b2b[idx+1] || (idx+1 < r.b2b.length && !r.b2b[idx+1].b && idx === r.b2b.length - 1) } });
+        }
+      });
+      // Simplified: build bullets manually based on pattern
+      const b2bText = [];
+      for (let j = 0; j < r.b2b.length; j++) {
+        const cur = r.b2b[j];
+        if (cur.b && j + 1 < r.b2b.length && !r.b2b[j+1].b) {
+          // bold header + continuation
+          b2bText.push({ text: "• ", options: { color: C.blue, bold: true } });
+          b2bText.push({ text: cur.t, options: { color: C.dark, bold: true } });
+          b2bText.push({ text: r.b2b[j+1].t, options: { color: C.body, breakLine: j + 2 < r.b2b.length } });
+          j++;
+        } else {
+          b2bText.push({ text: "• ", options: { color: C.blue, bold: true } });
+          b2bText.push({ text: cur.t, options: { color: cur.b ? C.dark : C.body, bold: !!cur.b, breakLine: j < r.b2b.length - 1 } });
+        }
+      }
+      s.addText(b2bText, { x: 3.25, y: y + 0.08, w: 4.6, h: h - 0.16, fontSize: 10, paraSpaceAfter: 4, margin: 0 });
+
+      // B2C cell
+      s.addShape(pres.shapes.RECTANGLE, { x: 7.95, y, w: 4.75, h, fill: { color: C.greenSoft }, line: { color: C.border, width: 0.5 } });
+      const b2cText = [];
+      for (let j = 0; j < r.b2c.length; j++) {
+        const cur = r.b2c[j];
+        if (cur.b && j + 1 < r.b2c.length && !r.b2c[j+1].b) {
+          b2cText.push({ text: "• ", options: { color: C.green, bold: true } });
+          b2cText.push({ text: cur.t, options: { color: C.dark, bold: true } });
+          b2cText.push({ text: r.b2c[j+1].t, options: { color: C.body, breakLine: j + 2 < r.b2c.length } });
+          j++;
+        } else {
+          b2cText.push({ text: "• ", options: { color: C.green, bold: true } });
+          b2cText.push({ text: cur.t, options: { color: cur.b ? C.dark : C.body, bold: !!cur.b, breakLine: j < r.b2c.length - 1 } });
+        }
+      }
+      s.addText(b2cText, { x: 8.1, y: y + 0.08, w: 4.5, h: h - 0.16, fontSize: 10, paraSpaceAfter: 4, margin: 0 });
+    });
+    footerPage(s, 16);
+  }
+
+  // ============================================================
+  // SLIDE 17 - 고양이 모래 영업 전략
+  // ============================================================
+  {
+    const s = pres.addSlide();
+    pageFrame(s, C.green);
+    pageHeader(s, 3, "사업 소개");
+    pageTitle(s,
+      "밸류체인(Value Chain) 파트너십 + 친환경 자체 브랜드 — 고양이 모래 영업 전략",
+      "펫 시장 선점을 위한 빠른 시장 진입과 충성 고객 확보 투트랙"
+    );
+
+    // Description banner
+    s.addShape(pres.shapes.RECTANGLE, { x: 0.6, y: 2.15, w: 12.1, h: 0.65, fill: { color: C.greenSoft }, line: { color: C.green, width: 0.5 } });
+    s.addImage({ data: I.cat, x: 0.8, y: 2.3, w: 0.35, h: 0.35 });
+    s.addText([
+      { text: "폭발적으로 성장하는 펫 케어 시장에서 ", options: { color: C.body } },
+      { text: "기존 유통 강자와의 전략적 파트너십", options: { color: C.dark, bold: true } },
+      { text: "을 통해 시장 진입 속도를 높이고, ", options: { color: C.body } },
+      { text: "자체 브랜드를 통해 충성 고객을 확보", options: { color: C.dark, bold: true } },
+      { text: "합니다.", options: { color: C.body } },
+    ], { x: 1.2, y: 2.2, w: 11.4, h: 0.55, fontSize: 11, valign: "middle", margin: 0 });
+
+    const colHeadY = 3.0;
+    s.addShape(pres.shapes.RECTANGLE, { x: 3.1, y: colHeadY, w: 4.85, h: 0.55, fill: { color: C.blue } });
+    s.addImage({ data: I.truck, x: 3.3, y: colHeadY + 0.1, w: 0.35, h: 0.35 });
+    s.addText("B2B (유통망 및 레퍼런스 확보)", { x: 3.75, y: colHeadY + 0.05, w: 4.1, h: 0.45, fontSize: 13, bold: true, color: "FFFFFF", valign: "middle", margin: 0 });
+
+    s.addShape(pres.shapes.RECTANGLE, { x: 7.95, y: colHeadY, w: 4.75, h: 0.55, fill: { color: C.green } });
+    s.addImage({ data: I.cat, x: 8.15, y: colHeadY + 0.1, w: 0.35, h: 0.35 });
+    s.addText("B2C (자체 브랜드 구축)", { x: 8.6, y: colHeadY + 0.05, w: 4.1, h: 0.45, fontSize: 13, bold: true, color: "FFFFFF", valign: "middle", margin: 0 });
+
+    const rows2 = [
+      {
+        label: "핵심 타겟",
+        b2b: [{t:"기존 고양이 모래 전문 유통사 및 벤토나이트 취급 유통사"}],
+        b2c: [{t:"친환경 / 안전성에 민감한 밀레니얼 및 Z세대 반려인"}],
+      },
+      {
+        label: "주요 채널\n및 파트너",
+        b2b: [{t:"벤트닉스, 동해소재:",b:true},{t:" 수입 유통사 (구매의향서 체결 중)"},{t:"리본글로벌:",b:true},{t:" 도소매 유통 (업무협약(MOU) 체결 중)"}],
+        b2c: [{t:"자체 브랜드 온라인 몰 구축"},{t:"네이버 스마트스토어, 쿠팡, 반려동물 전문 플랫폼 입점"}],
+      },
+      {
+        label: "전략적\n방향성",
+        b2b: [{t:"유통망 피기배킹(Piggybacking):",b:true},{t:" 확고한 시장 점유율을 가진 유통망에 자사의 친환경 제품을 결합하여 빠르고 안정적인 시장 침투"},{t:"시장 신뢰도 확보:",b:true},{t:" 주요 유통사와의 MOU/LOI를 레퍼런스로 활용하여 타 파트너사 확장 시 협상력(Bargaining Power) 강화"}],
+        b2c: [{t:"에코-프리미엄(Eco-Premium) 스토리텔링:",b:true},{t:" 압도적인 커피박 탈취력과 '버려지는 자원의 가치 창출'이라는 ESG 스토리를 결합"},{t:"고객 락인(Lock-in) 전략:",b:true},{t:" 소모품 특성을 활용한 정기 구독 서비스 모델 도입으로 LTV(고객 생애 가치) 극대화"}],
+      },
+    ];
+    const rowY2 = [3.7, 4.4, 5.4];
+    const rowH2 = [0.65, 0.95, 1.8];
+    rows2.forEach((r, i) => {
+      const y = rowY2[i], h = rowH2[i];
+      s.addShape(pres.shapes.RECTANGLE, { x: 0.6, y, w: 2.45, h, fill: { color: "EFF2F7" }, line: { color: C.border, width: 0.5 } });
+      s.addText(r.label, { x: 0.7, y, w: 2.3, h, fontSize: 12, bold: true, color: C.dark, align: "center", valign: "middle", margin: 0 });
+
+      s.addShape(pres.shapes.RECTANGLE, { x: 3.1, y, w: 4.85, h, fill: { color: C.blueSoft }, line: { color: C.border, width: 0.5 } });
+      const b2bText = [];
+      for (let j = 0; j < r.b2b.length; j++) {
+        const cur = r.b2b[j];
+        if (cur.b && j + 1 < r.b2b.length && !r.b2b[j+1].b) {
+          b2bText.push({ text: "• ", options: { color: C.blue, bold: true } });
+          b2bText.push({ text: cur.t, options: { color: C.dark, bold: true } });
+          b2bText.push({ text: r.b2b[j+1].t, options: { color: C.body, breakLine: j + 2 < r.b2b.length } });
+          j++;
+        } else {
+          b2bText.push({ text: "• ", options: { color: C.blue, bold: true } });
+          b2bText.push({ text: cur.t, options: { color: cur.b ? C.dark : C.body, bold: !!cur.b, breakLine: j < r.b2b.length - 1 } });
+        }
+      }
+      s.addText(b2bText, { x: 3.25, y: y + 0.08, w: 4.6, h: h - 0.16, fontSize: 10, paraSpaceAfter: 4, margin: 0 });
+
+      s.addShape(pres.shapes.RECTANGLE, { x: 7.95, y, w: 4.75, h, fill: { color: C.greenSoft }, line: { color: C.border, width: 0.5 } });
+      const b2cText = [];
+      for (let j = 0; j < r.b2c.length; j++) {
+        const cur = r.b2c[j];
+        if (cur.b && j + 1 < r.b2c.length && !r.b2c[j+1].b) {
+          b2cText.push({ text: "• ", options: { color: C.green, bold: true } });
+          b2cText.push({ text: cur.t, options: { color: C.dark, bold: true } });
+          b2cText.push({ text: r.b2c[j+1].t, options: { color: C.body, breakLine: j + 2 < r.b2c.length } });
+          j++;
+        } else {
+          b2cText.push({ text: "• ", options: { color: C.green, bold: true } });
+          b2cText.push({ text: cur.t, options: { color: cur.b ? C.dark : C.body, bold: !!cur.b, breakLine: j < r.b2c.length - 1 } });
+        }
+      }
+      s.addText(b2cText, { x: 8.1, y: y + 0.08, w: 4.5, h: h - 0.16, fontSize: 10, paraSpaceAfter: 4, margin: 0 });
+    });
+    footerPage(s, 17);
+  }
+
+  // ============================================================
+  // SLIDE 18 - 국내 시장 규모 (was 16)
   // ============================================================
   {
     const s = pres.addSlide();
@@ -929,11 +1125,11 @@ async function build() {
       s.addText(c.num, { x: x + w - 1.55, y: c.y + 0.2, w: 1.4, h: 0.4, fontSize: 14, bold: true, color: c.dark ? C.green : c.color, align: "right", margin: 0 });
       s.addText(c.desc, { x: x + 0.25, y: c.y + 0.75, w: w - 0.5, h: 0.7, fontSize: 10, color: c.dark ? "CBD5E1" : C.body, margin: 0 });
     });
-    footerPage(s, 16);
+    footerPage(s, 18);
   }
 
   // ============================================================
-  // SLIDE 17 - 국외 시장 규모
+  // SLIDE 19 - 국외 시장 규모
   // ============================================================
   {
     const s = pres.addSlide();
@@ -968,11 +1164,11 @@ async function build() {
       s.addText(c.num, { x: x + w - 1.55, y: c.y + 0.2, w: 1.4, h: 0.4, fontSize: 14, bold: true, color: c.dark ? C.green : c.color, align: "right", margin: 0 });
       s.addText(c.desc, { x: x + 0.25, y: c.y + 0.75, w: w - 0.5, h: 0.7, fontSize: 10, color: c.dark ? "CBD5E1" : C.body, margin: 0 });
     });
-    footerPage(s, 17);
+    footerPage(s, 19);
   }
 
   // ============================================================
-  // SLIDE 18 - 5개년 카페 파트너 로드맵
+  // SLIDE 20 - 5개년 카페 파트너 로드맵
   // ============================================================
   {
     const s = pres.addSlide();
@@ -1009,11 +1205,11 @@ async function build() {
       { text: "20% (2만 개)", options: { color: C.green, bold: true } },
       { text: " 파트너십 확보", options: { color: "FFFFFF" } },
     ], { x: 1.45, y: 6.88, w: 11.0, h: 0.35, fontSize: 14, bold: true, margin: 0 });
-    footerPage(s, 18);
+    footerPage(s, 20);
   }
 
   // ============================================================
-  // SLIDE 19 - 1차년도 매출 계획
+  // SLIDE 21 - 1차년도 매출 계획
   // ============================================================
   {
     const s = pres.addSlide();
@@ -1054,11 +1250,11 @@ async function build() {
       x: 0.6, y: 2.2, w: 12.1, colW: [0.9, 1.7, 1.0, 1.3, 3.4, 2.1, 1.7],
       border: { pt: 0.5, color: C.border }, fontFace: FONT_B, rowH: 0.32,
     });
-    footerPage(s, 19);
+    footerPage(s, 21);
   }
 
   // ============================================================
-  // SLIDE 20 - 5개년 매출 계획
+  // SLIDE 22 - 5개년 매출 계획
   // ============================================================
   {
     const s = pres.addSlide();
@@ -1096,11 +1292,11 @@ async function build() {
       x: 0.6, y: 2.2, w: 12.1, colW: [3.1, 1.8, 1.8, 1.8, 1.8, 1.8],
       border: { pt: 0.5, color: C.border }, fontFace: FONT_B, rowH: 0.42,
     });
-    footerPage(s, 20);
+    footerPage(s, 22);
   }
 
   // ============================================================
-  // SLIDE 21 - 5개년 비용/영업이익
+  // SLIDE 23 - 5개년 비용/영업이익
   // ============================================================
   {
     const s = pres.addSlide();
@@ -1142,11 +1338,11 @@ async function build() {
       x: 0.6, y: 2.2, w: 12.1, colW: [2.9, 1.84, 1.84, 1.84, 1.84, 1.84],
       border: { pt: 0.5, color: C.border }, fontFace: FONT_B, rowH: 0.32,
     });
-    footerPage(s, 21);
+    footerPage(s, 23);
   }
 
   // ============================================================
-  // SLIDE 22 - 투자 유치
+  // SLIDE 24 - 투자 유치
   // ============================================================
   {
     const s = pres.addSlide();
@@ -1201,11 +1397,11 @@ async function build() {
     s.addText("합계 (Total)", { x: 6.8, y: 6.72, w: 3.0, h: 0.36, fontSize: 11, bold: true, color: C.dark, valign: "middle", margin: 0 });
     s.addText("5억 원", { x: 9.85, y: 6.72, w: 1.8, h: 0.36, fontSize: 13, bold: true, color: C.greenDark, align: "right", valign: "middle", margin: 0 });
     s.addText("100%", { x: 11.7, y: 6.72, w: 0.85, h: 0.36, fontSize: 11, bold: true, color: C.greenDark, align: "right", valign: "middle", margin: 0 });
-    footerPage(s, 22);
+    footerPage(s, 24);
   }
 
   // ============================================================
-  // SLIDE 23 - 감사합니다
+  // SLIDE 25 - 감사합니다
   // ============================================================
   {
     const s = pres.addSlide();

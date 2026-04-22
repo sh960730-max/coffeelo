@@ -162,7 +162,8 @@ export default function HomePage() {
     await db.from('pickups').update({ driver_id: driverId, status: 'ASSIGNED' }).eq('id', callId)
     // 점주에게 수락 알림
     if (pickup?.cafe_id) {
-      notifyCafe(pickup.cafe_id, '수거 기사 배정 완료 🚛', '담당 기사님이 배정되었습니다. 수거 내역에서 확인하세요.')
+      notifyCafe(pickup.cafe_id, '수거 기사 배정 완료 🚛', '담당 기사님이 배정되었습니다. 수거 내역에서 확인하세요.',
+        { link: '/cafe/history', android_channel_id: 'pickup_assign' })
     }
     await loadData()
   }
@@ -175,7 +176,8 @@ export default function HomePage() {
     await db.from('pickups').update({ status: 'CANCELLED' }).eq('id', callId)
     // 점주에게 거절 알림
     if (pickup?.cafe_id) {
-      notifyCafe(pickup.cafe_id, '수거 거절 알림 😢', '기사님이 수거를 거절했습니다. 다시 신청하거나 취소해주세요.')
+      notifyCafe(pickup.cafe_id, '수거 거절 알림 😢', '기사님이 수거를 거절했습니다. 다시 신청하거나 취소해주세요.',
+        { link: '/cafe/history', android_channel_id: 'pickup_assign' })
     }
   }
 

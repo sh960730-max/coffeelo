@@ -112,7 +112,28 @@
       "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\SMARTECOSYS\\\\pptx_build\\\\extract3.ps1\")",
       "Bash(node -e \"const m=JSON.parse\\(require\\('fs'\\).readFileSync\\('s3_meta.json','utf8'\\).replace\\(/^\\\\uFEFF/,''\\)\\); for\\(let i=1;i<=11;i++\\){const s=m.slides.find\\(x=>x.slide===i\\); const imgs=s.shapes.filter\\(sh=>sh.width>=60&&sh.height>=60\\); console.log\\('S'+i+': '+imgs.length+' imgs'\\); imgs.sort\\(\\(a,b\\)=>\\(b.width*b.height\\)-\\(a.width*a.height\\)\\).slice\\(0,4\\).forEach\\(sh=>console.log\\('  '+sh.file+' w='+sh.width.toFixed\\(0\\)+' h='+sh.height.toFixed\\(0\\)\\)\\);}\")",
       "Bash(node build3.js)",
-      "Bash(python3 -c \"import sys, json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts', {}\\), indent=2\\)\\)\")"
+      "Bash(python3 -c \"import sys, json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('scripts', {}\\), indent=2\\)\\)\")",
+      "Bash(node -e ' *)",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\SMARTECOSYS\\\\pptx_build\\\\extract4.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\SMARTECOSYS\\\\pptx_build\\\\analyze4.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\SMARTECOSYS\\\\pptx_build\\\\fix4.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\SMARTECOSYS\\\\pptx_build\\\\export4.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\SMARTECOSYS\\\\pptx_build\\\\fix4b.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\SMARTECOSYS\\\\pptx_build\\\\count4.ps1\")",
+      "Bash(powershell.exe -ExecutionPolicy Bypass -File \"C:\\\\SMARTECOSYS\\\\pptx_build\\\\fix4c.ps1\")",
+      "Bash(node fix4d.js)",
+      "Bash(powershell.exe -Command \"Expand-Archive -Path 'C:\\\\SMARTECOSYS\\\\pptx_build\\\\output4.pptx' -DestinationPath 'C:\\\\SMARTECOSYS\\\\pptx_build\\\\pptx_unpack' -Force\")",
+      "Bash(cp /c/SMARTECOSYS/pptx_build/output4.pptx /tmp/output4.zip)",
+      "Bash(unzip -o output4.zip -d /c/SMARTECOSYS/pptx_build/pptx_unpack/)",
+      "Bash(node repack.js)",
+      "Bash(rm -rf /c/SMARTECOSYS/pptx_build/pptx_unpack)",
+      "Bash(mkdir -p /c/SMARTECOSYS/pptx_build/pptx_unpack)",
+      "Bash(unzip -o /tmp/output4.zip)",
+      "Bash(cp /c/SMARTECOSYS/pptx_build/output4.pptx /tmp/check.zip)",
+      "Bash(unzip -p check.zip ppt/slides/slide18.xml)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.get\\('dependencies',{}\\).items\\(\\) if 'capacitor' in k.lower\\(\\) or 'ionic' in k.lower\\(\\)}, indent=2\\)\\)\")",
+      "Bash(findstr /i \"capacitor\")",
+      "Bash(npx cap *)"
     ]
   }
 }

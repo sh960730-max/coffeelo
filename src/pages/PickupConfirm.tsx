@@ -216,6 +216,7 @@ export default function PickupConfirm() {
         cafeId,
         '수거 완료 ✅',
         `${storeInfo.name} 수거가 완료되었습니다. 총 ${totalWeight.toFixed(1)}kg`,
+        { link: '/cafe/history', android_channel_id: 'pickup_complete' },
       )
     }
 

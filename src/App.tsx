@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { useDeepLink } from './hooks/useDeepLink'
 
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
@@ -75,6 +76,8 @@ function ProtectedRoute({ children, requiredRole }: { children: React.ReactNode;
 
 function AppRoutes() {
   const { isAuthenticated, isLoading, role } = useAuth()
+  // Capacitor 딥링크 (FCM 알림 탭 / App Links) → react-router 연결
+  useDeepLink()
 
   if (isLoading) {
     return (
