@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, Truck, ChevronDown, X, Megaphone, Package, CheckCircle2, ChevronRight } from 'lucide-react'
+import { Bell, Truck, ChevronDown, X, Megaphone, Package, CheckCircle2, ChevronRight, PhoneIncoming } from 'lucide-react'
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
@@ -25,7 +25,7 @@ function getReadIds(driverId: string): Set<string> {
 
 interface NotifItem {
   id: string
-  type: 'assign' | 'complete' | 'notice'
+  type: 'call' | 'assign' | 'complete' | 'notice'
   title: string
   time: string
 }
@@ -59,8 +59,35 @@ export default function DriverHeader() {
     todayStart.setHours(0, 0, 0, 0)
     const items: NotifItem[] = []
 
+    // 새 수거 콜 알림 (담당 카페의 REQUESTED 상태 — 아직 배정 안 된 것)
+    if (settings.call) {
+      const { data: assignedCafes } = await db.from('cafes')
+        .select('id')
+        .eq('driver_id', driverId)
+        .eq('status', 'APPROVED')
+      const cafeIds = (assignedCafes || []).map((c: any) => c.id)
+      if (cafeIds.length > 0) {
+        const { data: calls } = await db.from('pickups')
+          .select('id, cafe:cafes(name), requested_at, created_at')
+          .eq('status', 'REQUESTED')
+          .in('cafe_id', cafeIds)
+          .gte('created_at', todayStart.toISOString())
+          .order('created_at', { ascending: false })
+          .limit(10)
+        calls?.forEach((c: any) => {
+          const t = new Date(c.requested_at ?? c.created_at)
+          items.push({
+            id: `call_${c.id}`,
+            type: 'call',
+            title: `${c.cafe?.name ?? '매장'} 새 수거 콜`,
+            time: t.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
+          })
+        })
+      }
+    }
+
     // 배정 알림
-    if (settings.assign || settings.call) {
+    if (settings.assign) {
       const { data } = await db.from('pickups')
         .select('id, cafe:cafes(name), created_at, requested_at')
         .eq('driver_id', driverId)
@@ -120,7 +147,7 @@ export default function DriverHeader() {
     }
 
     setNotifs(items)
-  }, [driverId, settings.assign, settings.call, settings.complete, settings.notice])
+  }, [driverId, settings.call, settings.assign, settings.complete, settings.notice])
 
   useEffect(() => {
     if (!driverId) return
@@ -169,7 +196,9 @@ export default function DriverHeader() {
     })
     // 패널 닫고 해당 페이지로 이동
     setShowNotif(false)
-    if (n.type === 'assign') {
+    if (n.type === 'call') {
+      navigate('/driver')  // 홈 화면의 대기 콜 목록으로
+    } else if (n.type === 'assign') {
       const pickupId = n.id.replace('assign_', '')
       navigate(`/driver/pickup/${pickupId}`)
     } else if (n.type === 'complete') {
@@ -195,9 +224,10 @@ export default function DriverHeader() {
   }
 
   const iconConfig = {
-    assign: { bg: 'bg-eco-green/10', color: 'text-eco-green', Icon: Package },
-    complete: { bg: 'bg-blue-50', color: 'text-blue-500', Icon: CheckCircle2 },
-    notice: { bg: 'bg-amber-50', color: 'text-amber-500', Icon: Megaphone },
+    call:     { bg: 'bg-red-50',         color: 'text-red-500',   Icon: PhoneIncoming },
+    assign:   { bg: 'bg-eco-green/10',   color: 'text-eco-green', Icon: Package },
+    complete: { bg: 'bg-blue-50',        color: 'text-blue-500',  Icon: CheckCircle2 },
+    notice:   { bg: 'bg-amber-50',       color: 'text-amber-500', Icon: Megaphone },
   }
 
   return (
