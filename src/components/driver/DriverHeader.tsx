@@ -197,7 +197,8 @@ export default function DriverHeader() {
     // 패널 닫고 해당 페이지로 이동
     setShowNotif(false)
     if (n.type === 'call') {
-      navigate('/driver')  // 홈 화면의 대기 콜 목록으로
+      const pickupId = n.id.replace('call_', '')
+      navigate('/driver', { state: { openCallId: pickupId } })
     } else if (n.type === 'assign') {
       const pickupId = n.id.replace('assign_', '')
       navigate(`/driver/pickup/${pickupId}`)

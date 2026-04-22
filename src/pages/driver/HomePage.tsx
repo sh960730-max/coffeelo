@@ -185,7 +185,12 @@ export default function HomePage() {
       <div ref={activeRef}>
         <ActivePickupCard pickups={activePickups} onPickupConfirm={handlePickupConfirm} />
       </div>
-      <PickupCallList calls={calls} onAccept={handleAcceptCall} onDecline={handleDeclineCall} />
+      <PickupCallList
+        calls={calls}
+        onAccept={handleAcceptCall}
+        onDecline={handleDeclineCall}
+        openCallId={(location.state as any)?.openCallId ?? null}
+      />
       <DriverStats />
     </>
   )

@@ -29,9 +29,10 @@ interface PickupCallListProps {
   calls: PickupCall[]
   onAccept: (id: string) => void
   onDecline: (id: string) => void
+  openCallId?: string | null
 }
 
-export default function PickupCallList({ calls, onAccept, onDecline }: PickupCallListProps) {
+export default function PickupCallList({ calls, onAccept, onDecline, openCallId }: PickupCallListProps) {
   const [selectedCall, setSelectedCall] = useState<PickupCall | null>(null)
   const [displayCalls, setDisplayCalls] = useState<PickupCall[]>(calls)
   const [sortedByDist, setSortedByDist] = useState(false)
@@ -43,6 +44,13 @@ export default function PickupCallList({ calls, onAccept, onDecline }: PickupCal
     setSortedByDist(false)
     setDisplayCalls(calls)
   }, [calls])
+
+  // 알림 클릭으로 특정 콜 ID가 전달되면 해당 콜 상세 자동 오픈
+  useEffect(() => {
+    if (!openCallId || calls.length === 0) return
+    const target = calls.find(c => c.id === openCallId)
+    if (target) setSelectedCall(target)
+  }, [openCallId, calls])
 
   // 주소 단계별 축약 후보 생성
   // "서울 서초구 서초중앙로24길 10 1층 101호" →
