@@ -5,6 +5,7 @@ import { useDeepLink } from './hooks/useDeepLink'
 
 import LoginPage from './pages/LoginPage'
 import SignupPage from './pages/SignupPage'
+import PublicPrivacyPage from './pages/PublicPrivacyPage'
 
 // Driver
 import DriverLayout from './pages/driver/DriverLayout'
@@ -155,6 +156,9 @@ function AppRoutes() {
         <Route path="privacy" element={<PrivacyPage />} />
         <Route path="inquiry" element={<CompanyInquiryPage />} />
       </Route>
+
+      {/* 공개 페이지 (로그인 불필요) */}
+      <Route path="/privacy" element={<PublicPrivacyPage />} />
 
       <Route path="*" element={<Navigate to={isAuthenticated ? defaultRoute : '/login'} replace />} />
     </Routes>
