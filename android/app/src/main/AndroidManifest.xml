@@ -65,8 +65,10 @@
     <!-- 진동 -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- 카메라 (수거 사진 촬영) -->
+    <!-- 카메라 (수거 사진 촬영) - 선택적 기능 -->
     <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
 
     <!-- 위치 (지도 기능, 선택적) -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
