@@ -107,14 +107,24 @@ async function sendFCM(token: string, title: string, body: string, data?: Record
               data: { ...fcmData, link: deepLink },
             } : {}),
           },
-          // ── 웹 푸시 설정 ──
+          // ── 웹 푸시 설정 (iOS Safari 호환) ──
+          // data 필드에 title/body 중복 전송 → 서비스워커에서 data 우선 사용
+          // → iOS 한글 깨짐 방지
           webpush: {
             notification: {
               title, body,
               icon: 'https://smartecosys.kr/icons/icon-192.png',
+              tag: `coffeelo-${Date.now()}`,
+            },
+            data: {
+              title,
+              body,
+              icon: 'https://smartecosys.kr/icons/icon-192.png',
+              tag: `coffeelo-${Date.now()}`,
+              ...(deepLink ? { link: deepLink } : {}),
             },
             ...(deepLink ? {
-              fcm_options: { link: `https://app.smartecosys.kr${deepLink}` },
+              fcm_options: { link: `https://smartecosys.kr${deepLink}` },
             } : {}),
           },
         },
