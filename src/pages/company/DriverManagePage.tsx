@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../contexts/AuthContext'
+import { notifyDriver } from '../../lib/notify'
 
 interface Driver {
   id: string
@@ -116,6 +117,7 @@ export default function DriverManagePage() {
   const handleApprove = async (driverId: string) => {
     setApproving(driverId)
     await db.from('drivers').update({ status: 'APPROVED' }).eq('id', driverId)
+    await notifyDriver(driverId, '가입 승인 완료 ✅', '가입이 승인되었습니다. 이제 수거를 시작할 수 있습니다!', { android_channel_id: 'notice' })
     setApproving(null)
     fetchDrivers()
   }
@@ -123,6 +125,7 @@ export default function DriverManagePage() {
   const handleReject = async (driverId: string) => {
     setApproving(driverId)
     await db.from('drivers').update({ status: 'REJECTED' }).eq('id', driverId)
+    await notifyDriver(driverId, '가입 승인 거절 😢', '죄송하지만 가입이 거절되었습니다. 관리자에게 문의해주세요.', { android_channel_id: 'notice' })
     setApproving(null)
     fetchDrivers()
   }

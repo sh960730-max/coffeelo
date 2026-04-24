@@ -9,6 +9,7 @@ import {
 import * as XLSX from 'xlsx'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { notifyDriver } from '../../lib/notify'
 
 const MONTHLY_TARGET_KG = 300 // 기사 1인당 월 목표 수거량(kg)
 const CO2_PER_KG = 0.5        // 커피박 1kg 당 CO2 절감(kg)
@@ -344,17 +345,32 @@ export default function SettlementManagePage() {
         showToast('저장 실패: ' + (error.message || '알 수 없는 오류'), 'error')
       } else {
         showToast('실적이 확정되었습니다')
+        const amount = synth.gross_amount?.toLocaleString() ?? '0'
+        if (newStatus === 'CONFIRMED') {
+          await notifyDriver(synth.driver_id, '정산 확정 완료 💰', `${amount}원이 확정되었습니다. 정산 내역을 확인해주세요.`, { android_channel_id: 'notice' })
+        } else if (newStatus === 'PAID') {
+          await notifyDriver(synth.driver_id, '정산금 지급 완료 🎉', `${amount}원이 지급되었습니다.`, { android_channel_id: 'notice' })
+        }
         await fetchSettlements()
       }
       setUpdating(null)
       return
     }
 
+    const settlement = settlements.find(s => s.id === settlementId)
     const { error } = await db.from('settlements').update({ status: newStatus }).eq('id', settlementId)
     if (error) {
       showToast('업데이트 실패: ' + (error.message || '알 수 없는 오류'), 'error')
     } else {
-      showToast('실적이 확정되었습니다')
+      showToast(newStatus === 'PAID' ? '정산금이 지급되었습니다' : '실적이 확정되었습니다')
+      if (settlement) {
+        const amount = settlement.gross_amount?.toLocaleString() ?? '0'
+        if (newStatus === 'CONFIRMED') {
+          await notifyDriver(settlement.driver_id, '정산 확정 완료 💰', `${amount}원이 확정되었습니다. 정산 내역을 확인해주세요.`, { android_channel_id: 'notice' })
+        } else if (newStatus === 'PAID') {
+          await notifyDriver(settlement.driver_id, '정산금 지급 완료 🎉', `${amount}원이 지급되었습니다.`, { android_channel_id: 'notice' })
+        }
+      }
     }
     await fetchSettlements()
     setUpdating(null)

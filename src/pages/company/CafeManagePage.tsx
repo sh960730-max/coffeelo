@@ -8,6 +8,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { supabase } from '../../lib/supabase'
+import { notifyCafe } from '../../lib/notify'
 import KakaoAddressModal from '../../components/KakaoAddressModal'
 import { geocodeKakao } from '../../lib/geocodeKakao'
 
@@ -123,6 +124,7 @@ export default function CafeManagePage() {
     }
     // 즉시 UI 업데이트
     setPendingCafes(prev => prev.filter(c => c.id !== cafeId))
+    await notifyCafe(cafeId, '가입 승인 완료 ✅', '가입이 승인되었습니다. 이제 수거를 신청할 수 있습니다!', { android_channel_id: 'notice' })
     await loadCafes()
     setApproving(null)
   }
@@ -139,6 +141,7 @@ export default function CafeManagePage() {
     }
     // 즉시 UI 업데이트
     setPendingCafes(prev => prev.filter(c => c.id !== cafeId))
+    await notifyCafe(cafeId, '가입 승인 거절 😢', '죄송하지만 가입이 거절되었습니다. 관리자에게 문의해주세요.', { android_channel_id: 'notice' })
     await loadCafes()
     setApproving(null)
   }
